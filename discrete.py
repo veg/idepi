@@ -33,7 +33,6 @@ from os import remove, rename
 from os.path import basename, dirname, exists, join, realpath, splitext
 from random import gauss, randint, random, seed
 from re import sub, match
-from subprocess import Popen, PIPE
 from tempfile import mkstemp
 
 # add biopython, cvxopt, pil to my path if I'm on Mac OS X
@@ -446,12 +445,12 @@ def generate_alignment_from_SeqRecords(filename, seq_records):
 
         print >> sys.stderr, 'Aligning %d sequences with HMMER:' % (len(seq_records)+1),
 
+        hmmer = Hmmer(OPTIONS.HMMER_ALIGN_BIN, OPTIONS.HMMER_BUILD_BIN)
+
         for i in xrange(0, OPTIONS.HMMER_ITER):
             print >> sys.stderr, '%d,' % i,
-            build_process = Popen(hmmer_build_args, close_fds = True, stderr = PIPE, stdout = PIPE)
-            build_process.communicate()
-            align_process = Popen(hmmer_align_args, close_fds = True, stderr = PIPE, stdout = PIPE)
-            align_process.communicate()
+            hmmer.build(hmm_filename, sto_filename)
+            hmmer.align(hmm_filename, ab_fasta_filename, output=sto_filename, alphabet=DNA if OPTIONS.DNA else AMINO, outformat=PFAM)
 
         # rename the final alignment to its destination
         print >> sys.stderr, 'done, output moved to: %s' % filename

@@ -28,16 +28,16 @@ import multiprocessing as mp
 from time import sleep
 
 
-__all__ = ['UIThread']
+__all__ = ['UiThread']
 
 
-class UIThread(mp.Process):
+class UiThread(mp.Process):
 
     def __init__(self):
         m = mp.Manager()
         p = m.Value('i', 0)
         c = m.Value('i', sys.maxint)
-        super(UIThread, self).__init__(target=self.completion, args=(p, c))
+        super(UiThread, self).__init__(target=UiThread.completion, args=(p, c))
         self.daemon = True
         self.manager = m
         self.progress = p 

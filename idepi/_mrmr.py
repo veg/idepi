@@ -47,13 +47,17 @@ MIQ = 2
 class Mrmr(object):
     __DEFAULT_THRESHOLD = 0.8
 
-    def __init__(self, num_features=10, method=MID):
+    def __init__(self, num_features=10, method=MID, threshold=None):
+        if threshold is None:
+            threshold = self.__DEFAULT_THRESHOLD
+
         self.__computed = False
         self.__colsize = 0
         self.__maxrel = None
         self.__mrmr = None
         self.method = method
         self.num_features = num_features
+        self.threshold = threshold
 
     @staticmethod
     def __compute_mi_inner(x, vars_v, targets_t, p=None):
@@ -127,9 +131,12 @@ class Mrmr(object):
         return mi[a, b] - Mrmr.__compute_apc(mi, a, b, mibar)
 
     @classmethod
-    def __mrmr_selection(cls, num_features, method, targets, vars, ui=None):
+    def __mrmr_selection(cls, num_features, method, vars, targets, threshold=None, ui=None):
         if method not in (MAXREL, MID, MIQ):
             raise ValueError('method must be one of Mrmr.MAXREL, Mrmr.MID, or Mrmr.MIQ')
+
+        if threshold is None:
+            threshold = cls.__DEFAULT_THRESHOLD
 
         np_err = np.geterr()
        
@@ -187,7 +194,7 @@ class Mrmr(object):
     
         # find related values 
         mu = sorted(zip(range(y), mir_vars[idx].tolist()[0]), key=itemgetter(1), reverse=True)
-        related = [k for k in mu if k[1] > cls.__DEFAULT_THRESHOLD and k[0] != idx]
+        related = [k for k in mu if k[1] > threshold and k[0] != idx]
         
         mrmr_vals = [(idx, maxrel, related)]
         mask_idxs = [idx]
@@ -251,7 +258,7 @@ class Mrmr(object):
             raise ValueError('`y\' should have as many entries as `x\' has rows.')
 
         self.__maxrel, self.__mrmr = None, None
-        self.__maxrel, self.__mrmr = Mrmr.__mrmr_selection(self.num_features, self.method, targets, vars)
+        self.__maxrel, self.__mrmr = Mrmr.__mrmr_selection(self.num_features, self.method, targets, vars, self.threshold, ui)
 
         self.__colsize = vars.shape[1]
         self.__computed = True
