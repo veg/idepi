@@ -29,24 +29,20 @@ from _gridsearcher import GridSearcher
 from _perfstats import *
 
 
-__all__ = [
-    'ACCURACY',
-    'PPV',
-    'PRECISION',
-    'NPV',
-    'SENSITIVITY',
-    'RECALL',
-    'SPECIFICITY',
-    'TNR',
-    'FSCORE',
-    'MINSTAT',
-    'NestedCrossValidator'
-]
+__all__ = ['NestedCrossValidator']
 
 
 class NestedCrossValidator(CrossValidator):
 
-    def __init__(self, classifiercls, folds, cv={}, optstat=MINSTAT, gs={}):
+    ACCURACY            = PerfStats.ACCURACY
+    PPV, PRECISION      = PerfStats.PPV, PerfStats.PRECISION
+    NPV                 = PerfStats.NPV
+    SENSITIVITY, RECALL = PerfStats.SENSITIVITY, PerfStats.RECALL
+    SPECIFICITY, TNR    = PerfStats.SPECIFICITY, PerfStats.TNR
+    FSCORE              = PerfStats.FSCORE
+    MINSTAT             = PerfStats.MINSTAT
+
+    def __init__(self, classifiercls, folds, cv={}, optstat=PerfStats.MINSTAT, gs={}):
 
         ncv = {
             'classifiercls': classifiercls,

@@ -30,25 +30,21 @@ from _normalvalue import NormalValue
 from _crossvalidator import CrossValidator
 
 
-__all__ = [
-    'ACCURACY',
-    'PPV',
-    'PRECISION',
-    'NPV',
-    'SENSITIVITY',
-    'RECALL',
-    'SPECIFICITY',
-    'TNR',
-    'FSCORE',
-    'MINSTAT',
-    'GridSearcher'
-]
+__all__ = ['GridSearcher']
 
 
 # implement cross-validation interface here, grid-search optional
 class GridSearcher(CrossValidator):
 
-    def __init__(self, classifiercls, folds, cv={}, optstat=MINSTAT, gs={}):
+    ACCURACY            = PerfStats.ACCURACY
+    PPV, PRECISION      = PerfStats.PPV, PerfStats.PRECISION
+    NPV                 = PerfStats.NPV
+    SENSITIVITY, RECALL = PerfStats.SENSITIVITY, PerfStats.RECALL
+    SPECIFICITY, TNR    = PerfStats.SPECIFICITY, PerfStats.TNR
+    FSCORE              = PerfStats.FSCORE
+    MINSTAT             = PerfStats.MINSTAT
+
+    def __init__(self, classifiercls, folds, cv={}, optstat=PerfStats.MINSTAT, gs={}):
         super(GridSearcher, self).__init__(classifiercls, folds, cv)
         self.gs = gs
         self.optstat = optstat
@@ -103,6 +99,9 @@ class GridSearcher(CrossValidator):
 
     def learn(self, x, y):
         gsret = GridSearcher.gridsearch(self, x, y)
+
+        # print 'gridsearch stats:', gsret['stats'] 
+        # print 'optimum parameters:', gsret['kwargs']
 
         self.classifier = self.classifiercls(**gsret['kwargs'])
         # I don't like unmangling the private name, but here it is..

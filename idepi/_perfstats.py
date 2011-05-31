@@ -25,30 +25,18 @@
 from _normalvalue import NormalValue
 
 
-__all__ = [
-    'ACCURACY',
-    'PPV',
-    'PRECISION',
-    'NPV',
-    'SENSITIVITY',
-    'RECALL',
-    'SPECIFICITY',
-    'TNR',
-    'FSCORE',
-    'MINSTAT',
-    'PerfStats'
-]
-
-ACCURACY            = 0
-PPV, PRECISION      = 1, 1
-NPV                 = 2
-SENSITIVITY, RECALL = 3, 3
-SPECIFICITY, TNR    = 4, 4
-FSCORE              = 5
-MINSTAT             = 6
+__all__ = ['PerfStats']
 
 
 class PerfStats(object):
+
+    ACCURACY            = 0
+    PPV, PRECISION      = 1, 1
+    NPV                 = 2
+    SENSITIVITY, RECALL = 3, 3
+    SPECIFICITY, TNR    = 4, 4
+    FSCORE              = 5
+    MINSTAT             = 6
 
     def __init__(self):
         self.accuracy = NormalValue(float)
@@ -81,19 +69,19 @@ class PerfStats(object):
         self.minstat.append(mst)
 
     def get(self, stat):
-        if stat == ACCURACY:
+        if stat == PerfStats.ACCURACY:
             return self.accuracy
-        elif stat == PPV:
+        elif stat == PerfStats.PPV:
             return self.ppv
-        elif stat == NPV:
+        elif stat == PerfStats.NPV:
             return self.npv
-        elif stat == SENSITIVITY:
+        elif stat == PerfStats.SENSITIVITY:
             return self.sensitivity
-        elif stat == SPECIFICITY:
+        elif stat == PerfStats.SPECIFICITY:
             return self.specificity
-        elif stat == FSCORE:
+        elif stat == PerfStats.FSCORE:
             return self.fscore
-        elif stat == MINSTAT:
+        elif stat == PerfStats.MINSTAT:
             return self.minstat
         else:
             raise ValueError('No such statistic exists here.')
@@ -111,3 +99,6 @@ class PerfStats(object):
 
     def todict(self):
         return dict(PerfStats.tolist(self))
+
+    def __str__(self):
+        return str(PerfStats.todict(self))

@@ -949,19 +949,19 @@ def main(argv = sys.argv):
             else:
                 epi_def = None
 
-            optstat = MINSTAT
+            optstat = PerfStats.MINSTAT
             if OPTIONS.ACCURACY:
-                optstat = ACCURACY
+                optstat = PerfStats.ACCURACY
             elif OPTIONS.PPV:
-                optstat = PPV
+                optstat = PerfStats.PPV
             elif OPTIONS.NPV:
-                optstat = NPV
+                optstat = PerfStats.NPV
             elif OPTIONS.SENSITIVITY:
-                optstat = SENSITIVITY
+                optstat = PerfStats.SENSITIVITY
             elif OPTIONS.SPECIFICITY:
-                optstat = SPECIFICITY
+                optstat = PerfStats.SPECIFICITY
             elif OPTIONS.FSCORE:
-                optstat = FSCORE
+                optstat = PerfStats.FSCORE
 
             C_begin, C_end, C_step = OPTIONS.LOG2C
             recip = 1
@@ -978,7 +978,7 @@ def main(argv = sys.argv):
                 cv={},
                 optstat=optstat,
                 gs={ 'C': C_range },
-                fs={ 'num_features': OPTIONS.NUM_FEATURES, 'method': MAXREL if OPTIONS.MAXREL else MID if OPTIONS.MRMR_METHOD == 'MID' else MIQ }
+                fs={ 'num_features': OPTIONS.NUM_FEATURES, 'method': Mrmr.MAXREL if OPTIONS.MAXREL else Mrmr.MID if OPTIONS.MRMR_METHOD == 'MID' else Mrmr.MIQ }
             )
 
             # make sure the whole thing is unmasked for the nestedcrossvalidator
@@ -1024,15 +1024,16 @@ def main(argv = sys.argv):
         features = set()
         featureweights = []
         for i in xrange(len(results['extra'])):
-            assert(len(results['extra'][i]['features']) == len(results['extra'][i]['weights']))
+            assert(len(results['extra'][i]['features']) >= len(results['extra'][i]['weights']))
             for j in xrange(len(results['extra'][i]['features'])):
-                featureweights.append((results['extra'][i]['features'][j], results['extra'][i]['weights'][j]))
+                w = results['extra'][i]['weights'][j] if j < len(results['extra'][i]['weights']) else 0.
+                featureweights.append((results['extra'][i]['features'][j], w)) 
 
         weightsdict = {}
         for featureidx in set([fw[0] for fw in featureweights]):
             weights = [int(copysign(1, fw[1])) for fw in featureweights if fw[0] == featureidx]
             val = NormalValue(int, weights)
-            if abs(val.mu) < 0.0001 and val.sigma == 0.:
+            if (abs(val.mu) < 0.0001 and val.sigma == 0.) or len(val) == 1:
                 continue
             weightsdict[feature_names[featureidx]] = val
 

@@ -37,17 +37,21 @@ import numpy as np
 from _fakepool import FakePool
 
 
-__all__ = ['Mrmr', 'MAXREL', 'MID', 'MIQ']
-
-MAXREL = 0
-MID = 1
-MIQ = 2
+__all__ = ['Mrmr']
 
 
 class Mrmr(object):
     __DEFAULT_THRESHOLD = 0.8
 
-    def __init__(self, num_features=10, method=MID, threshold=None):
+    MAXREL = 0
+    MID = 1
+    MIQ = 2
+
+
+    def __init__(self, num_features=10, method=None, threshold=None):
+        if method is None:
+            method = Mrmr.MID
+
         if threshold is None:
             threshold = self.__DEFAULT_THRESHOLD
 
@@ -132,7 +136,7 @@ class Mrmr(object):
 
     @classmethod
     def __mrmr_selection(cls, num_features, method, vars, targets, threshold=None, ui=None):
-        if method not in (MAXREL, MID, MIQ):
+        if method not in (Mrmr.MAXREL, Mrmr.MID, Mrmr.MIQ):
             raise ValueError('method must be one of Mrmr.MAXREL, Mrmr.MID, or Mrmr.MIQ')
 
         if threshold is None:
@@ -188,7 +192,7 @@ class Mrmr(object):
     
         idx, maxrel = mi_vals[0]
         mi_vars, h_vars, mir_vars = {}, {}, {}
-       
+      
         mi_vars[idx], h_vars[idx] = Mrmr.__compute_mi(x, vars, vars[:, idx], ui.progress if ui else None)
         mir_vars[idx] = np.divide(mi_vars[idx], h_vars[idx])
     
@@ -207,7 +211,7 @@ class Mrmr(object):
                         idx,
                         maxrel,
                         # mRMR: MID then MIQ 
-                        maxrel - np.sum(mir_vars[j][0, idx] for j, _, _ in mrmr_vals) / len(mrmr_vals) if method is MID else \
+                        maxrel - np.sum(mir_vars[j][0, idx] for j, _, _ in mrmr_vals) / len(mrmr_vals) if method is Mrmr.MID else \
                         maxrel / np.sum(mir_vars[j][0, idx] for j, _, _ in mrmr_vals) / len(mrmr_vals)
                     ) \
                     for idx, maxrel in mi_vals[1:] if idx not in mask_idxs
@@ -258,7 +262,7 @@ class Mrmr(object):
             raise ValueError('`y\' should have as many entries as `x\' has rows.')
 
         self.__maxrel, self.__mrmr = None, None
-        self.__maxrel, self.__mrmr = Mrmr.__mrmr_selection(self.num_features, self.method, targets, vars, self.threshold, ui)
+        self.__maxrel, self.__mrmr = Mrmr.__mrmr_selection(self.num_features, self.method, vars, targets, self.threshold)
 
         self.__colsize = vars.shape[1]
         self.__computed = True
@@ -267,7 +271,7 @@ class Mrmr(object):
         if not self.__computed:
             raise StandardError('No mRMR model computed')
 
-        if self.method is MAXREL:
+        if self.method is Mrmr.MAXREL:
             return [iv[0] for iv in self.__maxrel]
         else:
             return [ivr[0] for ivr in self.__mrmr]

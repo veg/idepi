@@ -30,25 +30,21 @@ from _normalvalue import NormalValue
 from _gridsearcher import GridSearcher
 
 
-__all__ = [
-    'ACCURACY',
-    'PPV',
-    'PRECISION',
-    'NPV',
-    'SENSITIVITY',
-    'RECALL',
-    'SPECIFICITY',
-    'TNR',
-    'FSCORE',
-    'MINSTAT',
-    'SelectingGridSearcher'
-]
+__all__ = ['SelectingGridSearcher']
 
 
 # implement cross-validation interface here, grid-search optional
 class SelectingGridSearcher(GridSearcher):
 
-    def __init__(self, classifiercls, selectorcls, folds, cv={}, optstat=MINSTAT, gs={}, fs={}):
+    ACCURACY            = PerfStats.ACCURACY
+    PPV, PRECISION      = PerfStats.PPV, PerfStats.PRECISION
+    NPV                 = PerfStats.NPV
+    SENSITIVITY, RECALL = PerfStats.SENSITIVITY, PerfStats.RECALL
+    SPECIFICITY, TNR    = PerfStats.SPECIFICITY, PerfStats.TNR
+    FSCORE              = PerfStats.FSCORE
+    MINSTAT             = PerfStats.MINSTAT
+
+    def __init__(self, classifiercls, selectorcls, folds, cv={}, optstat=PerfStats.MINSTAT, gs={}, fs={}):
         super(SelectingGridSearcher, self).__init__(classifiercls, folds, cv, optstat, gs)
         self.__selected = False
         self.selector = selectorcls(**fs)

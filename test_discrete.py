@@ -55,60 +55,60 @@ from numpy import mean, median, std
 
 __version__ = 0.5
 
-_WORKING_DIR      = dirname(realpath(__file__)) # "/Users/Lance/Pond"
-_HXB2_DNA_FASTA   = join(_WORKING_DIR, "res", "hxb2_dna.fa")
-_HXB2_AMINO_FASTA = join(_WORKING_DIR, "res", "hxb2_pep.fa")
+_WORKING_DIR      = dirname(realpath(__file__)) # '/Users/Lance/Pond'
+_HXB2_DNA_FASTA   = join(_WORKING_DIR, 'res', 'hxb2_dna.fa')
+_HXB2_AMINO_FASTA = join(_WORKING_DIR, 'res', 'hxb2_pep.fa')
 
 _DEFAULT_NUM_FEATURES = 25
 
-_RAND_SEQ = "randseq"
-_RAND_TARGET = "randtarget"
-_RAND_EPI = "randepi"
-_RAND_DUMB = "randdumbepi"
+_RAND_SEQ = 'randseq'
+_RAND_TARGET = 'randtarget'
+_RAND_EPI = 'randepi'
+_RAND_DUMB = 'randdumbepi'
 _SIM_VALS = (_RAND_SEQ, _RAND_TARGET, _RAND_EPI, _RAND_DUMB)
-_RAND_SEQ_STOCKHOLM = join(_WORKING_DIR, "res", "randhivenvpep_final.sto")
+_RAND_SEQ_STOCKHOLM = join(_WORKING_DIR, 'res', 'randhivenvpep_final.sto')
 _GAPPED_EX_IUPAC = Alphabet.Gapped(Alphabet.IUPAC.extended_protein)
 
 # strip the _TEST variables because of the beginning and trailing newlines
-_TEST_DNA_STO = """# STOCKHOLM 1.0
+_TEST_DNA_STO = '''# STOCKHOLM 1.0
 1||A|1       AUGAUUCCCGACUUUAAANNN
 2||A|21      AUGAUUCCCGACUUUAAANNNCAC
 3||A|50      AUGAUUCCCAAANNNCAC
 4||B|0.5     AUGCCCGACUUUAAACAC
 gi|9629357   AUGCCCGACUUUAAACAC
-//""".strip()
+//'''.strip()
 
-_TEST_AMINO_STO = """# STOCKHOLM 1.0
+_TEST_AMINO_STO = '''# STOCKHOLM 1.0
 1||A|1        MIPDFKX-
 2||A|21       MIPDFKXH
 3||A|50       MIP--KXH
 4||B|0.5      .MPDFKH-
 gi|9629363    -MPDFKH-
-//""".strip()
+//'''.strip()
 
-_TEST_AMINO_NAMES = ["0aM", "0a[]", "M1I", "M1M", "P2P", "D3D", "D3[]", "F4F", "F4[]", "K5K", "H6H", "H6X", "6aH", "6a[]"]
-_TEST_STANFEL_NAMES = ["0a[ACGILMPSTV]", "0a[]", "M1[ACGILMPSTV]", "P2[ACGILMPSTV]", "D3[DENQ]", "D3[]", \
-                       "F4[FWY]", "F4[]", "K5[HKR]", "H6[HKR]", "H6[X]", "6a[HKR]", "6a[]"]
+_TEST_AMINO_NAMES = ['0aM', '0a[]', 'M1I', 'M1M', 'P2P', 'D3D', 'D3[]', 'F4F', 'F4[]', 'K5K', 'H6H', 'H6X', '6aH', '6a[]']
+_TEST_STANFEL_NAMES = ['0a[ACGILMPSTV]', '0a[]', 'M1[ACGILMPSTV]', 'P2[ACGILMPSTV]', 'D3[DENQ]', 'D3[]', \
+                       'F4[FWY]', 'F4[]', 'K5[HKR]', 'H6[HKR]', 'H6[X]', '6a[HKR]', '6a[]']
 
-_TEST_AMINO_MRMR = ["1,1,0,1,0,1,1,0,1,0,1,0,1,0,1",
-                    "0,1,0,1,0,1,1,0,1,0,1,0,1,1,0",
-                    "0,1,0,1,0,1,0,1,0,1,1,0,1,1,0",
-                    "1,0,1,0,1,1,1,0,1,0,1,1,0,0,1"]
+_TEST_AMINO_MRMR = ['1,1,0,1,0,1,1,0,1,0,1,0,1,0,1',
+                    '0,1,0,1,0,1,1,0,1,0,1,0,1,1,0',
+                    '0,1,0,1,0,1,0,1,0,1,1,0,1,1,0',
+                    '1,0,1,0,1,1,1,0,1,0,1,1,0,0,1']
 
-_TEST_STANFEL_MRMR = ["1,1,0,1,1,1,0,1,0,1,0,1,0,1",
-                      "0,1,0,1,1,1,0,1,0,1,0,1,1,0",
-                      "0,1,0,1,1,0,1,0,1,1,0,1,1,0",
-                      "1,0,1,1,1,1,0,1,0,1,1,0,0,1"]
+_TEST_STANFEL_MRMR = ['1,1,0,1,1,1,0,1,0,1,0,1,0,1',
+                      '0,1,0,1,1,1,0,1,0,1,0,1,1,0',
+                      '0,1,0,1,1,0,1,0,1,1,0,1,1,0',
+                      '1,0,1,1,1,1,0,1,0,1,1,0,0,1']
 
-_TEST_AMINO_SVM = ["1 1:1 3:1 5:1 6:1 8:1 10:1 12:1 14:1",
-                   "0 1:1 3:1 5:1 6:1 8:1 10:1 12:1 13:1",
-                   "0 1:1 3:1 5:1 7:1 9:1 10:1 12:1 13:1",
-                   "1 2:1 4:1 5:1 6:1 8:1 10:1 11:1 14:1"]
+_TEST_AMINO_SVM = ['1 1:1 3:1 5:1 6:1 8:1 10:1 12:1 14:1',
+                   '0 1:1 3:1 5:1 6:1 8:1 10:1 12:1 13:1',
+                   '0 1:1 3:1 5:1 7:1 9:1 10:1 12:1 13:1',
+                   '1 2:1 4:1 5:1 6:1 8:1 10:1 11:1 14:1']
 
-_TEST_STANFEL_SVM = ["1 1:1 3:1 4:1 5:1 7:1 9:1 11:1 13:1",
-                     "0 1:1 3:1 4:1 5:1 7:1 9:1 11:1 12:1",
-                     "0 1:1 3:1 4:1 6:1 8:1 9:1 11:1 12:1",
-                     "1 2:1 3:1 4:1 5:1 7:1 9:1 10:1 13:1"]
+_TEST_STANFEL_SVM = ['1 1:1 3:1 4:1 5:1 7:1 9:1 11:1 13:1',
+                     '0 1:1 3:1 4:1 5:1 7:1 9:1 11:1 12:1',
+                     '0 1:1 3:1 4:1 6:1 8:1 9:1 11:1 12:1',
+                     '1 2:1 3:1 4:1 5:1 7:1 9:1 10:1 13:1']
 
 _STANFEL = {'A': 0,
             'C': 0,
@@ -131,7 +131,7 @@ _STANFEL = {'A': 0,
             'K': 3,
             'R': 3,
             'X': 4,
-            '-': 5} # this is a space, but we cant have "keyword be an expression"
+            '-': 5} # this is a space, but we cant have 'keyword be an expression'
 
 _TEST_DATA = 1
 _TRAIN_DATA = 0
@@ -151,72 +151,72 @@ def optparse_csv(option, opt_str, value, parser):
 
 def setup_option_parser():
 
-    parser = OptionParser(usage = "%prog [options] ANTIBODY")
+    parser = OptionParser(usage = '%prog [options] ANTIBODY')
 
-    #                 option            action = "store"        callback                    type             nargs = 1  dest
-    parser.add_option("--hmmalign",                                                         type = "string",            dest = "HMMER_ALIGN_BIN")
-    parser.add_option("--hmmbuild",                                                         type = "string",            dest = "HMMER_BUILD_BIN")
-    parser.add_option("--hmmiter",                                                          type = "int",               dest = "HMMER_ITER")
-    parser.add_option("--mrmr",         action = "store_false",                                                         dest = "MAXREL")
-    parser.add_option("--mrmrmethod",                                                       type = "string",            dest = "MRMR_METHOD")
-    parser.add_option("--maxrel",       action = "store_true",                                                          dest = "MAXREL")
-    parser.add_option("--filter",       action = "callback",    callback = optparse_csv,    type = "string",            dest = "FILTER")
-    parser.add_option("--numfeats",                                                         type = "int",               dest = "NUM_FEATURES")
-    parser.add_option("--subtypes",     action = "callback",    callback = optparse_csv,    type = "string",            dest = "SUBTYPES")
-    parser.add_option("--svmtrain",                                                         type = "string",            dest = "SVM_TRAIN_BIN")
-    parser.add_option("--svmpredict",                                                       type = "string",            dest = "SVM_PREDICT_BIN")
-    parser.add_option("--svmargs",      action = "callback",    callback = optparse_extend, type = "string", nargs = 2, dest = "SVM_ARGS")
-    parser.add_option("--nested",       action = "store_true",                                                          dest = "NESTED")
-    parser.add_option("--log2c",        action = "callback",    callback = optparse_csv,    type = "string",            dest = "LOG2C")
-    parser.add_option("--weighting",    action = "store_true",                                                          dest = "WEIGHTING")
-    parser.add_option("--accuracy",     action = "store_true",                                                          dest = "ACCURACY")
-    parser.add_option("--ppv",          action = "store_true",                                                          dest = "PPV")
-    parser.add_option("--precision",    action = "store_true",                                                          dest = "PPV")
-    parser.add_option("--npv"     ,     action = "store_true",                                                          dest = "NPV")
-    parser.add_option("--sensitivity",  action = "store_true",                                                          dest = "SENSITIVITY")
-    parser.add_option("--recall",       action = "store_true",                                                          dest = "SENSITIVITY")
-    parser.add_option("--specificity",  action = "store_true",                                                          dest = "SPECIFICITY")
-    parser.add_option("--tnr",          action = "store_true",                                                          dest = "SPECIFICITY")
-    parser.add_option("--fscore",       action = "store_true",                                                          dest = "FSCORE")
-    parser.add_option("--amino",        action = "store_true",                                                          dest = "AMINO")
-    parser.add_option("--dna",          action = "store_true",                                                          dest = "DNA")
-    parser.add_option("--stanfel",      action = "store_true",                                                          dest = "STANFEL")
-    parser.add_option("--cv",                                                               type = "int",               dest = "CV_FOLDS")
-    parser.add_option("--loocv",        action = "store_true",                                                          dest = "LOOCV")
-    parser.add_option("--targets",      action = "callback",    callback = optparse_csv,    type = "string",            dest = "TARGETS")
-    parser.add_option("--maxcon",                                                           type = "float",             dest = "MAX_CONSERVATION")
-    parser.add_option("--maxgap",                                                           type = "float",             dest = "MAX_GAP_RATIO")
-    parser.add_option("--mincon",                                                           type = "float",             dest = "MIN_CONSERVATION")
-    parser.add_option("--ic50gt",                                                           type = "float",             dest = "IC50GT")
-    parser.add_option("--ic50lt",                                                           type = "float",             dest = "IC50LT")
-    parser.add_option("--neuts",                                                            type = "string",            dest = "NEUT_SQLITE3_DB")
-    parser.add_option("--hxb2",                                                             type = "string",            dest = "HXB2_FASTA")
-    parser.add_option("--ids",          action = "callback",    callback = optparse_csv,    type = "string",            dest = "HXB2_IDS")
-    parser.add_option("--test",         action = "store_true",                                                          dest = "TEST")
-    parser.add_option("--sim",                                                              type = "string",            dest = "SIM")
-    parser.add_option("--simruns",                                                          type = "int",               dest = "SIM_RUNS")
-    parser.add_option("--simepisize",                                                       type = "int",               dest = "SIM_EPI_SIZE")
-    parser.add_option("--simepimutrate",                                                    type = "float",             dest = "SIM_EPI_MUT_RATE")
-    parser.add_option("--simepiseqnum",                                                     type = "int",               dest = "SIM_EPI_N")
-    parser.add_option("--simepinoise",                                                      type = "float",             dest = "SIM_EPI_NOISE")
-    parser.add_option("--simepiperc",                                                       type = "float",             dest = "SIM_EPI_PERCENTILE")
-    parser.add_option("--seed",                                                             type = "int",               dest = "RAND_SEED")
+    #                 option            action = 'store'        callback                    type             nargs = 1  dest
+    parser.add_option('--hmmalign',                                                         type = 'string',            dest = 'HMMER_ALIGN_BIN')
+    parser.add_option('--hmmbuild',                                                         type = 'string',            dest = 'HMMER_BUILD_BIN')
+    parser.add_option('--hmmiter',                                                          type = 'int',               dest = 'HMMER_ITER')
+    parser.add_option('--mrmr',         action = 'store_false',                                                         dest = 'MAXREL')
+    parser.add_option('--mrmrmethod',                                                       type = 'string',            dest = 'MRMR_METHOD')
+    parser.add_option('--maxrel',       action = 'store_true',                                                          dest = 'MAXREL')
+    parser.add_option('--filter',       action = 'callback',    callback = optparse_csv,    type = 'string',            dest = 'FILTER')
+    parser.add_option('--numfeats',                                                         type = 'int',               dest = 'NUM_FEATURES')
+    parser.add_option('--subtypes',     action = 'callback',    callback = optparse_csv,    type = 'string',            dest = 'SUBTYPES')
+    parser.add_option('--svmtrain',                                                         type = 'string',            dest = 'SVM_TRAIN_BIN')
+    parser.add_option('--svmpredict',                                                       type = 'string',            dest = 'SVM_PREDICT_BIN')
+    parser.add_option('--svmargs',      action = 'callback',    callback = optparse_extend, type = 'string', nargs = 2, dest = 'SVM_ARGS')
+    parser.add_option('--nested',       action = 'store_true',                                                          dest = 'NESTED')
+    parser.add_option('--log2c',        action = 'callback',    callback = optparse_csv,    type = 'string',            dest = 'LOG2C')
+    parser.add_option('--weighting',    action = 'store_true',                                                          dest = 'WEIGHTING')
+    parser.add_option('--accuracy',     action = 'store_true',                                                          dest = 'ACCURACY')
+    parser.add_option('--ppv',          action = 'store_true',                                                          dest = 'PPV')
+    parser.add_option('--precision',    action = 'store_true',                                                          dest = 'PPV')
+    parser.add_option('--npv'     ,     action = 'store_true',                                                          dest = 'NPV')
+    parser.add_option('--sensitivity',  action = 'store_true',                                                          dest = 'SENSITIVITY')
+    parser.add_option('--recall',       action = 'store_true',                                                          dest = 'SENSITIVITY')
+    parser.add_option('--specificity',  action = 'store_true',                                                          dest = 'SPECIFICITY')
+    parser.add_option('--tnr',          action = 'store_true',                                                          dest = 'SPECIFICITY')
+    parser.add_option('--fscore',       action = 'store_true',                                                          dest = 'FSCORE')
+    parser.add_option('--amino',        action = 'store_true',                                                          dest = 'AMINO')
+    parser.add_option('--dna',          action = 'store_true',                                                          dest = 'DNA')
+    parser.add_option('--stanfel',      action = 'store_true',                                                          dest = 'STANFEL')
+    parser.add_option('--cv',                                                               type = 'int',               dest = 'CV_FOLDS')
+    parser.add_option('--loocv',        action = 'store_true',                                                          dest = 'LOOCV')
+    parser.add_option('--targets',      action = 'callback',    callback = optparse_csv,    type = 'string',            dest = 'TARGETS')
+    parser.add_option('--maxcon',                                                           type = 'float',             dest = 'MAX_CONSERVATION')
+    parser.add_option('--maxgap',                                                           type = 'float',             dest = 'MAX_GAP_RATIO')
+    parser.add_option('--mincon',                                                           type = 'float',             dest = 'MIN_CONSERVATION')
+    parser.add_option('--ic50gt',                                                           type = 'float',             dest = 'IC50GT')
+    parser.add_option('--ic50lt',                                                           type = 'float',             dest = 'IC50LT')
+    parser.add_option('--neuts',                                                            type = 'string',            dest = 'NEUT_SQLITE3_DB')
+    parser.add_option('--hxb2',                                                             type = 'string',            dest = 'HXB2_FASTA')
+    parser.add_option('--ids',          action = 'callback',    callback = optparse_csv,    type = 'string',            dest = 'HXB2_IDS')
+    parser.add_option('--test',         action = 'store_true',                                                          dest = 'TEST')
+    parser.add_option('--sim',                                                              type = 'string',            dest = 'SIM')
+    parser.add_option('--simruns',                                                          type = 'int',               dest = 'SIM_RUNS')
+    parser.add_option('--simepisize',                                                       type = 'int',               dest = 'SIM_EPI_SIZE')
+    parser.add_option('--simepimutrate',                                                    type = 'float',             dest = 'SIM_EPI_MUT_RATE')
+    parser.add_option('--simepiseqnum',                                                     type = 'int',               dest = 'SIM_EPI_N')
+    parser.add_option('--simepinoise',                                                      type = 'float',             dest = 'SIM_EPI_NOISE')
+    parser.add_option('--simepiperc',                                                       type = 'float',             dest = 'SIM_EPI_PERCENTILE')
+    parser.add_option('--seed',                                                             type = 'int',               dest = 'RAND_SEED')
 
-    parser.set_defaults(HMMER_ALIGN_BIN    = join(_WORKING_DIR, "contrib", "hmmer-3.0", "src", "hmmalign"))
-    parser.set_defaults(HMMER_BUILD_BIN    = join(_WORKING_DIR, "contrib", "hmmer-3.0", "src", "hmmbuild"))
+    parser.set_defaults(HMMER_ALIGN_BIN    = join(_WORKING_DIR, 'contrib', 'hmmer-3.0', 'src', 'hmmalign'))
+    parser.set_defaults(HMMER_BUILD_BIN    = join(_WORKING_DIR, 'contrib', 'hmmer-3.0', 'src', 'hmmbuild'))
     parser.set_defaults(HMMER_ITER         = 8)
-    parser.set_defaults(MRMR_BIN           = join(_WORKING_DIR, "contrib", "mrmr_c_src", "mrmr"))
-    parser.set_defaults(MRMR_METHOD        = "MID")
+    parser.set_defaults(MRMR_BIN           = join(_WORKING_DIR, 'contrib', 'mrmr_c_src', 'mrmr'))
+    parser.set_defaults(MRMR_METHOD        = 'MID')
     parser.set_defaults(MAXREL             = False)
     parser.set_defaults(FILTER             = [])
     parser.set_defaults(NUM_FEATURES       = -1)
     parser.set_defaults(SUBTYPES           = [])
-    parser.set_defaults(SVM_TRAIN_BIN      = join(_WORKING_DIR, "contrib", "libsvm-3.0", "svm-train"))
-    parser.set_defaults(SVM_PREDICT_BIN    = join(_WORKING_DIR, "contrib", "libsvm-3.0", "svm-predict"))
-    parser.set_defaults(SVM_ARGS           = ["-t", '0', "-h", "0"])
+    parser.set_defaults(SVM_TRAIN_BIN      = join(_WORKING_DIR, 'contrib', 'libsvm-3.0', 'svm-train'))
+    parser.set_defaults(SVM_PREDICT_BIN    = join(_WORKING_DIR, 'contrib', 'libsvm-3.0', 'svm-predict'))
+    parser.set_defaults(SVM_ARGS           = ['-t', '0', '-h', '0'])
     parser.set_defaults(NESTED             = True)
     parser.set_defaults(WEIGHTING          = False)
-    parser.set_defaults(LOG2C              = ["-5", "15", "0.25"])
+    parser.set_defaults(LOG2C              = ['-5', '15', '0.25'])
     parser.set_defaults(ACCURACY           = False)
     parser.set_defaults(PPV                = False)
     parser.set_defaults(NPV                = False)
@@ -228,17 +228,17 @@ def setup_option_parser():
     parser.set_defaults(STANFEL            = False)
     parser.set_defaults(CV_FOLDS           = 5)
     parser.set_defaults(LOOCV              = False)
-    parser.set_defaults(TARGETS            = ["gt", "lt"])
+    parser.set_defaults(TARGETS            = ['gt', 'lt'])
     parser.set_defaults(MAX_CONSERVATION   = 1. ) # 93.)
     parser.set_defaults(MAX_GAP_RATIO      = 0.1 ) # 93.)
     parser.set_defaults(MIN_CONSERVATION   = 1. ) # 33.)
     parser.set_defaults(IC50GT             = 20.)
     parser.set_defaults(IC50LT             = 2.)
-    parser.set_defaults(NEUT_SQLITE3_DB    = join(_WORKING_DIR, "res", "allneuts.sqlite3"))
+    parser.set_defaults(NEUT_SQLITE3_DB    = join(_WORKING_DIR, 'res', 'allneuts.sqlite3'))
     parser.set_defaults(HXB2_FASTA         = _HXB2_AMINO_FASTA)
-    parser.set_defaults(HXB2_IDS           = ["9629357", "9629363"])
-    parser.set_defaults(SIM                = "") # can be "randtarget" for now
-    parser.set_defaults(SIM_RUNS           = 1) # can be "randtarget" for now
+    parser.set_defaults(HXB2_IDS           = ['9629357', '9629363'])
+    parser.set_defaults(SIM                = '') # can be 'randtarget' for now
+    parser.set_defaults(SIM_RUNS           = 1) # can be 'randtarget' for now
     parser.set_defaults(SIM_EPI_SIZE       = 10)
     parser.set_defaults(SIM_EPI_MUT_RATE   = 0.01)
     parser.set_defaults(SIM_EPI_N          = None) # default is to use len(ab_records)
@@ -259,7 +259,7 @@ def run_tests():
     OPTIONS.MIN_CONSERVATION = 1.0
     OPTIONS.IC50GT = 20.
     OPTIONS.IC50LT = 2.
-    OPTIONS.TARGETS = ["lt"]
+    OPTIONS.TARGETS = ['lt']
 
     # if we don't do this, DOOMBUNNIES
     set_util_params(OPTIONS.HXB2_IDS, OPTIONS.IC50GT, OPTIONS.IC50LT)
@@ -297,17 +297,17 @@ def run_tests():
             try:
                 assert(len(feature_names_) == len(_TEST_NAMES))
             except AssertionError, e:
-                print "gen:   %s\ntruth: %s" % (str(feature_names_), str(_TEST_NAMES))
+                print 'gen:   %s\ntruth: %s' % (str(feature_names_), str(_TEST_NAMES))
                 raise e
 
-            mrmr_header = ','.join(["class"] + _TEST_NAMES)
+            mrmr_header = ','.join(['class'] + _TEST_NAMES)
 
             for name in _TEST_NAMES:
                 try:
                     assert(name in feature_names_)
                     del feature_names_[feature_names_.index(name)]
                 except AssertionError, e:
-                    print >> sys.stderr, "ERROR: \"%s\" not found in %s" % (name, ', '.join(feature_names_))
+                    print >> sys.stderr, 'ERROR: \'%s\' not found in %s' % (name, ', '.join(feature_names_))
                     raise e
 
             # test mRMR and LSVM file generation
@@ -316,7 +316,7 @@ def run_tests():
 
                 x, y = data.tondarrays()
 
-                mrmr = Mrmr(num_features=OPTIONS.NUM_FEATURES, method=MAXREL if OPTIONS.MAXREL else MID if OPTIONS.MRMR_METHOD == 'MID' else 'MIQ')
+                mrmr = Mrmr(num_features=OPTIONS.NUM_FEATURES, method=Mrmr.MAXREL if OPTIONS.MAXREL else Mrmr.MID if OPTIONS.MRMR_METHOD == 'MID' else Mrmr.MIQ)
                 mrmr.select(x, y)
 
                 x = mrmr.subset(x)
@@ -328,16 +328,16 @@ def run_tests():
     finally:
         remove(sto_filename)
 
-    print >> sys.stderr, "ALL TESTS PASS"
+    print >> sys.stderr, 'ALL TESTS PASS'
 
 
 def get_valid_subtypes_from_db():
     conn = sqlite3.connect(OPTIONS.NEUT_SQLITE3_DB)
     curr = conn.cursor()
 
-    curr.execute("""select distinct SUBTYPE from GENO_REPORT""")
+    curr.execute('''select distinct SUBTYPE from GENO_REPORT''')
 
-    valid_subtypes = [r[0] for r in curr if r[0].strip() != ""]
+    valid_subtypes = [r[0] for r in curr if r[0].strip() != '']
 
     conn.close()
 
@@ -348,7 +348,7 @@ def get_valid_antibodies_from_db():
     conn = sqlite3.connect(OPTIONS.NEUT_SQLITE3_DB)
     curr = conn.cursor()
 
-    curr.execute("""select distinct ANTIBODY from NEUT""")
+    curr.execute('''select distinct ANTIBODY from NEUT''')
 
     valid_antibodies = [r[0] for r in curr]
 
@@ -358,7 +358,7 @@ def get_valid_antibodies_from_db():
 
 
 def fix_hxb2_fasta():
-    """If DNA mode was selected but the AMINO reference sequence is still in place, fix it"""
+    '''If DNA mode was selected but the AMINO reference sequence is still in place, fix it'''
     if OPTIONS.DNA == True and OPTIONS.HXB2_FASTA == _HXB2_AMINO_FASTA:
         OPTIONS.HXB2_FASTA = _HXB2_DNA_FASTA
 
@@ -387,22 +387,22 @@ class ABRecord(object):
         else:
             _seq = self.amino_seq
         if self.ic50 is not None:
-            return SeqRecord(_seq, "%s|%s|%s|%s" % (self.id, self.subtype, self.antibody, self.ic50))
+            return SeqRecord(_seq, '%s|%s|%s|%s' % (self.id, self.subtype, self.antibody, self.ic50))
         else:
-            return SeqRecord(_seq, "%s|%s|%s|" % (self.id, self.subtype, self.antibody))
+            return SeqRecord(_seq, '%s|%s|%s|' % (self.id, self.subtype, self.antibody))
 
 
 def collect_ABRecords_from_db(antibody):
     conn = sqlite3.connect(OPTIONS.NEUT_SQLITE3_DB)
     curr = conn.cursor()
 
-    curr.execute("""
+    curr.execute('''
     select distinct S.ID as ID, S.SEQ as SEQ, G.SUBTYPE as SUBTYPE, N.AB as AB, N.IC50 as IC50 from
     (select ACCESSION_ID as ID, RAW_SEQ as SEQ from SEQUENCE group by ACCESSION_ID) as S join
     (select ACCESSION_ID as ID, SUBTYPE from GENO_REPORT group by ACCESSION_ID) as G join
     (select ACCESSION_ID as ID, ANTIBODY as AB, IC50_STRING as IC50 from NEUT where ANTIBODY = ?) as N
     on N.ID = S.ID and G.ID = S.ID order by S.ID;
-    """, (antibody,))
+    ''', (antibody,))
 
     # make sure the records are unique
     ab_records = list()
@@ -437,15 +437,15 @@ def generate_alignment_from_SeqRecords(filename, seq_records):
     try:
         # get the FASTA format file so we can HMMER it
         fafh = open(ab_fasta_filename, 'w')
-        hxb2fh = open(OPTIONS.HXB2_FASTA, "rU")
+        hxb2fh = open(OPTIONS.HXB2_FASTA, 'rU')
 
         # grab the HXB2 Reference Sequence
-        hxb2_record = SeqIO.parse(hxb2fh, "fasta")
+        hxb2_record = SeqIO.parse(hxb2fh, 'fasta')
         seq_records.extend(hxb2_record)
 
         # type errors here?
         try:
-            SeqIO.write(seq_records, fafh, "fasta")
+            SeqIO.write(seq_records, fafh, 'fasta')
         except TypeError, e:
             print >> sys.stderr, seq_records
             raise e
@@ -455,24 +455,24 @@ def generate_alignment_from_SeqRecords(filename, seq_records):
         hxb2fh.close()
 
         # make the tempfiles for the alignments, and close them out after we use them
-        SeqIO.convert(OPTIONS.HXB2_FASTA, "fasta", sto_filename, "stockholm")
+        SeqIO.convert(OPTIONS.HXB2_FASTA, 'fasta', sto_filename, 'stockholm')
 
-        hmmer_build_args = [OPTIONS.HMMER_BUILD_BIN, "--dna" if OPTIONS.DNA else "--amino", \
+        hmmer_build_args = [OPTIONS.HMMER_BUILD_BIN, '--dna' if OPTIONS.DNA else '--amino', \
                            hmm_filename, sto_filename]
-        hmmer_align_args = [OPTIONS.HMMER_ALIGN_BIN, "--dna" if OPTIONS.DNA else "--amino", \
-                           "--outformat", "Pfam", "-o", sto_filename, hmm_filename, ab_fasta_filename]
+        hmmer_align_args = [OPTIONS.HMMER_ALIGN_BIN, '--dna' if OPTIONS.DNA else '--amino', \
+                           '--outformat', 'Pfam', '-o', sto_filename, hmm_filename, ab_fasta_filename]
 
-        print >> sys.stderr, "Aligning %d sequences with HMMER:" % (len(seq_records)+1),
+        print >> sys.stderr, 'Aligning %d sequences with HMMER:' % (len(seq_records)+1),
 
         for i in xrange(0, OPTIONS.HMMER_ITER):
-            print >> sys.stderr, "%d," % i,
+            print >> sys.stderr, '%d,' % i,
             build_process = Popen(hmmer_build_args, close_fds = True, stderr = PIPE, stdout = PIPE)
             build_process.communicate()
             align_process = Popen(hmmer_align_args, close_fds = True, stderr = PIPE, stdout = PIPE)
             align_process.communicate()
 
         # rename the final alignment to its destination
-        print >> sys.stderr, "done, output moved to: %s" % filename
+        print >> sys.stderr, 'done, output moved to: %s' % filename
         finished = True
 
     finally:
@@ -504,7 +504,7 @@ class SimulatedEpitope(object):
             self.kernel_func = lambda x, n: clamp(1. * x / len(positions) + n)
 
     def __str__(self):
-        return "\n".join(sorted(self.names, key = lambda x: int(sub(r"[a-zA-Z\[\]]+", "", x))))
+        return '\n'.join(sorted(self.names, key = lambda x: int(sub(r'[a-zA-Z\[\]]+', '', x))))
 
     def evaluate(self, seq, noise=0., proportion=-1):
         total = 0
@@ -544,7 +544,7 @@ def generate_random_epitope(seq_table, column_names, size, kernel_func=None):
     positions = {}
 
     if size > 0.2 * seq_table.num_columns:
-        print >> sys.stderr, "ERROR: We do not suggest or support simulated epitopes larger than 20% of your alignment length"
+        print >> sys.stderr, 'ERROR: We do not suggest or support simulated epitopes larger than 20% of your alignment length'
         sys.exit(-1)
 
     # generate a approximately uniformly random epitope from the available nucleotides at each position (ensure that existing sequences match the epitope)
@@ -585,14 +585,14 @@ def fetch_alphabet_dict():
     if OPTIONS.STANFEL:
         names = []
         for v in set(_STANFEL.values()):
-            names.append("[%s]" % "".join(sorted([k if k != '-' else "" for (k, v_) in _STANFEL.items() if v == v_])))
+            names.append('[%s]' % ''.join(sorted([k if k != '-' else '' for (k, v_) in _STANFEL.items() if v == v_])))
         return (_STANFEL, names)
     elif OPTIONS.DNA:
         return (dict([(DNA_ALPHABET[i], i) for i in xrange(0, len(DNA_ALPHABET))]), \
-                [DNA_ALPHABET[i] if AMINO_ALPHABET[i] != '-' else "[]" for i in xrange(0, len(DNA_ALPHABET))])
+                [DNA_ALPHABET[i] if AMINO_ALPHABET[i] != '-' else '[]' for i in xrange(0, len(DNA_ALPHABET))])
     else:
         return (dict([(AMINO_ALPHABET[i], i) for i in xrange(0, len(AMINO_ALPHABET))]), \
-                [AMINO_ALPHABET[i] if AMINO_ALPHABET[i] != '-' else "[]" for i in xrange(0, len(AMINO_ALPHABET))])
+                [AMINO_ALPHABET[i] if AMINO_ALPHABET[i] != '-' else '[]' for i in xrange(0, len(AMINO_ALPHABET))])
 
 
 def sanitize_seq(seq, alphabet):
@@ -600,13 +600,13 @@ def sanitize_seq(seq, alphabet):
     try:
         seq = str(seq)
         seq = seq.upper()
-        seq = sub(r"[%s]" % SPACE, '-', seq)
-        seq = sub(r"[^%s]" % "".join(alphabet.keys()), 'X', seq)
+        seq = sub(r'[%s]' % SPACE, '-', seq)
+        seq = sub(r'[^%s]' % ''.join(alphabet.keys()), 'X', seq)
     except TypeError, e:
-        print >> sys.stderr, "ERROR: something amiss with things:"
-        print >> sys.stderr, "SPACE =", SPACE
-        print >> sys.stderr, "seq =", seq
-        print >> sys.stderr, "alphabet =", alphabet
+        print >> sys.stderr, 'ERROR: something amiss with things:'
+        print >> sys.stderr, 'SPACE =', SPACE
+        print >> sys.stderr, 'seq =', seq
+        print >> sys.stderr, 'alphabet =', alphabet
         raise e
     return seq
 
@@ -644,7 +644,7 @@ def generate_feature_names(seq_table):
             ins += 1
         for v in set(alphabet.values()):
             insert = base_26_to_alph(base_10_to_n(ins, BASE_ALPH))
-            names.append("%s%d%s%s" % ("" if insert != "" else p.upper(), c, insert, alphabet_names[v]))
+            names.append('%s%d%s%s' % ('' if insert != '' else p.upper(), c, insert, alphabet_names[v]))
 
     return names
 
@@ -699,7 +699,7 @@ def compute_relevant_features_and_names(seq_table, names):
     # trim columns in excess of _MRMR_MAX_VARS or else everything 'splodes
 #     if len(columns) * seq_table.num_rows > _MRMR_MAX_VARS:
 #         remainder = ceil( (len(columns) * seq_table.num_rows - _MRMR_MAX_VARS) / seq_table.num_rows )
-#         print >> sys.stderr, "WARNING: having to trim %i excess columns, this may take a minute" % remainder
+#         print >> sys.stderr, 'WARNING: having to trim %i excess columns, this may take a minute' % remainder
 #         max_counts = sorted(max_counts, key=itemgetter(1))
 #         max_counts = sorted(min_counts, key=itemgetter(1))
 #         while(len(columns) * seq_table.num_rows > _MRMR_MAX_VARS):
@@ -724,7 +724,7 @@ def compute_relevant_features_and_names(seq_table, names):
     if len(OPTIONS.FILTER) != 0:
         delete_cols = []
         for i in xrange(0, len(columns)):
-            m = match(r"^([A-Z]\d+)", trimmed_names[i])
+            m = match(r'^([A-Z]\d+)', trimmed_names[i])
             if m:
                 if m.group(1) not in OPTIONS.FILTER:
                     delete_cols.append(i)
@@ -739,7 +739,7 @@ def generate_relevant_data(seq_table, feature_names, feature_idxs, target, propo
     data = SmlData(feature_names)
 
     if OPTIONS.SIM in (_RAND_SEQ, _RAND_TARGET) and proportion is None:
-        print >> sys.stderr, "ERROR: no proportion defined for simulation, aborting!"
+        print >> sys.stderr, 'ERROR: no proportion defined for simulation, aborting!'
         sys.exit(-1)
 
     neg = 0
@@ -751,8 +751,8 @@ def generate_relevant_data(seq_table, feature_names, feature_idxs, target, propo
             continue
         if len(OPTIONS.SUBTYPES) != 0:
             subtypes = row.id.split('|')[1].upper()
-            if subtypes == "" or len([i for i in subtypes if i in OPTIONS.SUBTYPES]) <= 0:
-                print >> sys.stderr, "ERROR: We're supposed to have already masked out unwanted subtypes: %s" % row.id
+            if subtypes == '' or len([i for i in subtypes if i in OPTIONS.SUBTYPES]) <= 0:
+                print >> sys.stderr, 'ERROR: We\'re supposed to have already masked out unwanted subtypes: %s' % row.id
                 raise ValueError
         expanded_row = binarize_row(row.seq)
         feats = dict([f for f in zip(range(0, len(feature_idxs)), [expanded_row[i] for i in feature_idxs]) if f[1] != 0])
@@ -770,7 +770,7 @@ def generate_relevant_data(seq_table, feature_names, feature_idxs, target, propo
 
     # silence this during testing
     if not OPTIONS.TEST and 0:
-        print >> sys.stdout, "Ratio + to - : %d to %d" % (pos, neg)
+        print >> sys.stdout, 'Ratio + to - : %d to %d' % (pos, neg)
 
     return data
 
@@ -782,22 +782,22 @@ def compute_optimum_lsvm_and_fetch_weights(train_data, test_data):
 
     if OPTIONS.WEIGHTING:
         weight_pos = 1. * sum([1 for r in train_data if r.value > 0]) / sum([1 for r in train_data if r.value <= 0])
-        lsvm_args += ["-w1", "%.6f" % weight_pos]
+        lsvm_args += ['-w1', '%.6f' % weight_pos]
 
     if OPTIONS.ACCURACY:
-        opt_str = "accuracy"
+        opt_str = 'accuracy'
     elif OPTIONS.PPV:
-        opt_str = "ppv"
+        opt_str = 'ppv'
     elif OPTIONS.NPV:
-        opt_str = "npv"
+        opt_str = 'npv'
     elif OPTIONS.SENSITIVITY:
-        opt_str = "sensitivity"
+        opt_str = 'sensitivity'
     elif OPTIONS.SPECIFICITY:
-        opt_str = "specificity"
+        opt_str = 'specificity'
     elif OPTIONS.FSCORE:
-        opt_str = "f-score"
+        opt_str = 'f-score'
     else:
-        opt_str = "min2-5" # the min of PPV, NPV, Sensitivity, and Specificity
+        opt_str = 'min2-5' # the min of PPV, NPV, Sensitivity, and Specificity
 
     # _, stats,
     # need to implement a grid_search here
@@ -818,12 +818,12 @@ def collect_seq_table_and_feature_names(ab_alignment_filename, seq_records):
     elif OPTIONS.SIM == _RAND_DUMB:
         # stupid workaround because Bio.SeqIO objects suck at regular Stockholm output
         ab_alignment_fh = open(ab_alignment_filename, 'w')
-        SeqIO.write(seq_records, ab_alignment_fh, "stockholm")
+        SeqIO.write(seq_records, ab_alignment_fh, 'stockholm')
         ab_alignment_fh.close()
 
     skip_func = None
     if len(OPTIONS.SUBTYPES) != 0:
-        skip_func = lambda x: len([i for i in x.split("|")[1] if i in tuple(OPTIONS.SUBTYPES)]) <= 0
+        skip_func = lambda x: len([i for i in x.split('|')[1] if i in tuple(OPTIONS.SUBTYPES)]) <= 0
 
     seq_table = SeqTable(ab_alignment_filename, DNA_ALPHABET if OPTIONS.DNA else AMINO_ALPHABET, is_HXB2, skip_func)
 
@@ -851,7 +851,7 @@ def assign_class_by_percentile(seq_table, epi_def):
     for row in seq_table.rows():
         if is_HXB2(row.id):
             continue
-        row.id = "|||%.3f" % epi_def.evaluate(row.seq, get_noise(row.id), proportion)
+        row.id = '|||%.3f' % epi_def.evaluate(row.seq, get_noise(row.id), proportion)
 
     return
 
@@ -860,7 +860,7 @@ def main(argv = sys.argv):
     global OPTIONS
 
     # fix some stupid bugs
-    sys.stdout = getwriter("utf8")(sys.stdout)
+    sys.stdout = getwriter('utf8')(sys.stdout)
 
     # so some option parsing
     option_parser = setup_option_parser()
@@ -871,36 +871,36 @@ def main(argv = sys.argv):
         run_tests()
         return 0
 
-    if OPTIONS.SIM != "" and OPTIONS.SIM not in _SIM_VALS:
-        option_parser.error("option --sim takes one of %s" % ", ".join(_SIM_VALS))
+    if OPTIONS.SIM != '' and OPTIONS.SIM not in _SIM_VALS:
+        option_parser.error('option --sim takes one of %s' % ', '.join(_SIM_VALS))
 
     if OPTIONS.RAND_SEED is not None:
         seed(OPTIONS.RAND_SEED)
 
     if len(args) != 3:
-        option_parser.error("ANTIBODY and TESTDATA are a required arguments")
+        option_parser.error('ANTIBODY and TESTDATA are a required arguments')
 
-    if not set(OPTIONS.TARGETS).issubset(set(["lt", "gt"])):
-        option_parser.error("option --targets takes either or both: lt gt")
+    if not set(OPTIONS.TARGETS).issubset(set(['lt', 'gt'])):
+        option_parser.error('option --targets takes either or both: lt gt')
 
-    if not OPTIONS.MRMR_METHOD in ("MIQ", "MID"):
-        option_parser.error("option --mrmrmethod takes either MIQ or MID")
+    if not OPTIONS.MRMR_METHOD in ('MIQ', 'MID'):
+        option_parser.error('option --mrmrmethod takes either MIQ or MID')
 
     # check to make sure our mode is exclusive, and set the default (AMINO) if none is set
     if sum([1 for v in (OPTIONS.AMINO, OPTIONS.DNA, OPTIONS.STANFEL) if v]) > 1:
-        option_parser.error("options --amino, --dna, and --stanfel are mutually exclusive")
+        option_parser.error('options --amino, --dna, and --stanfel are mutually exclusive')
     elif sum([1 for v in (OPTIONS.AMINO, OPTIONS.DNA, OPTIONS.STANFEL) if v]) == 0:
         OPTIONS.AMINO = True
 
     if sum([1 for v in (OPTIONS.ACCURACY, OPTIONS.PPV, OPTIONS.NPV, OPTIONS.SENSITIVITY, OPTIONS.SPECIFICITY, OPTIONS.FSCORE) if v]) > 1:
-        option_parser.error("options --accuracy, --ppv/--precision, --npv, --sensitivity/--recall, --specificity/--tnr, --fscore are mutually exclusive")
+        option_parser.error('options --accuracy, --ppv/--precision, --npv, --sensitivity/--recall, --specificity/--tnr, --fscore are mutually exclusive')
 
     try:
         if len(OPTIONS.LOG2C) != 3:
             raise ValueError
         OPTIONS.LOG2C = [int(OPTIONS.LOG2C[0]), int(OPTIONS.LOG2C[1]), float(OPTIONS.LOG2C[2])]
     except ValueError, e:
-        option_parser.error("option --log2c takes an argument of the form C_BEGIN,C_END,C_STEP")
+        option_parser.error('option --log2c takes an argument of the form C_BEGIN,C_END,C_STEP')
 
     # validate the antibody argument, currently a hack exists to make PG9/PG16 work
     # TODO: Fix pg9/16 hax
@@ -909,36 +909,36 @@ def main(argv = sys.argv):
 
     valid_antibodies = sorted(get_valid_antibodies_from_db(), key = lambda x: x.strip())
     if antibody not in valid_antibodies:
-        if " " + antibody not in valid_antibodies:
-            option_parser.error("%s not in the list of permitted antibodies: \n  %s" % (antibody, "\n  ".join([ab.strip() for ab in valid_antibodies])))
+        if ' ' + antibody not in valid_antibodies:
+            option_parser.error('%s not in the list of permitted antibodies: \n  %s' % (antibody, '\n  '.join([ab.strip() for ab in valid_antibodies])))
         else:
-            antibody = " " + antibody
+            antibody = ' ' + antibody
 
     # validate the subtype option
     valid_subtypes = sorted(get_valid_subtypes_from_db(), key = lambda x: x.strip().upper())
     for subtype in OPTIONS.SUBTYPES:
         if subtype not in valid_subtypes:
-            option_parser.error("%s not in the list of permitted subtypes: \n  %s" % (subtype, "\n  ".join([st.strip() for st in valid_subtypes])))
+            option_parser.error('%s not in the list of permitted subtypes: \n  %s' % (subtype, '\n  '.join([st.strip() for st in valid_subtypes])))
 
     if OPTIONS.SIM in (_RAND_EPI, _RAND_SEQ) and OPTIONS.DNA:
-        option_parser.error("randseq simulation target not compatible with DNA mode")
+        option_parser.error('randseq simulation target not compatible with DNA mode')
 
     if OPTIONS.SIM_EPI_MUT_RATE < 0. or OPTIONS.SIM_EPI_MUT_RATE > 1.:
-        option_parser.error("--simepimutrate must be between 0.0 and 1.0")
+        option_parser.error('--simepimutrate must be between 0.0 and 1.0')
 
     if abs(OPTIONS.SIM_EPI_NOISE) > 1.:
-        option_parser.error("--simepinoise shouldn't really ever be greater than 1.0")
+        option_parser.error('--simepinoise shouldn\'t really ever be greater than 1.0')
 
     if OPTIONS.SIM_EPI_N is not None and OPTIONS.SIM_EPI_N < 1:
-        option_parser.error("--simepiseqnum must be greater than 0")
+        option_parser.error('--simepiseqnum must be greater than 0')
 
     if OPTIONS.SIM_EPI_PERCENTILE < 0. or OPTIONS.SIM_EPI_PERCENTILE > 1.:
-        option_parser.error("--simepiperc must be betweeen 0.0 and 1.0")
+        option_parser.error('--simepiperc must be betweeen 0.0 and 1.0')
 
     if len(OPTIONS.FILTER) != 0:
         if OPTIONS.NUM_FEATURES > len(OPTIONS.FILTER):
             OPTIONS.NUM_FEATURES = len(OPTIONS.FILTER)
-            print >> sys.stderr, "warning: clamping --numfeats to sizeof(--filter) = %d" % OPTIONS.NUM_FEATURES
+            print >> sys.stderr, 'warning: clamping --numfeats to sizeof(--filter) = %d' % OPTIONS.NUM_FEATURES
     else: # len(OPTIONS.FILTER) == 0
         if OPTIONS.NUM_FEATURES == -1:
             OPTIONS.NUM_FEATURES = _DEFAULT_NUM_FEATURES
@@ -952,7 +952,7 @@ def main(argv = sys.argv):
     # set the util params
     set_util_params(OPTIONS.HXB2_IDS, OPTIONS.IC50GT, OPTIONS.IC50LT)
 
-    ab_basename = "%s%s_%s" % (antibody, "_randseq" if OPTIONS.SIM == _RAND_SEQ else "", "dna" if OPTIONS.DNA else "amino")
+    ab_basename = '%s%s_%s' % (antibody, '_randseq' if OPTIONS.SIM == _RAND_SEQ else '', 'dna' if OPTIONS.DNA else 'amino')
 
     # grab the relevant antibody from the SQLITE3 data
     # format as SeqRecord so we can output as FASTA
@@ -960,7 +960,7 @@ def main(argv = sys.argv):
 
     test_records = collect_SeqRecords_from_file(test_file)
 
-    ab_alignment_filename = "%s_%s_%s_%s.sto" % (ab_basename,
+    ab_alignment_filename = '%s_%s_%s_%s.sto' % (ab_basename,
             splitext(basename(OPTIONS.NEUT_SQLITE3_DB))[0],
             splitext(basename(test_file))[0],
             __version__)
@@ -992,19 +992,19 @@ def main(argv = sys.argv):
         test_data = generate_relevant_data(seq_table, feature_names, feature_idxs, target)
 
         # perform mRMR
-        optstat = MINSTAT
+        optstat = PerfStats.MINSTAT
         if OPTIONS.ACCURACY:
-            optstat = ACCURACY
+            optstat = PerfStats.ACCURACY
         elif OPTIONS.PPV:
-            optstat = PPV
+            optstat = PerfStats.PPV
         elif OPTIONS.NPV:
-            optstat = NPV
+            optstat = PerfStats.NPV
         elif OPTIONS.SENSITIVITY:
-            optstat = SENSITIVITY
+            optstat = PerfStats.SENSITIVITY
         elif OPTIONS.SPECIFICITY:
-            optstat = SPECIFICITY
+            optstat = PerfStats.SPECIFICITY
         elif OPTIONS.FSCORE:
-            optstat = FSCORE
+            optstat = PerfStats.FSCORE
 
         C_begin, C_end, C_step = OPTIONS.LOG2C
         recip = 1
@@ -1021,7 +1021,7 @@ def main(argv = sys.argv):
             cv={},
             optstat=optstat,
             gs={ 'C': C_range },
-            fs={ 'num_features': OPTIONS.NUM_FEATURES, 'method': MAXREL if OPTIONS.MAXREL else MID if OPTIONS.MRMR_METHOD == 'MID' else MIQ }
+            fs={ 'num_features': OPTIONS.NUM_FEATURES, 'method': Mrmr.MAXREL if OPTIONS.MAXREL else Mrmr.MID if OPTIONS.MRMR_METHOD == 'MID' else Mrmr.MIQ }
         )
 
         trainx, trainy = train_data.tondarrays()
@@ -1037,56 +1037,67 @@ def main(argv = sys.argv):
         assert(len(weightslist) <= len(featureslist))
 
         weightsdict = {}
+        idxweight = {}
         for i in xrange(len(featureslist)):
+            idxweight[featureslist[i]] = weightslist[i] if i < len(weightslist) else 0
             weightsdict[feature_names[featureslist[i]]] = weightslist[i] if i < len(weightslist) else 0
 
         assert(len(test_data) == len(preds))
 
-        print >> sys.stdout, "********************* REPORT FOR ANTIBODY %s IC50 %s *********************" % \
-          (antibody, "< %d" % OPTIONS.IC50LT if target == "lt" else "> %d" % OPTIONS.IC50GT)
+#         print >> sys.stdout, '********************* REPORT FOR ANTIBODY %s IC50 %s *********************' % \
+#           (antibody, '< %d' % OPTIONS.IC50LT if target == 'lt' else '> %d' % OPTIONS.IC50GT)
 
-        print >> sys.stdout, "\nLSVM performance statistics (%d-fold CV):" % OPTIONS.CV_FOLDS
+        print >> sys.stdout, '{\n  \'statistics\': {'#  % OPTIONS.CV_FOLDS
 
         # we hate minstat except for optimization
         if 'Minstat' in statsdict:
             del statsdict['Minstat']
                                   
         # convert to percentage from [0, 1]
-        for k, v in statsdict.items():
-            statsdict[k] = v * 100.
+#         for k, v in statsdict.items():
+#             statsdict[k] = v * 100.
 
-        stat_len = max([len(k) for k in statsdict.keys()])
+        stat_len = max([len(k) for k in statsdict.keys()]) + 3
         mean_len = max([len('%.2f' % v.mu) for v in statsdict.values()])
         std_len = max([len('%.2f' % sqrt(v.sigma)) for v in statsdict.values()])
-#         std_len = int(log10(max([1.] + [sqrt(v.sigma) for v in statsdict.values()]))) + 5
-        fmt = u'%%%d.2f \xb1 %%%d.2f%%%%' % (mean_len, std_len) 
-        for k, v in sorted(statsdict.items(), key=itemgetter(0)):
-            print >> sys.stdout, u"  %-*s = %s" % (stat_len, k, v.sprintf(fmt))
+        fmt = u'{ \'mean\': %%%d.6f, \'std\': %%%d.6f\' }' % (mean_len, std_len)
+        output = [u'    %-*s %s' % (stat_len, '\'%s\':' % k.lower(), v.sprintf(fmt)) for k, v in sorted(statsdict.items(), key=itemgetter(0))]
+        print >> sys.stdout, ',\n'.join(output)
 
-        print >> sys.stdout, "\nPredictive positions:"
+        print >> sys.stdout, '  },\n  \'weights\': ['
 
         if len(weightsdict) > 0:
-            name_len = max([len(k) for k in weightsdict.keys()])
-            weight_len = max([len('% .2f' % v) for v in weightsdict.values()])
-            for k, v in sorted(weightsdict.items(), key=lambda x: int(sub(r"[a-zA-Z\[\]]+", "", x[0]))):
-                print >> sys.stdout, u"  %-*s  % *.2f" % (name_len, k, weight_len, v)
+            name_len = max([len(k) for k in weightsdict.keys()]) + 3
+            weight_len = max([len('% .6f' % v) for v in weightsdict.values()])
+            output = [u'    { \'position\': %-*s \'value\': % *.6f }' % (name_len, '\'%s\',' % k, weight_len, v) for k, v in sorted(weightsdict.items(), key=lambda x: int(sub(r'[a-zA-Z\[\]]+', '', x[0])))]
+            print >> sys.stdout, ',\n'.join(output)
 
-        print >> sys.stdout, "\nResults by ID:"
+        print >> sys.stdout, '  ],\n  \'predictions\': ['
+
+        # redo preds into {-1, 1}
+        preds = [1 if v > 0 else -1 for v in preds]
 
         rows = seq_table.rows()
-        name_len = max([len(r.id.rstrip('|').strip()) for r in rows if not is_HXB2(r.id)])
+        name_len = max([len(r.id.rstrip('|').strip()) for r in rows if not is_HXB2(r.id)]) + 3
         pred_len = max([len('%d' % v) for v in preds])
-        for i in xrange(len(rows)):
-            if is_HXB2(rows[i].id):
-                continue
-            print >> sys.stdout, u'  %-*s  %*d' % (name_len, rows[i].id.rstrip('|').strip(), pred_len, preds[i])
+        poss = dict([(i, '%s' % (', '.join(['\'%s\'' % feature_names[k] for k, v in idxweight.items() if k in test_data[i].features and v > 0]))) for i in xrange(len(rows)) if not is_HXB2(rows[i].id)])
+        negs = dict([(i, '%s' % (', '.join(['\'%s\'' % feature_names[k] for k, v in idxweight.items() if k in test_data[i].features and v < 0]))) for i in xrange(len(rows)) if not is_HXB2(rows[i].id)])
+        p_ns = dict([(i, '%s' % (', '.join(['\'%s\'' % feature_names[k] for k, v in idxweight.items() if k in test_data[i].features and v == 0]))) for i in xrange(len(rows)) if not is_HXB2(rows[i].id)])
+        pos_len = max([len(x) for x in poss.values()]) 
+        neg_len = max([len(x) for x in negs.values()])
+        p_n_len = max([len(x) for x in p_ns.values()])
+        output = [u'    { \'id\': %-*s \'prediction\': %*d, \'weights\': { \'+\': [%-*s], \'-\': [%-*s], \'?\': [%-*s] } }' % (
+                                  name_len, '\'%s\',' % rows[i].id.rstrip('|').strip(),
+                                                        pred_len, preds[i],
+                                                                                    pos_len, poss[i],
+                                                                                                   neg_len, negs[i],
+                                                                                                                  p_n_len, p_ns[i]) for i in xrange(len(rows)) if not is_HXB2(rows[i].id)]
+        print >> sys.stdout, ',\n'.join(output)
 
-        print >> sys.stdout, "\n"
-
-        # TODO: perform patch analysis
+        print >> sys.stdout, '  ]\n}\n'
 
     return 0
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     sys.exit(main())

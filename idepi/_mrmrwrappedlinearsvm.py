@@ -22,7 +22,7 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
-from _mrmr import Mrmr, MID
+from _mrmr import Mrmr
 from _linearsvm import LinearSvm
 
 
@@ -31,8 +31,8 @@ __all__ = ['MrmrWrappedLinearSvm']
 
 class MrmrWrappedLinearSvm(object):
 
-    def __init__(self, num_features=10, method=MID, svm_type='c_svc', degree=3,
-                 gamma=0.001, coef0=0, C=1, nu=0.5, eps=0.001, p=0.1,
+    def __init__(self, num_features=10, method=Mrmr.MID, svm_type='c_svc',
+                 degree=3, gamma=0.001, coef0=0, C=1, nu=0.5, eps=0.001, p=0.1,
                  cache_size=100, shrinking=True, probability=False, weight={}):
         self.__mrmr = Mrmr(num_features, method)
         self.__lsvm = LinearSvm(svm_type, degree, gamma, coef0, C, nu, eps, p,
