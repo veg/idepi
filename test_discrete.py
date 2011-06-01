@@ -1047,51 +1047,67 @@ def main(argv = sys.argv):
 #         print >> sys.stdout, '********************* REPORT FOR ANTIBODY %s IC50 %s *********************' % \
 #           (antibody, '< %d' % OPTIONS.IC50LT if target == 'lt' else '> %d' % OPTIONS.IC50GT)
 
-        print >> sys.stdout, '{\n  \'statistics\': {'#  % OPTIONS.CV_FOLDS
-
         # we hate minstat except for optimization
         if 'Minstat' in statsdict:
             del statsdict['Minstat']
-                                  
-        # convert to percentage from [0, 1]
-#         for k, v in statsdict.items():
-#             statsdict[k] = v * 100.
-
-        stat_len = max([len(k) for k in statsdict.keys()]) + 3
-        mean_len = max([len('%.2f' % v.mu) for v in statsdict.values()])
-        std_len = max([len('%.2f' % sqrt(v.sigma)) for v in statsdict.values()])
-        fmt = u'{ \'mean\': %%%d.6f, \'std\': %%%d.6f\' }' % (mean_len, std_len)
-        output = [u'    %-*s %s' % (stat_len, '\'%s\':' % k.lower(), v.sprintf(fmt)) for k, v in sorted(statsdict.items(), key=itemgetter(0))]
-        print >> sys.stdout, ',\n'.join(output)
-
-        print >> sys.stdout, '  },\n  \'weights\': ['
-
-        if len(weightsdict) > 0:
-            name_len = max([len(k) for k in weightsdict.keys()]) + 3
-            weight_len = max([len('% .6f' % v) for v in weightsdict.values()])
-            output = [u'    { \'position\': %-*s \'value\': % *.6f }' % (name_len, '\'%s\',' % k, weight_len, v) for k, v in sorted(weightsdict.items(), key=lambda x: int(sub(r'[a-zA-Z\[\]]+', '', x[0])))]
-            print >> sys.stdout, ',\n'.join(output)
-
-        print >> sys.stdout, '  ],\n  \'predictions\': ['
-
+       
         # redo preds into {-1, 1}
         preds = [1 if v > 0 else -1 for v in preds]
 
         rows = seq_table.rows()
-        name_len = max([len(r.id.rstrip('|').strip()) for r in rows if not is_HXB2(r.id)]) + 3
-        pred_len = max([len('%d' % v) for v in preds])
-        poss = dict([(i, '%s' % (', '.join(['\'%s\'' % feature_names[k] for k, v in idxweight.items() if k in test_data[i].features and v > 0]))) for i in xrange(len(rows)) if not is_HXB2(rows[i].id)])
-        negs = dict([(i, '%s' % (', '.join(['\'%s\'' % feature_names[k] for k, v in idxweight.items() if k in test_data[i].features and v < 0]))) for i in xrange(len(rows)) if not is_HXB2(rows[i].id)])
-        p_ns = dict([(i, '%s' % (', '.join(['\'%s\'' % feature_names[k] for k, v in idxweight.items() if k in test_data[i].features and v == 0]))) for i in xrange(len(rows)) if not is_HXB2(rows[i].id)])
-        pos_len = max([len(x) for x in poss.values()]) 
-        neg_len = max([len(x) for x in negs.values()])
-        p_n_len = max([len(x) for x in p_ns.values()])
-        output = [u'    { \'id\': %-*s \'prediction\': %*d, \'weights\': { \'+\': [%-*s], \'-\': [%-*s], \'?\': [%-*s] } }' % (
-                                  name_len, '\'%s\',' % rows[i].id.rstrip('|').strip(),
-                                                        pred_len, preds[i],
+        
+        ret = {}
+        ret['statistics'] = dict([(k.lower(), {'mean': v.mu, 'std': sqrt(v.sigma)}) for k, v in statsdict.items()])
+        ret['weights'] = [{ 'position': k, 'value': v } for k, v in sorted(weightsdict.items(), key=lambda x: int(sub(r'[a-zA-Z\[\]]+', '', x[0])))] 
+        ret['predictions'] = [
+            {
+                'id': rows[i].id.rstrip('|').strip(),
+                'prediction': preds[i],
+                'weights': { 
+                    '+': [feature_names[k] for k, v in idxweight.items() if k in test_data[i].features and v > 0],
+                    '-': [feature_names[k] for k, v in idxweight.items() if k in test_data[i].features and v < 0],
+                    '?': [feature_names[k] for k, v in idxweight.items() if k in test_data[i].features and v == 0]
+                }
+            } for i in xrange(len(rows)) if not is_HXB2(rows[i].id)
+        ]
+
+        print >> sys.stdout, '{\n  "statistics": {'#  % OPTIONS.CV_FOLDS
+
+        # convert to percentage from [0, 1]
+#         for k, v in statsdict.items():
+#             statsdict[k] = v * 100.
+        
+        stat_len = max([len(k) for k in ret['statistics'].keys()]) + 3
+        mean_len = max([len('%.2f' % v['mean']) for v in ret['statistics'].values()])
+        std_len = max([len('%.2f' % v['std']) for v in ret['statistics'].values()])
+        fmt = u'{ "mean": %%%d.6f, "std": %%%d.6f }' % (mean_len, std_len)
+        output = [u'    %-*s %s' % (stat_len, '"%s":' % k, fmt % (v['mean'], v['std'])) for k, v in sorted(ret['statistics'].items(), key=itemgetter(0))]
+        print >> sys.stdout, ',\n'.join(output)
+
+        print >> sys.stdout, '  },\n  "weights": ['
+
+        if len(ret['weights']) > 0:
+            name_len = max([len(v['position']) for v in ret['weights']]) + 3
+            weight_len = max([len('% .6f' % v['value']) for v in ret['weights']])
+            output = [u'    { "position": %-*s "value": % *.6f }' % (name_len, '"%s",' % v['position'], weight_len, v['value']) for v in sorted(ret['weights'], key=lambda x: int(sub(r'[a-zA-Z\[\]]+', '', x['position'])))]
+            print >> sys.stdout, ',\n'.join(output)
+
+        print >> sys.stdout, '  ],\n  "predictions": ['
+
+        name_len = max([len(p['id']) for p in ret['predictions']]) + 3 
+        pred_len = max([len('%d' % p['prediction']) for p in ret['predictions']])
+        poss = [', '.join(['"%s"' % w for w in p['weights']['+']]) for p in ret['predictions']]
+        negs = [', '.join(['"%s"' % w for w in p['weights']['-']]) for p in ret['predictions']]
+        p_ns = [', '.join(['"%s"' % w for w in p['weights']['?']]) for p in ret['predictions']]
+        pos_len = max([len(x) for x in poss]) 
+        neg_len = max([len(x) for x in negs])
+        p_n_len = max([len(x) for x in p_ns])
+        output = [u'    { "id": %-*s "prediction": %*d, "weights": { "+": [%-*s], "-": [%-*s], "?": [%-*s] } }' % (
+                                  name_len, '"%s",' % ret['predictions'][i]['id'],
+                                                        pred_len, ret['predictions'][i]['prediction'],
                                                                                     pos_len, poss[i],
                                                                                                    neg_len, negs[i],
-                                                                                                                  p_n_len, p_ns[i]) for i in xrange(len(rows)) if not is_HXB2(rows[i].id)]
+                                                                                                                  p_n_len, p_ns[i]) for i in xrange(len(ret['predictions']))]
         print >> sys.stdout, ',\n'.join(output)
 
         print >> sys.stdout, '  ]\n}\n'

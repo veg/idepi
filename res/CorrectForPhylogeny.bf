@@ -71,24 +71,47 @@ for (_idx_1 = 0; _idx_1 < _marginalAncestorsFilter.species; _idx_1 = _idx_1 + 1)
 
 }
 
-_outputCSV = ""; _outputCSV * 2048; 
-_outputCSV * ("Sequence,Site,"+Join(",",_AncestalFilterChars));
+_outputCSV = ""; _outputCSV * 8192; 
+/* _outputCSV * ("Sequence,[Site:["+Join(",",_AncestalFilterChars)+"]]\n"); */
+
+_outputCSV * ("[\n");
 
 _idx_3 = 0;
 for (_idx_1 = 0; _idx_1 < _marginalAncestorsFilter.species; _idx_1 = _idx_1 + 1)
 {
+    if (_idx_1 > 0)
+    {
+        _outputCSV * (",\n");
+    }
+
+    _outputCSV * ("{\"id\":\"" + newNamesToOldNames[_AncestralNodeNames[_idx_1]] + "\",\"values\":[");
+
 	for (_idx_2 = 0; _idx_2 < _marginalAncestorsFilter.sites; _idx_2 = _idx_2 + 1)
 	{
-		_outputCSV * ("\n" + newNamesToOldNames[_AncestralNodeNames[_idx_1]] + "," + (1+_idx_2));
-		
+        /* trailing commas */
+        if (_idx_2 > 0)
+        {
+            _outputCSV * (",");
+        }
+
+        _outputCSV * ("[");
+        /* _outputCSV * ("\n" + newNamesToOldNames[_AncestralNodeNames[_idx_1]] + "," + (1+_idx_2)); */
+
 		_maxValue = 0;
 		_maxIndex = 0;
 
 		for (_idx_4 = 0; _idx_4 < _characterDimension; _idx_4 = _idx_4 + 1)
 		{
 			_thisCharacter = (_marginalInformation[_idx_3])[_idx_4];
-			_outputCSV * ("," + _thisCharacter);
-			if (_thisCharacter > _maxValue)
+            
+            if (_idx_4 > 0)
+            {
+                _outputCSV * (",");
+            }
+			
+            _outputCSV * (""+_thisCharacter);
+			
+            if (_thisCharacter > _maxValue)
 			{
 				_maxValue = _thisCharacter;
 				_maxIndex = _idx_4;
@@ -96,9 +119,14 @@ for (_idx_1 = 0; _idx_1 < _marginalAncestorsFilter.species; _idx_1 = _idx_1 + 1)
 		}
 		
 		_idx_3 = _idx_3 + 1;
-		
+        
+        _outputCSV * ("]");
 	}
+    
+    _outputCSV * ("]}");
 }
+
+_outputCSV * ("\n]\n");
 
 _outputCSV * 0;
 
