@@ -31,13 +31,7 @@ from Bio import AlignIO
 from types import ListType, IntType
 
 
-__all__ = ['DNA_ALPHABET', 'AMINO_ALPHABET', 'SPACE', 'Column', 'SeqTable']
-
-DNA_ALPHABET   = 'ACGTUN-'
-AMINO_ALPHABET = 'ACGILMPSTVDENQFWYHKRX-'
-
-# underscore must go first or re.compile blows up
-SPACE = '_.-='
+__all__ = ['SeqTable']
 
 
 class Column(object):
@@ -75,9 +69,14 @@ class Column(object):
 
 
 class SeqTable(object):
+    DNA_ALPHABET   = 'ACGTUN-'
+    AMINO_ALPHABET = 'ACGILMPSTVDENQFWYHKRX-'
+
+    # underscore must go first or re.compile blows up
+    SPACE = '_.-='
 
     def __init__(self, filename, alphabet, keep_func = None, skip_func = None):
-        if not alphabet in (DNA_ALPHABET, AMINO_ALPHABET):
+        if not alphabet in (self.DNA_ALPHABET, self.AMINO_ALPHABET):
             print >> stderr, 'ERROR: alphabet must be one of SeqTable.DNA_ALPHABET or SeqTable.AMINO_ALPHABET'
             raise ValueError
 
@@ -120,7 +119,7 @@ class SeqTable(object):
 
         for r in self.alignment:
             for p in r.seq:
-                if p in SPACE and p != '-':
+                if p in self.SPACE and p != '-':
                     print >> stderr, 'ERROR: space character not matching '-' found!'
                     raise ValueError
 

@@ -22,12 +22,24 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
-from math import modf
 from operator import itemgetter
+from os import remove, rename
+from random import random
+from re import sub, match
+from sqlite3 import connect
 from sys import stderr
+from tempfile import mkstemp
 
 import numpy as np
 from scipy.special import fdtrc
+
+from Bio import SeqIO
+
+from _abrecord import AbRecord
+from _alphabet import Alphabet
+from _hmmer import Hmmer
+from _seqtable import SeqTable
+from _smldata import SmlData
 
 
 __all__ = [
@@ -37,14 +49,24 @@ __all__ = [
     'is_HXB2',
     'id_to_class',
     'id_to_real',
+    'id_to_subtype',
     'get_noise',
-    'percentile',
+    'get_valid_antibodies_from_db',
+    'get_valid_subtypes_from_db',
     'base_10_to_n',
     'base_26_to_alph',
     'alph_to_base_26',
     'base_n_to_10',
     'durbin',
     'ystoconfusionmatrix',
+    'collect_AbRecords_from_db',
+    'clamp',
+    'generate_alignment_from_SeqRecords',
+    'binarize_row',
+    'sanitize_seq',
+    'generate_relevant_data',
+    'generate_feature_names',
+    'compute_relevant_features_and_names',
 ]
 
 __HXB2_IDS = None
@@ -113,32 +135,24 @@ def id_to_class(id, target):
     return c
 
 
+def id_to_subtype(id):
+    try:
+        subtype = id.rsplit('|', 3)[1].upper()
+    except ValueError, e:
+        raise ValueError('Cannot parse `%s\' for HIV subtype' % id)
+    return subtype
+
+
 def id_to_real(id):
     try:
-        ic50 = float(id.split('|')[3]) # accession | subtype | ab | ic50
+        ic50 = float(id.rsplit('|', 3)[3]) # accession | subtype | ab | ic50
     except ValueError, e:
-        print >> stderr, 'ERROR: cannot parse `%s\' for IC50 value' % id
-        raise e
+        raise ValueError('Cannot parse `%s\' for IC50 value' % id)
     return ic50
 
 
 def get_noise(id):
-    return float(id.split('|')[3])
-
-
-# as determined by NIST (http://www.itl.nist.gov/div898/handbook/prc/section2/prc252.htm)
-def percentile(a, p):
-    b = sorted(a) 
-    f, s = modf( p * (len(b) + 1) )
-    l = int(s) - 1
-    u = l + 1
-    if f == 0.:
-        f = 1.
-    if l < 0:
-        return b[0]
-    elif u >= len(b):
-        return b[len(b) - 1]
-    return (f * b[l] + (1 - f) * b[u])
+    return id_to_real(id)
 
 
 def base_10_to_n(n, N):
@@ -297,3 +311,281 @@ def ystoconfusionmatrix(truth, preds):
     tp, tn, fp, fn = map(lambda a: np.sum(np.multiply(*a)), [(tps, pps), (tns, pns), (tns, pps), (tps, pns)])
 
     return (tp, tn, fp, fn)
+
+def get_valid_subtypes_from_db(dbpath):
+    conn = connect(dbpath)
+    curr = conn.cursor()
+
+    curr.execute('''select distinct SUBTYPE from GENO_REPORT''')
+
+    valid_subtypes = [r[0] for r in curr if r[0].strip() != '']
+
+    conn.close()
+
+    return valid_subtypes
+
+def get_valid_antibodies_from_db(dbpath):
+    conn = connect(dbpath)
+    curr = conn.cursor()
+
+    curr.execute('''select distinct ANTIBODY from NEUT''')
+
+    valid_antibodies = [r[0] for r in curr]
+
+    conn.close()
+
+    return valid_antibodies
+
+def collect_AbRecords_from_db(dbpath, antibody):
+    conn = connect(dbpath)
+    curr = conn.cursor()
+
+    curr.execute('''
+    select distinct S.ID as ID, S.SEQ as SEQ, G.SUBTYPE as SUBTYPE, N.AB as AB, N.IC50 as IC50 from
+    (select ACCESSION_ID as ID, RAW_SEQ as SEQ from SEQUENCE group by ACCESSION_ID) as S join
+    (select ACCESSION_ID as ID, SUBTYPE from GENO_REPORT group by ACCESSION_ID) as G join
+    (select ACCESSION_ID as ID, ANTIBODY as AB, IC50_STRING as IC50 from NEUT where ANTIBODY = ?) as N
+    on N.ID = S.ID and G.ID = S.ID order by S.ID;
+    ''', (antibody,))
+
+    # make sure the records are unique
+    ab_records = list()
+    for row in curr:
+        ab_record = AbRecord(*row)
+        if ab_record.id in [abr.id for abr in ab_records]:
+            ab_record.id += '-1'
+        ab_records.append(ab_record)
+
+    conn.close()
+
+    return ab_records
+
+def clamp(x):
+    if x < 0.:
+        return 0.
+    if x > 1.:
+        return 1.
+    return x
+
+def generate_alignment_from_SeqRecords(refseqpath, seq_records, hmmer_align_bin, hmmer_build_bin, hmmer_iter, filename, dna=False):
+    ab_fasta_filename = mkstemp()[1]
+    hmm_filename = mkstemp()[1]
+    sto_filename = mkstemp()[1]
+    finished = False
+
+    try:
+        # get the FASTA format file so we can HMMER it
+        fafh = open(ab_fasta_filename, 'w')
+        hxb2fh = open(refseqpath, 'rU')
+
+        # grab the HXB2 Reference Sequence
+        hxb2_record = SeqIO.parse(hxb2fh, 'fasta')
+        seq_records.extend(hxb2_record)
+
+        # type errors here?
+        try:
+            SeqIO.write(seq_records, fafh, 'fasta')
+        except TypeError, e:
+            print >> stderr, seq_records
+            raise e
+
+        # close the handles in this order because BioPython wiki does so
+        fafh.close()
+        hxb2fh.close()
+
+        # make the tempfiles for the alignments, and close them out after we use them
+        SeqIO.convert(refseqpath, 'fasta', sto_filename, 'stockholm')
+
+        print >> stderr, 'Aligning %d sequences with HMMER:' % (len(seq_records)+1),
+
+        hmmer = Hmmer(hmmer_align_bin, hmmer_build_bin)
+
+        for i in xrange(0, hmmer_iter):
+            print >> stderr, '%d,' % i,
+            hmmer.build(hmm_filename, sto_filename)
+            hmmer.align(hmm_filename, ab_fasta_filename, output=sto_filename, alphabet=Hmmer.DNA if dna else Hmmer.AMINO, outformat=Hmmer.PFAM)
+
+        # rename the final alignment to its destination
+        print >> stderr, 'done, output moved to: %s' % filename
+        finished = True
+
+    finally:
+        # cleanup these files
+        if finished:
+            rename(sto_filename, filename)
+        else:
+            remove(sto_filename)
+        remove(ab_fasta_filename)
+        remove(hmm_filename)
+
+def binarize_row(row, alphabet):
+    alphdict = alphabet.todict()
+    alphabet_len = len(set(alphdict.values()))
+    row = sanitize_seq(str(row), alphabet)
+    ret = []
+    for p in row:
+        ret.extend([1 if i == alphdict[p] else 0 for i in xrange(alphabet_len)])
+    return ret
+
+def sanitize_seq(seq, alphabet):
+    alphdict = alphabet.todict()
+    assert(len(SeqTable.SPACE) > 0 and len(seq) > 0 and len(alphdict.keys()) > 0)
+    try:
+        seq = str(seq)
+        seq = seq.upper()
+        seq = sub(r'[%s]' % SeqTable.SPACE, '-', seq)
+        seq = sub(r'[^%s]' % ''.join(alphdict.keys()), 'X', seq)
+    except TypeError, e:
+        raise RuntimeError('something is amiss with things:\n  SPACE = %s\n  seq = %s\n  alphabet = %s\n' % (SeqTable.SPACE, seq, alphdict))
+    return seq
+
+def generate_relevant_data(feature_names, seq_table, alphabet, feature_idxs, target, subtypes=[], simulation=None):
+    data = SmlData(feature_names)
+
+    neg = 0
+    pos = 0
+
+    for row in seq_table.rows():
+        # everything before the continue takes care of the | and : separators
+        if is_HXB2(row.id):
+            continue
+        if len(subtypes) > 0:
+            rowtype = id_to_subtype(row.id)
+            if rowtype == '' or len([i for i in rowtype if i in subtypes]) <= 0:
+                raise ValueError('Unwanted subtypes should already be masked out: %s' % row.id)
+        expanded_row = binarize_row(row.seq, alphabet)
+        feats = dict([f for f in zip(range(0, len(feature_idxs)), [expanded_row[i] for i in feature_idxs]) if f[1] != 0])
+        if simulation is not None:
+            class_ = random()
+            class_ = 1 if class_ < simulation.proportion else 0
+        else:
+            class_ = id_to_class(row.id, target)
+        data.add(class_, feats)
+        if class_:
+            pos += 1
+        else:
+            neg += 1
+
+    # silence this during testing
+    # print >> sys.stdout, 'Ratio + to - : %d to %d' % (pos, neg)
+
+    return data
+
+def generate_feature_names(seq_table, alph):
+    alphabet, alphabet_names = alph.todict(), alph.names()
+
+    # make the feature names
+    hxb2_seq = None
+    for r in seq_table.rows():
+        if is_HXB2(r.id):
+            hxb2_seq = r.seq
+
+    assert(hxb2_seq is not None)
+
+    # convention is E215 (Glutamic Acid at 215) or 465a (first insertion after 465)
+    names = []
+    c = 0
+    ins = 0
+    for p in hxb2_seq:
+        if p not in SeqTable.SPACE:
+            c += 1
+            ins = 0
+        else:
+            ins += 1
+        for v in set(alphabet.values()):
+            insert = base_26_to_alph(base_10_to_n(ins, BASE_ALPH))
+            names.append('%s%d%s%s' % ('' if insert != '' else p.upper(), c, insert, alphabet_names[v]))
+
+    return names
+
+def compute_relevant_features_and_names(seq_table, alph, names, limits={ 'max': 1.0, 'min': 1.0, 'gap': 0.1 }, filter_list=[]):
+    if type(limits) != dict:
+        raise ValueError('limits must be of type `dict\'')
+    
+    for lim in ('max', 'min', 'gap'):
+        if lim not in limits:
+            raise ValueError('limits must contain `%s\'' % lim)
+
+    if not seq_table.loaded:
+        seq_table.fill_columns()
+
+    columns = range(0, seq_table.num_columns)
+    alphabet, alphabet_names = alph.todict(), alph.names()
+    alphabet_len = len(set(alphabet.values()))
+    delete_cols = list()
+
+    max_counts = list()
+    min_counts = list()
+
+    # remove overly-conserved or overly-random columns
+    for i in sorted(seq_table.columns.keys()):
+        j = alphabet_len * i
+        alph_counts = seq_table.columns[i].counts()
+        count = sum(alph_counts.values())
+        max_count = 1. * max(alph_counts.values()) / count
+        min_count = 1. * min(alph_counts.values()) / count
+        gap_count = 1. * alph_counts['-'] / count if '-' in alph_counts else 0.
+        if max_count > limits['max'] or \
+           min_count > limits['min'] or \
+           gap_count > limits['gap']:
+            delete_cols.extend(range(j, j+alphabet_len))
+            continue
+        max_counts.append((i, limits['max'] - max_count))
+        min_counts.append((i, limits['min'] - min_count))
+        # for each unique assignment
+        for v in set(alphabet.values()):
+            c = False
+            # for each value party to that assignment
+            for (k, v_) in alphabet.items():
+                if v != v_:
+                    continue
+                # if we've collected an count for that value
+                if k in seq_table.columns[i].counts():
+                    c = True
+                    break
+            # if we've not collected a count, delete it
+            if not c:
+                delete_cols.append(j+v)
+
+    # TODO: remove overly conserved or overly-random columns in class subgroups
+
+    # I love list comprehensions
+    columns = [i for i in xrange(0, seq_table.num_columns * alphabet_len) if i not in delete_cols]
+
+    # trim columns in excess of _MRMR_MAX_VARS or else everything 'splodes
+#     if len(columns) * seq_table.num_rows > _MRMR_MAX_VARS:
+#         remainder = ceil( (len(columns) * seq_table.num_rows - _MRMR_MAX_VARS) / seq_table.num_rows )
+#         print >> sys.stderr, 'WARNING: having to trim %i excess columns, this may take a minute' % remainder
+#         max_counts = sorted(max_counts, key=itemgetter(1))
+#         max_counts = sorted(min_counts, key=itemgetter(1))
+#         while(len(columns) * seq_table.num_rows > _MRMR_MAX_VARS):
+#             if max_counts[0][1] < min_counts[0][1]:
+#                 j = max_counts.pop(0)[0] * alphabet_len
+#                 columns = [i for i in columns if i not in range(j, j+alphabet_len)]
+#             else:
+#                 j = min_counts.pop(0)[0] * alphabet_len
+#                 columns = [i for i in columns if i not in range(j, j+alphabet_len)]
+#
+#     try:
+#         assert(len(columns) <= _MRMR_MAX_VARS)
+#     except AssertionError, e:
+#         print len(columns), len(delete_cols)
+#         raise e
+
+    columns = sorted(columns)
+
+    # trimmed because they're only the ones for columns, not because of the strip
+    trimmed_names = [names[i] for i in columns]
+
+    if len(filter_list) != 0:
+        delete_cols = []
+        for i in xrange(0, len(columns)):
+            m = match(r'^([A-Z]\d+)', trimmed_names[i])
+            if m:
+                if m.group(1) not in filter_list:
+                    delete_cols.append(i)
+        for i in sorted(delete_cols, reverse=True):
+            del columns[i]
+            del trimmed_names[i]
+
+    return (columns, trimmed_names)

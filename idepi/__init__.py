@@ -22,6 +22,8 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
+from _abrecord import *
+from _alphabet import *
 from _crossvalidator import *
 from _gridsearcher import *
 from _hmmer import *
@@ -39,6 +41,8 @@ from _randomsequences import *
 from _selectinggridsearcher import *
 from _selectingnestedcrossvalidator import *
 from _seqtable import *
+# from _simulatedepitope import *
+from _simulation import *
 from _smldata import *
 from _sparsepartitioning import *
 from _uithread import *
@@ -46,6 +50,8 @@ from _util import *
 
 
 __all__ = []
+__all__ += _abrecord.__all__
+__all__ += _alphabet.__all__
 __all__ += _crossvalidator.__all__
 __all__ += _gridsearcher.__all__
 __all__ += _hmmer.__all__
@@ -63,6 +69,8 @@ __all__ += _randomsequences.__all__
 __all__ += _selectinggridsearcher.__all__
 __all__ += _selectingnestedcrossvalidator.__all__
 __all__ += _seqtable.__all__
+# __all__ += _simulatedepitope.__all__
+__all__ += _simulation.__all__
 __all__ += _smldata.__all__
 __all__ += _sparsepartitioning.__all__
 __all__ += _uithread.__all__

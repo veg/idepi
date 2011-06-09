@@ -25,29 +25,17 @@
 from os import environ
 from os.path import exists, join
 from subprocess import Popen, PIPE
+from tempfile import mkstemp
 
 
-__all__ = [
-    'AMINO',
-    'DNA',
-    'RNA',
-    'FASTA',
-    'EMBL',
-    'GENBANK',
-    'UNIPROT',
-    'STOCKHOLM',
-    'PFAM',
-    'A2M',
-    'PSIBLAST',
-    'Hmmer'
-]
+__all__ = ['Hmmer']
 
-AMINO, DNA, RNA = 0, 1, 2
-FASTA, EMBL, GENBANK, UNIPROT = 'FASTA', 'EMBL', 'Genbank', 'Uniprot'
-STOCKHOLM, PFAM, A2M, PSIBLAST = 'Stockholm', 'Pfam', 'A2M', 'PSIBLAST'
 
 
 class Hmmer(object):
+    AMINO, DNA, RNA = 0, 1, 2
+    FASTA, EMBL, GENBANK, UNIPROT = 'FASTA', 'EMBL', 'Genbank', 'Uniprot'
+    STOCKHOLM, PFAM, A2M, PSIBLAST = 'Stockholm', 'Pfam', 'A2M', 'PSIBLAST'
 
     def __init__(self, alignbin='hmmalign', buildbin='hmmbuild'):
         self.__alignbin = alignbin
@@ -65,12 +53,19 @@ class Hmmer(object):
                 raise StandardError('Executable %s not found.' % bin)
 
     def align(self, hmmfile, seqfile, output=None, allcol=False, mapali=None, trim=False, alphabet=None, informat=None, outformat=None):
-        
-        if alphabet not in (None, AMINO, DNA, RNA):
+    
+        if alphabet is None:
+            alphabet = Hmmer.AMINO
+        if informat is None:
+            informat = Hmmer.FASTA
+        if outformat is None:
+            outformat = Hmmer.STOCKHOLM
+
+        if alphabet not in (Hmmer.AMINO, Hmmer.DNA, Hmmer.RNA):
             raise ValueError('alphabet needs to be one of the idepi-provided constants: AMINO, DNA, RNA')
-        if informat not in (None, FASTA, EMBL, GENBANK, UNIPROT):
+        if informat not in (Hmmer.FASTA, Hmmer.EMBL, Hmmer.GENBANK, Hmmer.UNIPROT):
             raise ValueError('informat needs to be one of the idepi-provided constants: FASTA, EMBL, GENBANK, UNIPROT')
-        if outformat not in (None, STOCKHOLM, PFAM, A2M, PSIBLAST):
+        if outformat not in (Hmmer.STOCKHOLM, Hmmer.PFAM, Hmmer.A2M, Hmmer.PSIBLAST):
             raise ValueError('outformat needs to be one of the idepi-provided constants: STOCKHOLM, PFAM, A2M, PSIBLAST')
 
         tmp = False
@@ -86,11 +81,11 @@ class Hmmer(object):
         if trim is True:
             args.append('--trim')
         if alphabet is not None:
-            if alphabet is AMINO:
+            if alphabet is Hmmer.AMINO:
                 args.append('--amino')
-            if alphabet is DNA:
+            if alphabet is Hmmer.DNA:
                 args.append('--dna')
-            if alphabet is RNA:
+            if alphabet is Hmmer.RNA:
                 args.append('--rna')
         if informat is not None:
             args.extend(['--informat', informat])

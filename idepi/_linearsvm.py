@@ -53,7 +53,6 @@ class LinearSvm(object):
         self.__computed = False
 
     def learn(self, x, y):
-        assert(x.shape[1] == 10)
         ret = self.__lsvm.learn(x.astype(float), y.astype(float))
         self.__computed = True
         if ret is not None:

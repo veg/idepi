@@ -31,7 +31,7 @@ from operator import itemgetter
 from optparse import OptionParser
 from os import remove, rename
 from os.path import basename, dirname, exists, join, realpath, splitext
-from random import gauss, randint, random, seed
+from random import gauss, random, seed
 from re import sub, match
 from tempfile import mkstemp
 
@@ -110,28 +110,6 @@ _TEST_STANFEL_SVM = ['1 1:1 3:1 4:1 5:1 7:1 9:1 11:1 13:1',
                      '0 1:1 3:1 4:1 6:1 8:1 9:1 11:1 12:1',
                      '1 2:1 3:1 4:1 5:1 7:1 9:1 10:1 13:1']
 
-_STANFEL = {'A': 0,
-            'C': 0,
-            'G': 0,
-            'I': 0,
-            'L': 0,
-            'M': 0,
-            'P': 0,
-            'S': 0,
-            'T': 0,
-            'V': 0,
-            'D': 1,
-            'E': 1,
-            'N': 1,
-            'Q': 1,
-            'F': 2,
-            'W': 2,
-            'Y': 2,
-            'H': 3,
-            'K': 3,
-            'R': 3,
-            'X': 4,
-            '-': 5} # this is a space, but we cant have 'keyword be an expression'
 
 OPTIONS = None
 
@@ -269,7 +247,7 @@ def run_tests():
         print >> fh, _TEST_AMINO_STO
         fh.close()
 
-        seq_table = SeqTable(sto_filename, AMINO_ALPHABET)
+        seq_table = SeqTable(sto_filename, SeqTable.AMINO_ALPHABET)
 
         for OPTIONS.STANFEL in (True, False):
 
@@ -284,10 +262,22 @@ def run_tests():
                 _TEST_MRMR = _TEST_AMINO_MRMR
                 _TEST_SVM = _TEST_AMINO_SVM
 
-            all_feature_names = generate_feature_names(seq_table)
+            alph = Alphabet(Alphabet.STANFEL if OPTIONS.STANFEL else Alphabet.DNA if OPTIONS.DNA else Alphabet.AMINO)
+
+            all_feature_names = generate_feature_names(seq_table, alph) 
 
             # TODO: fix this stupidity
-            feature_idxs, feature_names = compute_relevant_features_and_names(seq_table, all_feature_names)
+            feature_idxs, feature_names = compute_relevant_features_and_names(
+                seq_table,
+                alph,
+                all_feature_names,
+                {
+                    'max': OPTIONS.MAX_CONSERVATION,
+                    'min': OPTIONS.MIN_CONSERVATION,
+                    'gap': OPTIONS.MAX_GAP_RATIO
+                },
+                OPTIONS.FILTER,
+            )
 
             feature_names_ = list(feature_names)
 
@@ -310,12 +300,18 @@ def run_tests():
 
             # test mRMR and LSVM file generation
             for target in OPTIONS.TARGETS:
-                data = generate_relevant_data(seq_table, feature_names, feature_idxs, target)
+                data = generate_relevant_data(
+                    feature_names,
+                    seq_table,
+                    Alphabet(mode=Alphabet.AMINO),
+                    feature_idxs,
+                    target
+                )
 
                 x, y = data.tondarrays()
 
                 # generate and test the mRMR portion
-                mrmr = Mrmr(num_features=OPTIONS.NUM_FEATURES, method=MAXREL if OPTIONS.MAXREL else MID if OPTIONS.MRMR_METHOD == 'MID' else MIQ)
+                mrmr = Mrmr(num_features=OPTIONS.NUM_FEATURES, method=Mrmr.MAXREL if OPTIONS.MAXREL else Mrmr.MID if OPTIONS.MRMR_METHOD == 'MID' else Mrmr.MIQ)
 
                 mrmr.select(x, y)
 
@@ -330,438 +326,26 @@ def run_tests():
     print >> sys.stderr, 'ALL TESTS PASS'
 
 
-def get_valid_subtypes_from_db():
-    conn = sqlite3.connect(OPTIONS.NEUT_SQLITE3_DB)
-    curr = conn.cursor()
-
-    curr.execute('''select distinct SUBTYPE from GENO_REPORT''')
-
-    valid_subtypes = [r[0] for r in curr if r[0].strip() != '']
-
-    conn.close()
-
-    return valid_subtypes
-
-
-def get_valid_antibodies_from_db():
-    conn = sqlite3.connect(OPTIONS.NEUT_SQLITE3_DB)
-    curr = conn.cursor()
-
-    curr.execute('''select distinct ANTIBODY from NEUT''')
-
-    valid_antibodies = [r[0] for r in curr]
-
-    conn.close()
-
-    return valid_antibodies
-
-
 def fix_hxb2_fasta():
     '''If DNA mode was selected but the AMINO reference sequence is still in place, fix it'''
     if OPTIONS.DNA == True and OPTIONS.HXB2_FASTA == _HXB2_AMINO_FASTA:
         OPTIONS.HXB2_FASTA = _HXB2_DNA_FASTA
 
 
-class ABRecord(object):
-
-    def __init__(self, id, seq, subtype, ab, ic50):
-        self.id = id
-        self.dna_seq, self.amino_seq = OrfList(seq)[0]
-        self.subtype = subtype.upper()
-        self.antibody = ab
-        ic50 = ic50.strip()
-        if '>' in ic50:
-            ic50 = 25.
-        else:
-            ic50 = float(ic50)
-        self.ic50 = ic50
-
-    def to_SeqRecord(self):
-        if OPTIONS.DNA:
-            _seq = self.dna_seq
-        else:
-            _seq = self.amino_seq
-        return SeqRecord(_seq, '%s|%s|%s|%s' % (self.id, self.subtype, self.antibody, self.ic50))
-
-
-def collect_ABRecords_from_db(antibody):
-    conn = sqlite3.connect(OPTIONS.NEUT_SQLITE3_DB)
-    curr = conn.cursor()
-
-    curr.execute('''
-    select distinct S.ID as ID, S.SEQ as SEQ, G.SUBTYPE as SUBTYPE, N.AB as AB, N.IC50 as IC50 from
-    (select ACCESSION_ID as ID, RAW_SEQ as SEQ from SEQUENCE group by ACCESSION_ID) as S join
-    (select ACCESSION_ID as ID, SUBTYPE from GENO_REPORT group by ACCESSION_ID) as G join
-    (select ACCESSION_ID as ID, ANTIBODY as AB, IC50_STRING as IC50 from NEUT where ANTIBODY = ?) as N
-    on N.ID = S.ID and G.ID = S.ID order by S.ID;
-    ''', (antibody,))
-
-    # make sure the records are unique
-    ab_records = list()
-    for row in curr:
-        ab_record = ABRecord(*row)
-        if ab_record.id in [abr.id for abr in ab_records]:
-            ab_record.id += '-1'
-        ab_records.append(ab_record)
-
-    conn.close()
-
-    return ab_records
-
-
-def generate_alignment_from_SeqRecords(filename, seq_records):
-    ab_fasta_filename = mkstemp()[1]
-    hmm_filename = mkstemp()[1]
-    sto_filename = mkstemp()[1]
-    finished = False
-
-    try:
-        # get the FASTA format file so we can HMMER it
-        fafh = open(ab_fasta_filename, 'w')
-        hxb2fh = open(OPTIONS.HXB2_FASTA, 'rU')
-
-        # grab the HXB2 Reference Sequence
-        hxb2_record = SeqIO.parse(hxb2fh, 'fasta')
-        seq_records.extend(hxb2_record)
-
-        # type errors here?
-        try:
-            SeqIO.write(seq_records, fafh, 'fasta')
-        except TypeError, e:
-            print >> sys.stderr, seq_records
-            raise e
-
-        # close the handles in this order because BioPython wiki does so
-        fafh.close()
-        hxb2fh.close()
-
-        # make the tempfiles for the alignments, and close them out after we use them
-        SeqIO.convert(OPTIONS.HXB2_FASTA, 'fasta', sto_filename, 'stockholm')
-
-        hmmer_build_args = [OPTIONS.HMMER_BUILD_BIN, '--dna' if OPTIONS.DNA else '--amino', \
-                           hmm_filename, sto_filename]
-        hmmer_align_args = [OPTIONS.HMMER_ALIGN_BIN, '--dna' if OPTIONS.DNA else '--amino', \
-                           '--outformat', 'Pfam', '-o', sto_filename, hmm_filename, ab_fasta_filename]
-
-        print >> sys.stderr, 'Aligning %d sequences with HMMER:' % (len(seq_records)+1),
-
-        hmmer = Hmmer(OPTIONS.HMMER_ALIGN_BIN, OPTIONS.HMMER_BUILD_BIN)
-
-        for i in xrange(0, OPTIONS.HMMER_ITER):
-            print >> sys.stderr, '%d,' % i,
-            hmmer.build(hmm_filename, sto_filename)
-            hmmer.align(hmm_filename, ab_fasta_filename, output=sto_filename, alphabet=DNA if OPTIONS.DNA else AMINO, outformat=PFAM)
-
-        # rename the final alignment to its destination
-        print >> sys.stderr, 'done, output moved to: %s' % filename
-        finished = True
-
-    finally:
-        # cleanup these files
-        if finished:
-            rename(sto_filename, filename)
-        else:
-            remove(sto_filename)
-        remove(ab_fasta_filename)
-        remove(hmm_filename)
-
-
-def clamp(x):
-    if x < 0.:
-        return 0.
-    if x > 1.:
-        return 1.
-    return x
-
-
-class SimulatedEpitope(object):
-
-    def __init__(self, positions, position_names, alphabet, kernel_func=None):
-        self.positions = positions
-        self.alphabet = alphabet
-        self.names = position_names
-        # default to a uniform linear kernel
-        if kernel_func is None:
-            self.kernel_func = lambda x, n: clamp(1. * x / len(positions) + n)
-
-    def __str__(self):
-        return '\n'.join(sorted(self.names, key = lambda x: int(sub(r'[a-zA-Z\[\]]+', '', x))))
-
-    def evaluate(self, seq, noise=0., proportion=-1):
-        total = 0
-        # sanitize the sequence, so that it fits in our alphabet
-        seq = sanitize_seq(seq, self.alphabet)
-        for k, v in self.positions.items():
-            if self.alphabet[seq[k]] == self.alphabet[v]:
-                total += 1
-        # this thing should now produce 50/50 splits no matter what
-        # if the positions are more mutated than the base rate, then 25 (resistant)
-        # else 1 (susceptible)
-        if proportion < 0:
-            ret = self.kernel_func(total, noise)
-        else:
-            ret = 1. if proportion < self.kernel_func(total, noise) else 25.
-        # 12.5 * pow(1. - self.kernel_func(total), 0.8) # 0.8 for a 0.1 mutation rate, 2.667 for a 50%/50% split
-        # ret = abs(2. * log10(self.kernel_func(total) + 0.00018) / log10(proportion))
-        return ret
-
-
-def random_column_subset(size, columns):
-    col_subset = []
-    assert(len(columns) > 0)
-    while len(col_subset) < size:
-        c_ = columns[randint(0, len(columns) - 1)]
-        if c_ not in col_subset:
-            col_subset.append(c_)
-    return col_subset
-
-
-def generate_random_epitope(seq_table, column_names, size, kernel_func=None):
-    if not seq_table.loaded:
-        seq_table.fill_columns()
-
-    alphabet, alphabet_names = fetch_alphabet_dict()
-    alphabet_len = len(set(alphabet.values()))
-    positions = {}
-
-    if size > 0.2 * seq_table.num_columns:
-        print >> sys.stderr, 'ERROR: We do not suggest or support simulated epitopes larger than 20% of your alignment length'
-        sys.exit(-1)
-
-    # generate a approximately uniformly random epitope from the available nucleotides at each position (ensure that existing sequences match the epitope)
-    while len(positions) < size:
-        # only grab as many new positions as we need (size - len(positions))
-        new_positions = random_column_subset(size - len(positions), seq_table.columns.keys())
-        for i in new_positions:
-            # if we already have that position, delete it and skip
-            if i in positions:
-                continue
-            # this is some trickery to avoid ambiguous positions and spaces
-            vals = [(sanitize_seq(x[0], alphabet), x[1]) for x in seq_table.columns[i].counts().items() if sanitize_seq(x[0], alphabet) not in ('X', '-')]
-            # if only Xs, then ignore this position
-            if len(vals) == 0:
-                continue
-            count = sum([x[1] for x in vals])
-            vals = sorted([(x[0], 1.0 * x[1] / count) for x in vals], key = itemgetter(1), reverse = True)
-            # don't bother with this uniform bullshit, just assume the most common is the epitope
-            positions[i] = vals[0][0]
-            # find the value whose contribution to the cdf bounds our uniformly random value (r_) , then stop
-            # r_ = random()
-            # cdf = 0.
-            # for j in vals:
-                # cdf += j[1]
-                # if cdf > r_:
-                    # positions[i] = j[0]
-                    # break
-
-    # this formula should generate the correct position names for the epitope
-    position_names = [column_names[k * alphabet_len + alphabet_names.index(v)] for k, v in positions.items()]
-
-    epi_def = SimulatedEpitope(positions, position_names, alphabet, kernel_func)
-
-    return epi_def
-
-
-def fetch_alphabet_dict():
-    if OPTIONS.STANFEL:
-        names = []
-        for v in set(_STANFEL.values()):
-            names.append('[%s]' % ''.join(sorted([k if k != '-' else '' for (k, v_) in _STANFEL.items() if v == v_])))
-        return (_STANFEL, names)
-    elif OPTIONS.DNA:
-        return (dict([(DNA_ALPHABET[i], i) for i in xrange(0, len(DNA_ALPHABET))]), \
-                [DNA_ALPHABET[i] if AMINO_ALPHABET[i] != '-' else '[]' for i in xrange(0, len(DNA_ALPHABET))])
-    else:
-        return (dict([(AMINO_ALPHABET[i], i) for i in xrange(0, len(AMINO_ALPHABET))]), \
-                [AMINO_ALPHABET[i] if AMINO_ALPHABET[i] != '-' else '[]' for i in xrange(0, len(AMINO_ALPHABET))])
-
-
-def sanitize_seq(seq, alphabet):
-    assert(len(SPACE) > 0 and len(seq) > 0 and len(alphabet.keys()) > 0)
-    try:
-        seq = str(seq)
-        seq = seq.upper()
-        seq = sub(r'[%s]' % SPACE, '-', seq)
-        seq = sub(r'[^%s]' % ''.join(alphabet.keys()), 'X', seq)
-    except TypeError, e:
-        print >> sys.stderr, 'ERROR: something amiss with things:'
-        print >> sys.stderr, 'SPACE =', SPACE
-        print >> sys.stderr, 'seq =', seq
-        print >> sys.stderr, 'alphabet =', alphabet
-        raise e
-    return seq
-
-
-def binarize_row(row):
-    alphabet = fetch_alphabet_dict()[0]
-    alphabet_len = len(set(alphabet.values()))
-    row = sanitize_seq(str(row), alphabet)
-    ret = []
-    for p in row:
-        ret.extend([1 if i == alphabet[p] else 0 for i in xrange(0, alphabet_len)])
-    return ret
-
-
-def generate_feature_names(seq_table):
-    alphabet, alphabet_names = fetch_alphabet_dict()
-
-    # make the feature names
-    hxb2_seq = None
-    for r in seq_table.rows():
-        if is_HXB2(r.id):
-            hxb2_seq = r.seq
-
-    assert(hxb2_seq is not None)
-
-    # convention is E215 (Glutamic Acid at 215) or 465a (first insertion after 465)
-    names = []
-    c = 0
-    ins = 0
-    for p in hxb2_seq:
-        if p not in SPACE:
-            c += 1
-            ins = 0
-        else:
-            ins += 1
-        for v in set(alphabet.values()):
-            insert = base_26_to_alph(base_10_to_n(ins, BASE_ALPH))
-            names.append('%s%d%s%s' % ('' if insert != '' else p.upper(), c, insert, alphabet_names[v]))
-
-    return names
-
-
-def compute_relevant_features_and_names(seq_table, names):
-    if not seq_table.loaded:
-        seq_table.fill_columns()
-
-    columns = range(0, seq_table.num_columns)
-    alphabet, alphabet_names = fetch_alphabet_dict()
-    alphabet_len = len(set(alphabet.values()))
-    delete_cols = list()
-
-    max_counts = list()
-    min_counts = list()
-
-    # remove overly-conserved or overly-random columns
-    for i in sorted(seq_table.columns.keys()):
-        j = alphabet_len * i
-        alph_counts = seq_table.columns[i].counts()
-        count = sum(alph_counts.values())
-        max_count = 1. * max(alph_counts.values()) / count
-        min_count = 1. * min(alph_counts.values()) / count
-        gap_count = 1. * alph_counts['-'] / count if '-' in alph_counts else 0.
-        if max_count > OPTIONS.MAX_CONSERVATION or \
-           min_count > OPTIONS.MIN_CONSERVATION or \
-           gap_count > OPTIONS.MAX_GAP_RATIO:
-            delete_cols.extend(range(j, j+alphabet_len))
-            continue
-        max_counts.append((i, OPTIONS.MAX_CONSERVATION - max_count))
-        min_counts.append((i, OPTIONS.MIN_CONSERVATION - min_count))
-        # for each unique assignment
-        for v in set(alphabet.values()):
-            c = False
-            # for each value party to that assignment
-            for (k, v_) in alphabet.items():
-                if v != v_:
-                    continue
-                # if we've collected an count for that value
-                if k in seq_table.columns[i].counts():
-                    c = True
-                    break
-            # if we've not collected a count, delete it
-            if not c:
-                delete_cols.append(j+v)
-
-    # TODO: remove overly conserved or overly-random columns in class subgroups
-
-    # I love list comprehensions
-    columns = [i for i in xrange(0, seq_table.num_columns * alphabet_len) if i not in delete_cols]
-
-    # trim columns in excess of _MRMR_MAX_VARS or else everything 'splodes
-#     if len(columns) * seq_table.num_rows > _MRMR_MAX_VARS:
-#         remainder = ceil( (len(columns) * seq_table.num_rows - _MRMR_MAX_VARS) / seq_table.num_rows )
-#         print >> sys.stderr, 'WARNING: having to trim %i excess columns, this may take a minute' % remainder
-#         max_counts = sorted(max_counts, key=itemgetter(1))
-#         max_counts = sorted(min_counts, key=itemgetter(1))
-#         while(len(columns) * seq_table.num_rows > _MRMR_MAX_VARS):
-#             if max_counts[0][1] < min_counts[0][1]:
-#                 j = max_counts.pop(0)[0] * alphabet_len
-#                 columns = [i for i in columns if i not in range(j, j+alphabet_len)]
-#             else:
-#                 j = min_counts.pop(0)[0] * alphabet_len
-#                 columns = [i for i in columns if i not in range(j, j+alphabet_len)]
-#
-#     try:
-#         assert(len(columns) <= _MRMR_MAX_VARS)
-#     except AssertionError, e:
-#         print len(columns), len(delete_cols)
-#         raise e
-
-    columns = sorted(columns)
-
-    # trimmed because they're only the ones for columns, not because of the strip
-    trimmed_names = [names[i] for i in columns]
-
-    if len(OPTIONS.FILTER) != 0:
-        delete_cols = []
-        for i in xrange(0, len(columns)):
-            m = match(r'^([A-Z]\d+)', trimmed_names[i])
-            if m:
-                if m.group(1) not in OPTIONS.FILTER:
-                    delete_cols.append(i)
-        for i in sorted(delete_cols, reverse=True):
-            del columns[i]
-            del trimmed_names[i]
-
-    return (columns, trimmed_names)
-
-
-def generate_relevant_data(seq_table, feature_names, feature_idxs, target, proportion=None):
-    data = SmlData(feature_names)
-
-    if OPTIONS.SIM in (_RAND_SEQ, _RAND_TARGET) and proportion is None:
-        print >> sys.stderr, 'ERROR: no proportion defined for simulation, aborting!'
-        sys.exit(-1)
-
-    neg = 0
-    pos = 0
-
-    for row in seq_table.rows():
-        # everything before the continue takes care of the | and : separators
-        if is_HXB2(row.id):
-            continue
-        if len(OPTIONS.SUBTYPES) != 0:
-            subtypes = row.id.split('|')[1].upper()
-            if subtypes == '' or len([i for i in subtypes if i in OPTIONS.SUBTYPES]) <= 0:
-                print >> sys.stderr, 'ERROR: We\'re supposed to have already masked out unwanted subtypes: %s' % row.id
-                raise ValueError
-        expanded_row = binarize_row(row.seq)
-        feats = dict([f for f in zip(range(0, len(feature_idxs)), [expanded_row[i] for i in feature_idxs]) if f[1] != 0])
-        if OPTIONS.SIM in (_RAND_SEQ, _RAND_TARGET):
-            class_ = random()
-            # if the proportion is 1, then 100% of class_ should be 1, if proportion is .3, then 30%, and so on
-            class_ = 1 if class_ < proportion else 0
-        else:
-            class_ = id_to_class(row.id, target)
-        data.add(class_, feats)
-        if class_:
-            pos += 1
-        else:
-            neg += 1
-
-    # silence this during testing
-    if not OPTIONS.TEST and 0:
-        print >> sys.stdout, 'Ratio + to - : %d to %d' % (pos, neg)
-
-    return data
-
-
-def collect_seq_table_and_feature_names(ab_alignment_filename, seq_records):
+def collect_SeqTable_and_feature_names(ab_alignment_filename, seq_records):
 
     if not exists(ab_alignment_filename) and OPTIONS.SIM != _RAND_DUMB:
-        generate_alignment_from_SeqRecords(ab_alignment_filename, seq_records)
+        generate_alignment_from_SeqRecords(
+            OPTIONS.HXB2_FASTA,
+            seq_records,
+            OPTIONS.HMMER_ALIGN_BIN,
+            OPTIONS.HMMER_BUILD_BIN,
+            OPTIONS.HMMER_ITER,
+            ab_alignment_filename,
+            dna=True if OPTIONS.DNA else False
+        )
     elif OPTIONS.SIM == _RAND_DUMB:
-        # stupid workaround because Bio.SeqIO objects suck at regular Stockholm output
+        # we're assuming pre-aligned because they're all generated from the same refseq
         ab_alignment_fh = open(ab_alignment_filename, 'w')
         SeqIO.write(seq_records, ab_alignment_fh, 'stockholm')
         ab_alignment_fh.close()
@@ -770,9 +354,11 @@ def collect_seq_table_and_feature_names(ab_alignment_filename, seq_records):
     if len(OPTIONS.SUBTYPES) != 0:
         skip_func = lambda x: len([i for i in x.split('|')[1] if i in tuple(OPTIONS.SUBTYPES)]) <= 0
 
-    seq_table = SeqTable(ab_alignment_filename, DNA_ALPHABET if OPTIONS.DNA else AMINO_ALPHABET, is_HXB2, skip_func)
+    alph = Alphabet(Alphabet.STANFEL if OPTIONS.STANFEL else Alphabet.DNA if OPTIONS.DNA else Alphabet.AMINO)
 
-    all_feature_names = generate_feature_names(seq_table)
+    seq_table = SeqTable(ab_alignment_filename, SeqTable.DNA_ALPHABET if OPTIONS.DNA else SeqTable.AMINO_ALPHABET, is_HXB2, skip_func)
+
+    all_feature_names = generate_feature_names(seq_table, alph) 
 
     # set the right number of CV_FOLDS for Leave-One-Out-Crossvalidation
     if OPTIONS.LOOCV:
@@ -782,23 +368,6 @@ def collect_seq_table_and_feature_names(ab_alignment_filename, seq_records):
     seq_table.partition(OPTIONS.CV_FOLDS)
 
     return seq_table, all_feature_names
-
-
-def assign_class_by_percentile(seq_table, epi_def):
-
-    vals = []
-    for row in seq_table.rows():
-        if is_HXB2(row.id):
-            continue
-        vals.append(epi_def.evaluate(row.seq, get_noise(row.id)))
-    proportion = percentile(vals, OPTIONS.SIM_EPI_PERCENTILE)
-
-    for row in seq_table.rows():
-        if is_HXB2(row.id):
-            continue
-        row.id = '|||%.3f' % epi_def.evaluate(row.seq, get_noise(row.id), proportion)
-
-    return
 
 
 def main(argv = sys.argv):
@@ -850,7 +419,7 @@ def main(argv = sys.argv):
     # validate the antibody argument, currently a hack exists to make PG9/PG16 work
     # TODO: Fix pg9/16 hax
     antibody = args[1]
-    valid_antibodies = sorted(get_valid_antibodies_from_db(), key = lambda x: x.strip())
+    valid_antibodies = sorted(get_valid_antibodies_from_db(OPTIONS.NEUT_SQLITE3_DB), key = lambda x: x.strip())
     if antibody not in valid_antibodies:
         if ' ' + antibody not in valid_antibodies:
             option_parser.error('%s not in the list of permitted antibodies: \n  %s' % (antibody, '\n  '.join([ab.strip() for ab in valid_antibodies])))
@@ -858,7 +427,7 @@ def main(argv = sys.argv):
             antibody = ' ' + antibody
 
     # validate the subtype option
-    valid_subtypes = sorted(get_valid_subtypes_from_db(), key = lambda x: x.strip().upper())
+    valid_subtypes = sorted(get_valid_subtypes_from_db(OPTIONS.NEUT_SQLITE3_DB), key = lambda x: x.strip().upper())
     for subtype in OPTIONS.SUBTYPES:
         if subtype not in valid_subtypes:
             option_parser.error('%s not in the list of permitted subtypes: \n  %s' % (subtype, '\n  '.join([st.strip() for st in valid_subtypes])))
@@ -895,59 +464,77 @@ def main(argv = sys.argv):
     # set the util params
     set_util_params(OPTIONS.HXB2_IDS, OPTIONS.IC50GT, OPTIONS.IC50LT)
 
-    ab_basename = '%s%s_%s' % (antibody, '_randseq' if OPTIONS.SIM == _RAND_SEQ else '', 'dna' if OPTIONS.DNA else 'amino')
+    sim = None
+    if OPTIONS.SIM != '':
+        if OPTIONS.SIM == _RAND_DUMB:
+            hxb2fh = open(OPTIONS.HXB2_FASTA)
+            for record in SeqIO.parse(hxb2fh, 'fasta'):
+                hxb2seq = str(record.seq)
+                break
+            hxb2fh.close()
+            sim = DumbSimulation(OPTIONS.SIM_RUNS, Simulation.EPITOPE, hxb2seq)
+        elif OPTIONS.SIM == _RAND_EPI or OPTIONS.SIM == _RAND_SEQUENCE:
+            sim = MarkovSimulation(OPTIONS.SIM_RUNS, Simulation.SEQUENCE if OPTIONS.SIM != _RAND_EPI else Simulation.EPITOPE, _RAND_SEQ_STOCKHOLM)
+        else:
+            raise ValueError('Unknown simulation type `%s\'' % OPTIONS.SIM)
+
+    ab_basename = '%s%s_%s' % (antibody, '_randseq' if sim is not None and sim.mode == Simulation.SEQUENCE else '', 'dna' if OPTIONS.DNA else 'amino')
 
     # grab the relevant antibody from the SQLITE3 data
     # format as SeqRecord so we can output as FASTA
-    ab_records = collect_ABRecords_from_db(antibody)
+    ab_records = collect_AbRecords_from_db(OPTIONS.NEUT_SQLITE3_DB, antibody)
 
     # do not generate the sequences here for the random sequence or random epitope simulations
     ab_alignment_filename = None
-    if OPTIONS.SIM not in (_RAND_DUMB, _RAND_EPI, _RAND_SEQ):
+    if sim is None: 
         ab_alignment_filename = '%s_%s_%s.sto' % (ab_basename, splitext(basename(OPTIONS.NEUT_SQLITE3_DB))[0], __version__)
 
         # generate an alignment using HMMER if it doesn't already exist
-        seq_records = [r.to_SeqRecord() for r in ab_records]
-        seq_table, all_feature_names = collect_seq_table_and_feature_names(ab_alignment_filename, seq_records)
+        seq_records = [r.to_SeqRecord(dna=True if OPTIONS.DNA else False) for r in ab_records]
+        seq_table, all_feature_names = collect_SeqTable_and_feature_names(ab_alignment_filename, seq_records)
     else:
         if OPTIONS.SIM_EPI_N is None:
             OPTIONS.SIM_EPI_N = len(ab_records)
 
     # fetch the alphabet, we'll probably need it later
-    alphabet = fetch_alphabet_dict()[0]
+    alph = Alphabet(mode=Alphabet.STANFEL if OPTIONS.STANFEL else Alphabet.DNA if OPTIONS.DNA else Alphabet.AMINO)
 
     # compute features
     for target in OPTIONS.TARGETS:
         results = None
 
-        if OPTIONS.SIM not in (_RAND_DUMB, _RAND_EPI, _RAND_SEQ):
+        if sim is None: 
             seq_table.unmask()
 
         # simulations, ho!
-        for i in xrange(0, OPTIONS.SIM_RUNS if OPTIONS.SIM != '' else 1):
+        for i in xrange(sim.runs if sim is not None else 1):
 
             # here is where the sequences must be generated for the random sequence and random epitope simulations
-            if OPTIONS.SIM in (_RAND_DUMB, _RAND_EPI, _RAND_SEQ):
+            if sim is not None:
                 ab_alignment_filename = '%s_%s_%d_%s.sto' % (ab_basename, OPTIONS.SIM, i + 1, __version__)
-                if OPTIONS.SIM == _RAND_DUMB:
-                    hxb2fh = open(OPTIONS.HXB2_FASTA)
-                    for record in SeqIO.parse(hxb2fh, 'fasta'):
-                        hxb2_record = record
-                    seq_records = DumbRandomSequences(str(hxb2_record.seq), idfmt='%s|||%.3g', N=OPTIONS.SIM_EPI_N, noise=OPTIONS.SIM_EPI_NOISE, rate=OPTIONS.SIM_EPI_MUT_RATE, alphabet=alphabet)
-                    seq_records.append(hxb2_record)
-                    hxb2fh.close()
-                else:
-                    seq_records = MarkovRandomSequences(_RAND_SEQ_STOCKHOLM, idfmt='%s|||', N=len(ab_records), noise=OPTIONS.SIM_EPI_NOISE, rate=OPTIONS.SIM_EPI_MUT_RATE, alphabet=alphabet)
-                seq_table, all_feature_names = collect_seq_table_and_feature_names(ab_alignment_filename, seq_records)
+                seq_records = sim.generate_sequences(
+                    ab_alignment_filename,
+                    N=OPTIONS.SIM_EPI_N,
+                    idfmt='%s|||',
+                    noise=OPTIONS.SIM_EPI_NOISE,
+                    mutation_rate=OPTIONS.SIM_EPI_MUT_RATE,
+                    alphabet=alph
+                )
 
-            if OPTIONS.SIM in (_RAND_DUMB, _RAND_EPI):
-                epi_def = generate_random_epitope(seq_table, all_feature_names, OPTIONS.SIM_EPI_SIZE)
-                print >> sys.stdout, '********************* SIMULATED EPITOPE DESCRIPTION (%d) *********************\n' % OPTIONS.SIM_EPI_SIZE
-                print >> sys.stdout, '%s\n' % str(epi_def)
-                # assign the appropriate class by percentile
-                assign_class_by_percentile(seq_table, epi_def)
-            else:
-                epi_def = None
+                seq_table, all_feature_names = collect_SeqTable_and_feature_names(ab_alignment_filename, seq_records)
+
+                # simulates the epitope and assigns the appropriate class
+                epi_def = sim.simulate_epitope(
+                    seq_table,
+                    alph,
+                    all_feature_names,
+                    OPTIONS.SIM_EPI_SIZE,
+                    OPTIONS.SIM_EPI_PERCENTILE,
+                )
+
+                if epi_def is not None:
+                    print >> sys.stdout, '********************* SIMULATED EPITOPE DESCRIPTION (%d) *********************\n' % OPTIONS.SIM_EPI_SIZE
+                    print >> sys.stdout, '%s\n' % str(epi_def)
 
             optstat = PerfStats.MINSTAT
             if OPTIONS.ACCURACY:
@@ -983,8 +570,26 @@ def main(argv = sys.argv):
 
             # make sure the whole thing is unmasked for the nestedcrossvalidator
             seq_table.unmask()
-            feature_idxs, feature_names = compute_relevant_features_and_names(seq_table, all_feature_names)
-            smldata = generate_relevant_data(seq_table, feature_names, feature_idxs, target)
+            feature_idxs, feature_names = compute_relevant_features_and_names(
+                seq_table,
+                alph,
+                all_feature_names,
+                {
+                    'max': OPTIONS.MAX_CONSERVATION,
+                    'min': OPTIONS.MIN_CONSERVATION,
+                    'gap': OPTIONS.MAX_GAP_RATIO
+                },
+                OPTIONS.FILTER,
+            )
+            smldata = generate_relevant_data(
+                feature_names,
+                seq_table,
+                alph,
+                feature_idxs,
+                target,
+                subtypes=OPTIONS.SUBTYPES,
+                simulation=sim,
+            )
             x, y = smldata.tondarrays()
 
             results = crossvalidator.crossvalidate(x, y, cv={}, extra=lambda x: { 'features': x.features(), 'weights': x.classifier.weights() })
