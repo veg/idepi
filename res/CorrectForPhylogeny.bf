@@ -1,3 +1,5 @@
+MESSAGE_LOGGING = 1;
+
 LoadFunctionLibrary ("ReadDelimitedFiles");
 LoadFunctionLibrary ("NJ");
 LoadFunctionLibrary ("p_Distance_aa");
@@ -6,13 +8,11 @@ SetDialogPrompt 	("Please specify an amino-acid file:");
 
 DataSet				inputAlignment     = ReadDataFile (PROMPT_FOR_FILE);
 
-dataFilePath		=  LAST_FILE_PATH;
-
 DataSetFilter		filteredData	   = CreateFilter (inputAlignment,1);
 
 // check to see if this is a protein alignment 
-GetDataInfo (_AncestalFilterChars, filteredData, "CHARACTERS");
-assert (Columns (_AncestalFilterChars) == 20, "Expected a protein alignment");
+GetDataInfo (_AncestralFilterChars, filteredData, "CHARACTERS");
+assert (Columns (_AncestralFilterChars) == 20, "Expected a protein alignment");
 
 // clean up sequence names
 
@@ -54,7 +54,7 @@ GetDataInfo 	(_marginalFilterSiteToPatternMap, filteredData);
 GetString		(_AncestralNodeNames, _marginalAncestorsFilter, -1);
 
 _idx_3 = 0;
-_characterDimension 	= Columns (_AncestalFilterChars);
+_characterDimension 	= Columns (_AncestralFilterChars);
 
 
 _marginalInformation	= {};
@@ -71,10 +71,12 @@ for (_idx_1 = 0; _idx_1 < _marginalAncestorsFilter.species; _idx_1 = _idx_1 + 1)
 
 }
 
-_outputCSV = ""; _outputCSV * 8192; 
-/* _outputCSV * ("Sequence,[Site:["+Join(",",_AncestalFilterChars)+"]]\n"); */
+_output = {_marginalAncestorsFilter.species,(_marginalAncestorsFilter.sites*_characterDimension)};
 
-_outputCSV * ("[\n");
+// _outputCSV = ""; _outputCSV * 8192; 
+/* _outputCSV * ("Sequence,[Site:["+Join(",",_AncestralFilterChars)+"]]\n"); */
+
+// _outputCSV * ("{\"order\":[\""+Join("\",\"",_AncestralFilterChars)+"\"],\n\"data\":[\n");
 
 _idx_3 = 0;
 for (_idx_1 = 0; _idx_1 < _marginalAncestorsFilter.species; _idx_1 = _idx_1 + 1)
@@ -84,7 +86,7 @@ for (_idx_1 = 0; _idx_1 < _marginalAncestorsFilter.species; _idx_1 = _idx_1 + 1)
         _outputCSV * (",\n");
     }
 
-    _outputCSV * ("{\"id\":\"" + newNamesToOldNames[_AncestralNodeNames[_idx_1]] + "\",\"values\":[");
+    // _outputCSV * ("{\"id\":\"" + newNamesToOldNames[_AncestralNodeNames[_idx_1]] + "\",\"values\":[");
 
 	for (_idx_2 = 0; _idx_2 < _marginalAncestorsFilter.sites; _idx_2 = _idx_2 + 1)
 	{
@@ -94,7 +96,7 @@ for (_idx_1 = 0; _idx_1 < _marginalAncestorsFilter.species; _idx_1 = _idx_1 + 1)
             _outputCSV * (",");
         }
 
-        _outputCSV * ("[");
+        // _outputCSV * ("[");
         /* _outputCSV * ("\n" + newNamesToOldNames[_AncestralNodeNames[_idx_1]] + "," + (1+_idx_2)); */
 
 		_maxValue = 0;
@@ -108,8 +110,10 @@ for (_idx_1 = 0; _idx_1 < _marginalAncestorsFilter.species; _idx_1 = _idx_1 + 1)
             {
                 _outputCSV * (",");
             }
-			
-            _outputCSV * (""+_thisCharacter);
+		
+            _output[_idx_1][((_characterDimension * _idx_2) + _idx_4)] = _thisCharacter;
+
+            // _outputCSV * (""+_thisCharacter);
 			
             if (_thisCharacter > _maxValue)
 			{
@@ -120,16 +124,25 @@ for (_idx_1 = 0; _idx_1 < _marginalAncestorsFilter.species; _idx_1 = _idx_1 + 1)
 		
 		_idx_3 = _idx_3 + 1;
         
-        _outputCSV * ("]");
+        // _outputCSV * ("]");
 	}
     
-    _outputCSV * ("]}");
+    // _outputCSV * ("]}");
 }
 
-_outputCSV * ("\n]\n");
+// _outputCSV * ("\n]\n}\n");
+// _outputCSV * 0;
+// fprintf ("/dev/null", CLEAR_FILE, _outputCSV);
 
-_outputCSV * 0;
-
-dataFilePath += "_correction.csv";
-
-fprintf (dataFilePath, CLEAR_FILE, _outputCSV);
+function _THyPhyAskFor(key)
+{
+    if (key == "order")
+    {
+        return "" + Join(",",_AncestralFilterChars);
+    }
+    if (key == "data")
+    {
+        return _output;
+    }
+    return "_THyPhy_NOT_HANDLED_";
+}

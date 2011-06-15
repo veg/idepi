@@ -15,7 +15,8 @@ class HyPhy(object):
 
         if num_cpus is None:
             try:
-                num_cpus = mp.cpu_count()
+                from multiprocessing import cpu_count
+                num_cpus = cpu_count()
             except:
                 num_cpus = self.__DEFAULT_NUM_CPUS
 

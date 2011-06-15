@@ -22,7 +22,7 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
-from os import environ
+from os import close, environ
 from os.path import exists, join
 from subprocess import Popen, PIPE
 from tempfile import mkstemp
@@ -70,7 +70,7 @@ class Hmmer(object):
 
         tmp = False
         if output is None:
-            output = mkstemp()[1]
+            fd, output = mkstemp(); close(fd)
             tmp = True
 
         args = [self.__alignbin]

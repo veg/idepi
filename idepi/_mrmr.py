@@ -25,12 +25,7 @@
 from exceptions import StandardError
 from re import match
 from operator import itemgetter
-from os import remove
-from os.path import exists
-from shutil import copyfile
-from subprocess import PIPE, Popen
 from sys import exit, stderr, stdout
-from tempfile import mkstemp
 
 import numpy as np
 
@@ -250,10 +245,18 @@ class Mrmr(object):
         np.seterr(**np_err)
     
         return mi_vals[:num_features], sorted(mrmr_vals, key=itemgetter(1), reverse=True)[:num_features]
-   
+  
+    @staticmethod
+    def __validate_input(x):
+        try:
+            assert(set(x.flatten()).issubset(set((-1, 0, 1))))
+        except AssertionError:
+            return False
+        return True
+
     def select(self, x, y):
         vars = np.matrix(x, dtype=bool)
-        targets = np.matrix(y, dtype=bool)
+        targets = np.matrix(y, dtype=bool) 
 
         # transpose if necessary (likely if coming from array) 
         if targets.shape[0] == 1 and targets.shape[1] == vars.shape[0]:

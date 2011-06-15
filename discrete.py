@@ -29,7 +29,7 @@ from codecs import getwriter
 from math import ceil, copysign, log10, sqrt
 from operator import itemgetter
 from optparse import OptionParser
-from os import remove, rename
+from os import close, remove, rename
 from os.path import basename, dirname, exists, join, realpath, splitext
 from random import gauss, random, seed
 from re import sub, match
@@ -240,7 +240,7 @@ def run_tests():
     # if we don't do this, DOOMBUNNIES
     set_util_params(OPTIONS.HXB2_IDS, OPTIONS.IC50GT, OPTIONS.IC50LT)
 
-    sto_filename = mkstemp()[1]
+    fd, sto_filename = mkstemp(); close(fd)
 
     try:
         fh = open(sto_filename, 'w')
@@ -599,63 +599,74 @@ def main(argv = sys.argv):
                 remove(ab_alignment_filename)
 
         # print stats and results:
-        print >> sys.stdout, '********************* REPORT FOR ANTIBODY %s IC50 %s *********************' % \
-          (antibody, '< %d' % OPTIONS.IC50LT if target == 'lt' else '> %d' % OPTIONS.IC50GT)
-
-        if OPTIONS.SIM not in (_RAND_SEQ, _RAND_TARGET, _RAND_EPI):
-            fmt = ('', OPTIONS.CV_FOLDS, '')
-        else:
-            fmt = ('%d-run ' % OPTIONS.SIM_RUNS, OPTIONS.CV_FOLDS, ' per run')
-
-        print >> sys.stdout, '\n%sLSVM performance statistics (%d-fold CV%s):' % fmt
+#         print >> sys.stdout, '********************* REPORT FOR ANTIBODY %s IC50 %s *********************' % \
+#           (antibody, '< %d' % OPTIONS.IC50LT if target == 'lt' else '> %d' % OPTIONS.IC50GT)
+# 
+#         if OPTIONS.SIM not in (_RAND_SEQ, _RAND_TARGET, _RAND_EPI):
+#             fmt = ('', OPTIONS.CV_FOLDS, '')
+#         else:
+#             fmt = ('%d-run ' % OPTIONS.SIM_RUNS, OPTIONS.CV_FOLDS, ' per run')
 
         statsdict = results['stats'].todict()
+
+        featureweights = {}
+        for i in xrange(len(results['extra'])):
+            assert(len(results['extra'][i]['features']) >= len(results['extra'][i]['weights']))
+            for j in xrange(len(results['extra'][i]['features'])):
+                v = results['extra'][i]['weights'][j] if j < len(results['extra'][i]['weights']) else 0.
+                k = results['extra'][i]['features'][j]
+                if k not in featureweights:
+                    featureweights[k] = []
+                featureweights[k].append(int(copysign(1, v)))
+
+        weightsdict = {}
+        for idx, weights in featureweights.items():
+            val = NormalValue(int, weights)
+            weightsdict[feature_names[idx]] = val
 
         # remove minstat 'cause we don't want it here.. 
         if 'Minstat' in statsdict:
             del statsdict['Minstat']
 
-        # convert to percentage from [0, 1]
-        for k, v in statsdict.items():
-            statsdict[k] = v * 100.
+        ret = {}
 
-        stat_len = max([len(k) for k in statsdict.keys()])
-        mean_len = max([len('%.2f' % v.mu) for v in statsdict.values()])
-        std_len = max([len('%.2f' % sqrt(v.sigma)) for v in statsdict.values()]) 
-        fmt = u'%%%d.2f \xb1 %%%d.2f%%%%' % (mean_len, std_len) 
-        for k, v in sorted(statsdict.items(), key=itemgetter(0)):
-            print >> sys.stdout, u'  %-*s = %s' % (stat_len, k, v.sprintf(fmt)) 
+        ret['statistics'] = dict([(k.lower(), { 'mean': v.mu, 'std': sqrt(v.sigma) }) for k, v in statsdict.items()])
+        ret['weights'] = [{ 'position': k, 'value': { 'mean': v.mu, 'std': sqrt(v.sigma), 'N': len(v) } } for k, v in sorted(
+            weightsdict.items(),
+            key=lambda x: int(sub(r'[a-zA-Z\[\]]+', '', x[0]))
+        )]
+        
+        print >> sys.stdout, '{\n  "statistics": {'#  % OPTIONS.CV_FOLDS
 
-        features = set()
-        featureweights = []
-        for i in xrange(len(results['extra'])):
-            assert(len(results['extra'][i]['features']) >= len(results['extra'][i]['weights']))
-            for j in xrange(len(results['extra'][i]['features'])):
-                w = results['extra'][i]['weights'][j] if j < len(results['extra'][i]['weights']) else 0.
-                featureweights.append((results['extra'][i]['features'][j], w)) 
+        stat_len = max([len(k) for k in ret['statistics'].keys()]) + 3
+        mean_len = max([len('%.6f' % v['mean']) for v in ret['statistics'].values()])
+        std_len = max([len('%.6f' % v['std']) for v in ret['statistics'].values()])
+        fmt = u'{ "mean": %%%d.6f, "std": %%%d.6f }' % (mean_len, std_len)
+        output = [u'    %-*s %s' % (
+            stat_len, '"%s":' % k,
+            fmt % (v['mean'], v['std'])
+        ) for k, v in sorted(ret['statistics'].items(), key=itemgetter(0))]
+        print >> sys.stdout, ',\n'.join(output)
 
-        weightsdict = {}
-        for featureidx in set([fw[0] for fw in featureweights]):
-            weights = [int(copysign(1, fw[1])) for fw in featureweights if fw[0] == featureidx]
-            val = NormalValue(int, weights)
-            if (abs(val.mu) < 0.0001 and val.sigma == 0.) or len(val) == 1:
-                continue
-            weightsdict[feature_names[featureidx]] = val
+        print >> sys.stdout, '  },\n  "weights": ['
 
-        print >> sys.stdout, '\nSignificant positions (top %d):' % (len(weightsdict))
+        if len(ret['weights']) > 0:
+            name_len = max([len(v['position']) for v in ret['weights']]) + 3
+            mean_len = max([len('% .6f' % v['value']['mean']) for v in ret['weights']])
+            std_len = max([len('%.6f' % v['value']['std']) for v in ret['weights']])
+            N_len = max([len('%d' % v['value']['N']) for v in ret['weights']])
+            fmt = u'{ "mean": %%%d.6f, "std": %%%d.6f, "N": %%%dd }' % (mean_len, std_len, N_len)
+            output = [u'    { "position": %-*s "value": %s }' % (
+                name_len, u'"%s",' % v['position'],
+                fmt % (
+                    v['value']['mean'],
+                    v['value']['std'],
+                    v['value']['N']
+                ),
+            ) for v in sorted(ret['weights'], key=lambda x: int(sub(r'[a-zA-Z\[\]]+', '', x['position'])))]
+            print >> sys.stdout, ',\n'.join(output)
 
-        if len(weightsdict) > 0:
-            name_len = max([len(k) for k in weightsdict.keys()])
-            mean_len = max([len('% .1f' % v.mu) for v in weightsdict.values()])
-            std_len = max([len('%.1f' % sqrt(v.sigma)) for v in weightsdict.values()])
-            fmt = u'%% %d.1f \xb1 %%%d.1f' % (mean_len, std_len)
-            N_len = max([len('%d' % len(v)) for v in weightsdict.values()])
-            for k, v in sorted(weightsdict.items(), key = lambda x: int(sub(r'[a-zA-Z\[\]]+', '', x[0]))):
-                print >> sys.stdout, u'  %-*s  %s  (N = %*d)' % (name_len, k, v.sprintf(fmt), N_len, len(v))
-
-        print >> sys.stdout, '\n'
-
-        # TODO: perform patch analysis
+        print >> sys.stdout, '  ]\n}'
 
     return 0
 

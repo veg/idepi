@@ -28,7 +28,7 @@ from codecs import getwriter
 from math import ceil, log10, sqrt
 from operator import itemgetter
 from optparse import OptionParser
-from os import remove, rename
+from os import close, remove, rename
 from os.path import basename, dirname, exists, join, realpath, splitext
 from random import gauss, randint, random, seed
 from re import sub, match
@@ -265,7 +265,7 @@ def run_tests():
     # if we don't do this, DOOMBUNNIES
     set_util_params(OPTIONS.HXB2_IDS, OPTIONS.IC50GT, OPTIONS.IC50LT)
 
-    sto_filename = mkstemp()[1]
+    fd, sto_filename = mkstemp(); close(fd)
 
     try:
         fh = open(sto_filename, 'w')
@@ -677,8 +677,8 @@ def main(argv = sys.argv):
 #             statsdict[k] = v * 100.
         
         stat_len = max([len(k) for k in ret['statistics'].keys()]) + 3
-        mean_len = max([len('%.2f' % v['mean']) for v in ret['statistics'].values()])
-        std_len = max([len('%.2f' % v['std']) for v in ret['statistics'].values()])
+        mean_len = max([len('%.6f' % v['mean']) for v in ret['statistics'].values()])
+        std_len = max([len('%.6f' % v['std']) for v in ret['statistics'].values()])
         fmt = u'{ "mean": %%%d.6f, "std": %%%d.6f }' % (mean_len, std_len)
         output = [u'    %-*s %s' % (stat_len, '"%s":' % k, fmt % (v['mean'], v['std'])) for k, v in sorted(ret['statistics'].items(), key=itemgetter(0))]
         print >> sys.stdout, ',\n'.join(output)
@@ -688,7 +688,10 @@ def main(argv = sys.argv):
         if len(ret['weights']) > 0:
             name_len = max([len(v['position']) for v in ret['weights']]) + 3
             weight_len = max([len('% .6f' % v['value']) for v in ret['weights']])
-            output = [u'    { "position": %-*s "value": % *.6f }' % (name_len, '"%s",' % v['position'], weight_len, v['value']) for v in sorted(ret['weights'], key=lambda x: int(sub(r'[a-zA-Z\[\]]+', '', x['position'])))]
+            output = [u'    { "position": %-*s "value": % *.6f }' % (
+                name_len,   u'"%s",' % v['position'],
+                weight_len, v['value']
+            ) for v in sorted(ret['weights'], key=lambda x: int(sub(r'[a-zA-Z\[\]]+', '', x['position'])))]
             print >> sys.stdout, ',\n'.join(output)
 
         print >> sys.stdout, '  ],\n  "predictions": ['

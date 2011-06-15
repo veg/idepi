@@ -23,7 +23,7 @@
 #
 
 from operator import itemgetter
-from os import remove
+from os import close, remove
 from os.path import exists
 from re import sub
 from shutil import copyfile
@@ -67,7 +67,7 @@ class LinearSvm(object):
     def weights(self):
         if self.__computed == False:
             raise StandardError('No SVM model computed')
-        self.__modelfile = mkstemp()[1]
+        fd, self.__modelfile = mkstemp(); close(fd)
         self.__lsvm.save_model(self.__modelfile)
         model = LinearSvmModel(self.__modelfile)
         remove(self.__modelfile)

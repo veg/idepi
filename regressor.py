@@ -209,7 +209,7 @@ def run_tests():
     # if we don't do this, DOOMBUNNIES
     set_util_params(OPTIONS.HXB2_IDS)
 
-    sto_filename = mkstemp()[1]
+    fd, sto_filename = mkstemp(); close(fd)
 
     try:
         fh = open(sto_filename, 'w')
@@ -346,9 +346,9 @@ def collect_ABRecords_from_db(antibody):
 
 
 def generate_alignment_from_SeqRecords(filename, seq_records):
-    ab_fasta_filename = mkstemp()[1]
-    sto_filename = mkstemp()[1]
-    hmm_filename = mkstemp()[1]
+    fd, ab_fasta_filename = mkstemp(); close(fd)
+    fd, sto_filename = mkstemp(); close(fd)
+    fd, hmm_filename = mkstemp(); close(fd)
     finished = False
 
     try:

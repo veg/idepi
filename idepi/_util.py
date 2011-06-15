@@ -23,7 +23,7 @@
 #
 
 from operator import itemgetter
-from os import remove, rename
+from os import close, remove, rename
 from random import random
 from re import sub, match
 from sqlite3 import connect
@@ -368,9 +368,9 @@ def clamp(x):
     return x
 
 def generate_alignment_from_SeqRecords(refseqpath, seq_records, hmmer_align_bin, hmmer_build_bin, hmmer_iter, filename, dna=False):
-    ab_fasta_filename = mkstemp()[1]
-    hmm_filename = mkstemp()[1]
-    sto_filename = mkstemp()[1]
+    fd, ab_fasta_filename = mkstemp(); close(fd)
+    fd, hmm_filename = mkstemp(); close(fd)
+    fd, sto_filename = mkstemp(); close(fd)
     finished = False
 
     try:
