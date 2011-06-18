@@ -10,13 +10,13 @@ except ImportError:
     from numpy.fft import fft, ifft
 
 
-__all__ = ['Interval', 'KernelDensityEstimator']
+__all__ = ['Interval', 'DiffusionKde']
 
 
 Interval = namedtuple('Interval', ['min', 'max'])
 
 
-class KernelDensityEstimator(object):
+class DiffusionKde(object):
     '''
     Implements the kernel density estimator described in:
     Kernel density estimation via diffusion
@@ -24,7 +24,7 @@ class KernelDensityEstimator(object):
     Annals of Statistics, Volume 38, Number 5, pages 2916-2957.
     '''
 
-    def __init__(self, n=2 ** 14):
+    def __init__(self, data, interval=None, n=2 ** 14):
         self.__n = n
         self.__run = False
         self.__interval = None
@@ -39,16 +39,18 @@ class KernelDensityEstimator(object):
 #             from ctypes import CDLL, POINTER, c_float, c_uint
 #             from ctypes.util import find_library
 #             compf = CDLL(find_library('compf'))._compf
-#             np_float64_p = np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags=('C_CONTIGUOUS', 'ALIGNED')) 
+#             np_float64_p = np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags=('C_CONTIGUOUS', 'ALIGNED'))
 #             compf.restype = c_float
 #             compf.argtypes = [c_float, c_uint, np_float64_p, np_float64_p, c_uint]
-#             KernelDensityEstimator.__compf = staticmethod(lambda t, s, I, a2: compf(t, s, I, a2, len(I)))
+#             DiffusionKde.__compf = staticmethod(lambda t, s, I, a2: compf(t, s, I, a2, len(I)))
 # except:
-        KernelDensityEstimator.__compf = staticmethod(KernelDensityEstimator.__compf_py)
+        DiffusionKde.__compf = staticmethod(DiffusionKde.__compf_py)
+
+        DiffusionKde.__estimate(self, data, interval)
 
     @staticmethod
     def __bisect(f, a, b, args):
-        tol = 4.4408920985006262e-16 
+        tol = 4.4408920985006262e-16
         fa = apply(f, (a,)+args)
         fb = apply(f, (b,)+args)
         if cmp(fa, 0) == cmp(fb, 0):
@@ -81,7 +83,7 @@ class KernelDensityEstimator(object):
     @staticmethod
     def __dct1d(data):
         nrow, = data.shape
-        weights = 2 * np.exp(-1j * np.arange(nrow) * np.pi / (2. * nrow)) 
+        weights = 2 * np.exp(-1j * np.arange(nrow) * np.pi / (2. * nrow))
         weights[0] -= 1.
         data2 = data[range(0, nrow, 2) + range(nrow-1, 0, -2)]
         return np.real(np.multiply(weights, fft(data2)))
@@ -99,20 +101,20 @@ class KernelDensityEstimator(object):
     @staticmethod
     def __compf_py(t, s, I, a2):
         return 2. * np.power(pi, (2. * s)) * np.sum(np.multiply(np.multiply(np.power(I, s), a2), np.exp(-I * np.power(np.pi, 2) * t)))
-   
+
     @staticmethod
     def __fixed_point(t, N, I, a2):
         l = 7
-        f = KernelDensityEstimator.__compf(t, l, I, a2)
+        f = DiffusionKde.__compf(t, l, I, a2)
         for s in xrange(l-1, 1, -1):
             K0 = np.prod(np.arange(1, 2 * s, 2)) / sqrt(2. * pi)
             const = (1. + (0.5 ** (s + 0.5))) / 3.
             time = (2. * const * K0 / N / f) ** (2. / (3 + (2 * s)))
-            f = KernelDensityEstimator.__compf(time, s, I, a2)
+            f = DiffusionKde.__compf(time, s, I, a2)
         return t - ((2. * N * sqrt(pi) * f) ** (-2. / 5))
 
-    def estimate(self, data, interval=None):
-        
+    def __estimate(self, data, interval=None):
+
         if interval is None:
             dmax = max(data)
             dmin = min(data)
@@ -121,57 +123,57 @@ class KernelDensityEstimator(object):
 
         if type(interval) != Interval:
             raise ValueError('interval must be of type Interval')
-    
+
         self.__interval = interval
 
         nperr = np.seterr(under='ignore')
-    
+
         n = 2 ** ceil(np.log2(self.__n))
-    
+
         R = interval.max - interval.min
         dx = 1. * R / (n - 1)
-        N = len(KernelDensityEstimator.__unique(data))
-    
+        N = len(DiffusionKde.__unique(data))
+
         hist, mesh = np.histogram(data, n - 1, range=(interval.min, interval.max))
         initial_data = np.zeros(mesh.shape, dtype=float)
         initial_data[:-1] = hist
         initial_data /= N
         initial_data = initial_data / np.sum(initial_data)
-    
-        a = KernelDensityEstimator.__dct1d(initial_data)
-    
+
+        a = DiffusionKde.__dct1d(initial_data)
+
         I = np.arange(1, n) ** 2
         a2 = (a[1:] / 2) ** 2
-    
+
         if len(I) != len(a2):
             raise RuntimeError('Lengths of `I\' and `a2\' are different, respectively: %d, %d' % (len(I), len(a2)))
-    
+
         try:
             # raise ImportError()
             from scipy.optimize import brentq
         except ImportError:
-            brentq = KernelDensityEstimator.__bisect
-    
+            brentq = DiffusionKde.__bisect
+
         try:
-            t_star = brentq(KernelDensityEstimator.__fixed_point, 0., 0.1, args=(N, I, a2))
+            t_star = brentq(DiffusionKde.__fixed_point, 0., 0.1, args=(N, I, a2))
         except ValueError:
             t_star = 0.28 * (N ** (-2. / 5))
-    
+
         bandwidth = sqrt(t_star) * R
-    
+
         a_t = np.multiply(a, np.exp(-(np.arange(n) ** 2) * (np.pi ** 2) * t_star / 2))
-    
-        density = KernelDensityEstimator.__idct1d(a_t) / R
-    
-        f = KernelDensityEstimator.__compf(t_star, 1, I, a2)
+
+        density = DiffusionKde.__idct1d(a_t) / R
+
+        f = DiffusionKde.__compf(t_star, 1, I, a2)
         t_cdf = (sqrt(pi) * f * N) ** (-2. / 3)
         a_cdf = np.multiply(a, np.exp(-(np.arange(n) ** 2) * (np.pi ** 2) * t_cdf / 2))
-        pdf = KernelDensityEstimator.__idct1d(a_cdf) * (dx / R)
+        pdf = DiffusionKde.__idct1d(a_cdf) * (dx / R)
         cdf = np.cumsum(pdf)
         bandwidth_cdf = sqrt(t_cdf) * R
-        
+
         np.seterr(**nperr)
-   
+
         self.__bandwidth = bandwidth
         self.__density = density
         self.__mesh = mesh
@@ -191,78 +193,84 @@ class KernelDensityEstimator(object):
             raise ValueError('x must fit in the interval %s' % str(self.__interval))
 
         return [i for i in xrange(len(self.__mesh)) if self.__mesh[i] >= x][0] - 1
-    
-    def density(self, x=None):
+
+#     def density(self, x=None):
+#         if not self.__run:
+#             raise RuntimeError('No kernel density estimation computed, aborting')
+#
+#         if x is None:
+#             return self.__density.copy()
+#
+#         idx = DiffusionKde.__idx(self, x)
+#         xp = [self.__mesh[idx], self.__mesh[idx+1]]
+#         yp = [self.__density[idx], self.__density[idx+1]]
+#
+#         return np.interp(x, xp, yp)
+#
+#     def mesh(self, x=None):
+#         if not self.__run:
+#             raise RuntimeError('No kernel density estimation computed, aborting')
+#
+#         if x is None:
+#             return self.__mesh.copy()
+#
+#         idx = DiffusionKde.__idx(self, x)
+#         xp = [self.__mesh[idx], self.__mesh[idx+1]]
+#         yp = [self.__mesh[idx], self.__mesh[idx+1]]
+#
+#         return np.interp(x, xp, yp)
+#
+    def evaluate(self, x):
         if not self.__run:
             raise RuntimeError('No kernel density estimation computed, aborting')
-        
-        if x is None:
-            return self.__density.copy()
 
-        idx = KernelDensityEstimator.__idx(self, x)
-        xp = [self.__mesh[idx], self.__mesh[idx+1]]
-        yp = [self.__density[idx], self.__density[idx+1]]
+        _x = np.atleast_2d(x)
 
-        return np.interp(x, xp, yp) 
+        _, n = _x.shape
 
-    def mesh(self, x=None):
-        if not self.__run:
-            raise RuntimeError('No kernel density estimation computed, aborting')
-        
-        if x is None:
-            return self.__mesh.copy()
-    
-        idx = KernelDensityEstimator.__idx(self, x)
-        xp = [self.__mesh[idx], self.__mesh[idx+1]]
-        yp = [self.__mesh[idx], self.__mesh[idx+1]] 
+        ret = np.zeros((n,))
 
-        return np.interp(x, xp, yp) 
+        for i in xrange(len(_x)):
+            idx = DiffusionKde.__idx(self, _x[i])
+            xp = [self.__mesh[idx], self.__mesh[idx+1]]
+            yp = [self.__pdf[idx], self.__pdf[idx+1]]
+            ret[i] = np.interp(x, xp, yp)
 
-    def pdf(self, x=None):
-        if not self.__run:
-            raise RuntimeError('No kernel density estimation computed, aborting')
-        
-        if x is None:
-            return self.__pdf.copy()
-        
-        idx = KernelDensityEstimator.__idx(self, x)
-        xp = [self.__mesh[idx], self.__mesh[idx+1]]
-        yp = [self.__pdf[idx], self.__pdf[idx+1]]
-        
-        return np.interp(x, xp, yp) 
+        return ret
 
-    def cdf(self, x=None):
-        if not self.__run:
-            raise RuntimeError('No kernel density estimation computed, aborting')
-        
-        if x is None:
-            return self.__cdf.copy()
-        
-        idx = KernelDensityEstimator.__idx(self, x)
-        xp = [self.__mesh[idx], self.__mesh[idx+1]]
-        yp = [self.__cdf[idx], self.__cdf[idx+1]]
-        
-        return np.interp(x, xp, yp) 
+    __call__ = evaluate
+
+#     def cdf(self, x=None):
+#         if not self.__run:
+#             raise RuntimeError('No kernel density estimation computed, aborting')
+#
+#         if x is None:
+#             return self.__cdf.copy()
+#
+#         idx = DiffusionKde.__idx(self, x)
+#         xp = [self.__mesh[idx], self.__mesh[idx+1]]
+#         yp = [self.__cdf[idx], self.__cdf[idx+1]]
+#
+#         return np.interp(x, xp, yp)
+
 
 def main():
-    # from _data import DATA as data
+    from _data import DATA as data
     from time import time
 
-    d1 = np.random.randn(100) + 5
-    d2 = np.random.randn(100) * 2 + 35
-    d3 = np.random.randn(100) + 55
-
-    data = np.concatenate((d1, d2, d3))
+#     d1 = np.random.randn(100) + 5
+#     d2 = np.random.randn(100) * 2 + 35
+#     d3 = np.random.randn(100) + 55
+#
+#     data = np.concatenate((d1, d2, d3))
 
     d_3 = data[3]
 
     begin = time()
 
-    kde = KernelDensityEstimator()
+    kde = DiffusionKde(data)
 
-    bandwidth = kde.estimate(data) 
-
-    print d_3, kde.mesh(d_3), kde.pdf(d_3)
+    print d_3, kde(d_3)
 
     runtime = time() - begin
 
@@ -270,7 +278,7 @@ def main():
 
     # print runtime, bandwidth, len(density), np.sum(density), len(mesh), sum(pdf), cdf[-1]
 
-    print runtime, bandwidth
+    print runtime
 
     # import matplotlib.pyplot as plt
 

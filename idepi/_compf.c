@@ -51,9 +51,9 @@ double _compf(const double t, const uint s, const double * I, const double * a2,
     uint i, j, maj;
     double sum = 0., tpi2 = -t * pow(M_PI, 2.);
 #ifdef USE_SSE2
-    vec2 vi, va, vsum, vpow, vtpi2;
-    vsum.v  = _mm_setzero_pd(); 
-    vtpi2.v = _mm_load1_pd(&tpi2);
+    vec2 vi, va, vsum, vpow, vtpi2, vexp1, vexp2;
+    vsum.v  = _mm_setzero_pd();
+    vtpi2.v = _mm_set1_pd(tpi2);
 #endif
 
     // 2. * np.power(pi, (2. * s)) * np.sum(np.multiply(np.multiply(np.power(I, s), a2), np.exp(-I * np.power(np.pi, 2) * t)))
@@ -66,11 +66,13 @@ double _compf(const double t, const uint s, const double * I, const double * a2,
         vi.v = _mm_load_pd(&I[i]);
         va.v = _mm_load_pd(&a2[i]);
         vpow = pow_pd(vi, s);
-        vsum.v = _mm_add_pd(vsum.v, _mm_mul_pd(vpow.v, __mm_mul_pd(va.v, __vrd2_exp(_mm_mul_pd(vi.v, vtpi2.v)))));
+        vexp1.v = _mm_mul_pd(vi.v, vtpi2.v);
+        vexp2.v = _mm_set_pd(exp(vexp1.d[0]), exp(vexp1.d[1]));
+        vsum.v = _mm_add_pd(vsum.v, _mm_mul_pd(vpow.v, _mm_mul_pd(va.v, vexp2.v))); 
 #else
         for (j = 0; j < TILE; ++j)
         {
-            sum += pow(I[i+j], s) * a2[i+j] * exp(tpi2 * I[i+j]);
+            sum += pow(I[i+j], s) * exp(tpi2 * I[i+j]) * a2[i+j];
         }
 #endif
     } 

@@ -1,6 +1,6 @@
 MAKE = make
 CC = gcc-4.6
-CFLAGS = -O3 -fno-common -ffast-math -fPIC -DUSE_SSE2
+CFLAGS = -O3 -fno-common -ffast-math -fPIC # -DUSE_SSE2
 CONTRIB = contrib
 PYDIR   = idepi
 SUBDIRS = $(wildcard $(CONTRIB)/hmmer*)
