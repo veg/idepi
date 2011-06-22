@@ -1,7 +1,6 @@
 
 import numpy as np
 
-
 __all__ = ['GaussianKde']
 
 
@@ -67,9 +66,15 @@ def main():
 
     begin = time()
 
+    MAX, MIN = max(data), min(data)
+    range = MAX - MIN; MAX += range / 4; MIN -= range / 4.
+    dx = (MAX - MIN) / (2 ** 7)
+
+    mesh = np.arange(MIN, MAX, dx, dtype=float)
+
     kde = GaussianKde(data)
 
-    print d_3, kde(d_3)
+    print d_3, kde(d_3); pdf = kde(mesh)
 
     runtime = time() - begin
 
@@ -79,18 +84,20 @@ def main():
 
     print runtime
 
-    # import matplotlib.pyplot as plt
+    print sum(pdf) * dx
+
+    import matplotlib.pyplot as plt
 
     # plt.plot(mesh, density)
-    # plt.plot(mesh, pdf)
+    plt.plot(mesh, pdf)
     # plt.plot(mesh, cdf / 1000.)
-    # plt.show()
+    plt.show()
 
     return 0
 
 
 try:
-    raise ImportError
+    raise ImportError # I don't want this one, it's just the tiniest bit marginally slower
     import scipy.stats.gaussian_kde as GaussianKde
 except ImportError:
     GaussianKde = _GaussianKde

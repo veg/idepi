@@ -71,6 +71,7 @@ for (_idx_1 = 0; _idx_1 < _marginalAncestorsFilter.species; _idx_1 = _idx_1 + 1)
 
 }
 
+_ids = {_marginalAncestorsFilter.species};
 _output = {_marginalAncestorsFilter.species,(_marginalAncestorsFilter.sites*_characterDimension)};
 
 // _outputCSV = ""; _outputCSV * 8192; 
@@ -85,6 +86,8 @@ for (_idx_1 = 0; _idx_1 < _marginalAncestorsFilter.species; _idx_1 = _idx_1 + 1)
     {
         _outputCSV * (",\n");
     }
+
+    _ids[_idx_1] = newNamesToOldNames[_AncestralNodeNames[_idx_1]];
 
     // _outputCSV * ("{\"id\":\"" + newNamesToOldNames[_AncestralNodeNames[_idx_1]] + "\",\"values\":[");
 
@@ -136,6 +139,10 @@ for (_idx_1 = 0; _idx_1 < _marginalAncestorsFilter.species; _idx_1 = _idx_1 + 1)
 
 function _THyPhyAskFor(key)
 {
+    if (key == "ids")
+    {
+        return _ids;
+    }
     if (key == "order")
     {
         return "" + Join(",",_AncestralFilterChars);

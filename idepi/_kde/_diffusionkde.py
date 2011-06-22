@@ -1,6 +1,5 @@
 
 from collections import namedtuple
-from math import ceil, floor, pi, sqrt
 
 import numpy as np
 
@@ -32,7 +31,6 @@ class DiffusionKde(object):
         self.__pdf = None
         self.__cdf = None
         self.__bandwidth_cdf = None
-        self.__density = None
         self.__mesh = None
 
 #        try:
@@ -100,18 +98,18 @@ class DiffusionKde(object):
 
     @staticmethod
     def __compf_py(t, s, I, a2):
-        return 2. * np.power(pi, (2. * s)) * np.sum(np.multiply(np.multiply(np.power(I, s), a2), np.exp(-I * np.power(np.pi, 2) * t)))
+        return 2. * np.power(np.pi, (2. * s)) * np.sum(np.multiply(np.multiply(np.power(I, s), a2), np.exp(-I * np.power(np.pi, 2) * t)))
 
     @staticmethod
     def __fixed_point(t, N, I, a2):
         l = 7
         f = DiffusionKde.__compf(t, l, I, a2)
         for s in xrange(l-1, 1, -1):
-            K0 = np.prod(np.arange(1, 2 * s, 2)) / sqrt(2. * pi)
+            K0 = np.prod(np.arange(1, 2 * s, 2)) / np.sqrt(2. * np.pi)
             const = (1. + (0.5 ** (s + 0.5))) / 3.
             time = (2. * const * K0 / N / f) ** (2. / (3 + (2 * s)))
             f = DiffusionKde.__compf(time, s, I, a2)
-        return t - ((2. * N * sqrt(pi) * f) ** (-2. / 5))
+        return t - ((2. * N * np.sqrt(np.pi) * f) ** (-2. / 5))
 
     def __estimate(self, data, interval=None):
 
@@ -128,7 +126,7 @@ class DiffusionKde(object):
 
         nperr = np.seterr(under='ignore')
 
-        n = 2 ** ceil(np.log2(self.__n))
+        n = 2 ** np.ceil(np.log2(self.__n))
 
         R = interval.max - interval.min
         dx = 1. * R / (n - 1)
@@ -159,28 +157,27 @@ class DiffusionKde(object):
         except ValueError:
             t_star = 0.28 * (N ** (-2. / 5))
 
-        bandwidth = sqrt(t_star) * R
+        bandwidth = np.sqrt(t_star) * R
 
         a_t = np.multiply(a, np.exp(-(np.arange(n) ** 2) * (np.pi ** 2) * t_star / 2))
 
         density = DiffusionKde.__idct1d(a_t) / R
 
         f = DiffusionKde.__compf(t_star, 1, I, a2)
-        t_cdf = (sqrt(pi) * f * N) ** (-2. / 3)
+        t_cdf = (np.sqrt(np.pi) * f * N) ** (-2. / 3)
         a_cdf = np.multiply(a, np.exp(-(np.arange(n) ** 2) * (np.pi ** 2) * t_cdf / 2))
         pdf = DiffusionKde.__idct1d(a_cdf) * (dx / R)
         cdf = np.cumsum(pdf)
-        bandwidth_cdf = sqrt(t_cdf) * R
+        bandwidth_cdf = np.sqrt(t_cdf) * R
 
         np.seterr(**nperr)
 
         self.__bandwidth = bandwidth
-        self.__density = density
         self.__mesh = mesh
-        self.__pdf = pdf / cdf[-1]
+        self.__pdf = density / cdf[-1] 
         self.__cdf = cdf / cdf[-1]
         self.__bandwidth_cdf = bandwidth_cdf
-
+        self.__dx = dx
         self.__run = True
 
         return bandwidth
@@ -192,20 +189,9 @@ class DiffusionKde(object):
         if x < self.__interval.min or x > self.__interval.max:
             raise ValueError('x must fit in the interval %s' % str(self.__interval))
 
-        return [i for i in xrange(len(self.__mesh)) if self.__mesh[i] >= x][0] - 1
+        idx = int(np.floor((x - self.__mesh[0]) / self.__dx))
 
-#     def density(self, x=None):
-#         if not self.__run:
-#             raise RuntimeError('No kernel density estimation computed, aborting')
-#
-#         if x is None:
-#             return self.__density.copy()
-#
-#         idx = DiffusionKde.__idx(self, x)
-#         xp = [self.__mesh[idx], self.__mesh[idx+1]]
-#         yp = [self.__density[idx], self.__density[idx+1]]
-#
-#         return np.interp(x, xp, yp)
+        return idx
 #
 #     def mesh(self, x=None):
 #         if not self.__run:
@@ -230,11 +216,14 @@ class DiffusionKde(object):
 
         ret = np.zeros((n,))
 
-        for i in xrange(len(_x)):
-            idx = DiffusionKde.__idx(self, _x[i])
-            xp = [self.__mesh[idx], self.__mesh[idx+1]]
-            yp = [self.__pdf[idx], self.__pdf[idx+1]]
-            ret[i] = np.interp(x, xp, yp)
+        for i in xrange(n):
+            try:
+                idx = DiffusionKde.__idx(self, _x[0][i])
+                xp = [self.__mesh[idx], self.__mesh[idx+1]]
+                yp = [self.__pdf[idx], self.__pdf[idx+1]]
+                ret[i] = np.interp(_x[0][i], xp, yp)
+            except ValueError:
+                ret[i] = 0.
 
         return ret
 
@@ -266,11 +255,17 @@ def main():
 
     d_3 = data[3]
 
+    MAX, MIN = max(data), min(data)
+    range = MAX - MIN; MAX += range / 4.; MIN -= range / 4.
+    dx = (MAX - MIN) / (2 ** 7)
+
+    mesh = np.arange(MIN, MAX, dx, dtype=float)
+
     begin = time()
 
     kde = DiffusionKde(data)
 
-    print d_3, kde(d_3)
+    print d_3, kde(d_3); pdf = kde(mesh)
 
     runtime = time() - begin
 
@@ -279,13 +274,14 @@ def main():
     # print runtime, bandwidth, len(density), np.sum(density), len(mesh), sum(pdf), cdf[-1]
 
     print runtime
+    print sum(pdf) * dx
 
-    # import matplotlib.pyplot as plt
+    import matplotlib.pyplot as plt
 
     # plt.plot(mesh, density)
-    # plt.plot(mesh, pdf)
+    plt.plot(mesh, pdf)
     # plt.plot(mesh, cdf / 1000.)
-    # plt.show()
+    plt.show()
 
     return 0
 
