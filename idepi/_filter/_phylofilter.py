@@ -92,3 +92,6 @@ class PhyloFilter(object):
 
         if ref is None:
             raise RuntimeError('No reference sequence found, aborting')
+
+        for i in xrange(len(ref)):
+

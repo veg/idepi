@@ -276,11 +276,14 @@ def main():
     print runtime
     print sum(pdf) * dx
 
+    cdf = np.cumsum(pdf)
+    cdf /= cdf[-1]
+
     import matplotlib.pyplot as plt
 
     # plt.plot(mesh, density)
     plt.plot(mesh, pdf)
-    # plt.plot(mesh, cdf / 1000.)
+    plt.plot(mesh, cdf)
     plt.show()
 
     return 0

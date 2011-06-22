@@ -19,13 +19,20 @@ class _GaussianKde(object):
 
         d, n = self.__dataset.shape
 
-        bw = np.power(n, -1./(d + 4))
-        cov = np.atleast_2d(np.cov(self.__dataset, rowvar=1, bias=False) * bw * bw)
-        inv_cov = np.linalg.inv(cov)
-        norm = np.sqrt(np.linalg.det(2. * np.pi * cov)) * n
+        self.__d, self.__n = self.__dataset.shape
 
-        self.__n, self.__d, self.__bw, self.__cov, self.__inv_cov, self.__norm = \
-        n,        d,        bw,        cov,        inv_cov,        norm
+        # initialize some variables
+        self.__bw, self.__cov, self.__inv_cov, self.__norm = None, None, None, None
+
+        GaussianKde._compute_covariance(self)
+
+    covariance_factor = lambda self: np.power(self.__n, -1./(self.__d + 4))
+
+    def _compute_covariance(self):
+        self.__bw = self.covariance_factor()
+        self.__cov = np.atleast_2d(np.cov(self.__dataset, rowvar=1, bias=False) * self.__bw * self.__bw)
+        self.__inv_cov = np.linalg.inv(self.__cov)
+        self.__norm = np.sqrt(np.linalg.det(2. * np.pi * self.__cov)) * self.__n
 
     def evaluate(self, x):
         _x = np.atleast_2d(x).astype(self.__dataset.dtype)
@@ -86,11 +93,14 @@ def main():
 
     print sum(pdf) * dx
 
+    cdf = np.cumsum(pdf)
+    cdf /= cdf[-1]
+
     import matplotlib.pyplot as plt
 
     # plt.plot(mesh, density)
     plt.plot(mesh, pdf)
-    # plt.plot(mesh, cdf / 1000.)
+    # plt.plot(mesh, cdf)
     plt.show()
 
     return 0
