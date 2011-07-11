@@ -4,10 +4,11 @@ from os import close, remove
 from os.path import dirname, exists, join, realpath
 from tempfile import mkstemp
 
-from np import zeros
+from numpy import zeros
 
 from Bio import SeqIO
 
+from _alphabet import Alphabet
 from _hyphy import HyPhy
 
 
@@ -15,20 +16,21 @@ __all__ = ['PhyloFilter']
 
 
 class PhyloFilter(object):
-    MATRIX = HyPhy.THYPHY_TYPE_MATRIX
-    NUMBER = HyPhy.THYPHY_TYPE_NUMBER
-    STRING = HyPhy.THYPHY_TYPE_STRING
 
-    def __init__(self, seqrecords, batchfile=None):
+    def __init__(self, seqrecords, alphabet=None, batchfile=None):
         if batchfile is None:
             batchfile = join(dirname(realpath(__file__)), '..', 'res', 'CorrectForPhylogeny.bf')
 
         if not exists(batchfile):
             raise ValueError('Please pass a valid (and existing) batchfile to PhyloFilter()')
 
+        if alphabet is None:
+            alphabet = Alphabet()
+
         fd, self.__inputfile = mkstemp(); close(fd)
 
         self.__seqrecords = seqrecords
+        self.__alph = alphabet
         self.__batchfile = batchfile
         self.__commands = commands
         self.__hyphy = HyPhy()
@@ -44,15 +46,15 @@ class PhyloFilter(object):
 
     def __get_value(self, variable, type):
         _res = self.__hyphy.AskFor(variable)
-        if type not in (PhyloFilter.MATRIX, PhyloFilter.NUMBER, PhyloFilter.STRING):
+        if type not in (HyPhy.MATRIX, HyPhy.NUMBER, HyPhy.STRING):
             raise ValueError('Unknown type supplied: please use one of PhyloFilter.{MATRIX,NUMBER,STRING}')
-        if (self.__hyphy.CanICast(_res, type):
+        if (self.__hyphy.CanICast(_res, type)):
             res = self.__hyphy.CastResult(_res, type)
-            if type == PhyloFilter.STRING:
+            if type == HyPhy.STRING:
                 return res.castToString().sData
-            elif type == PhyloFilter.NUMBER:
+            elif type == HyPhy.NUMBER:
                 return res.castToNumber().nValue
-            elif type == PhyloFilter.MATRIX:
+            elif type == HyPhy.MATRIX:
                 return res.castToMatrix()
             else:
                 # dead code, we assume
@@ -66,9 +68,9 @@ class PhyloFilter(object):
 
         self.__hyphy.ExecuteBF('ExecuteAFile("%s", { "0": "%s" })' % (self.__batchfile, self.__inputfile))
 
-        _ids = PhyloFilter.__get_value(self, 'ids', PhyloFilter.MATRIX)
-        _mat = PhyloFilter.__get_value(self, 'data', PhyloFilter.MATRIX)
-        order = PhyloFilter.__get_value(self, 'order', PhyloFilter.STRING).split(',')
+        _ids = PhyloFilter.__get_value(self, 'ids', HyPhy.MATRIX)
+        _mat = PhyloFilter.__get_value(self, 'data', HyPhy.MATRIX)
+        order = PhyloFilter.__get_value(self, 'order', HyPhy.STRING).split(',')
 
         assert(_ids.mRows == 0)
 
@@ -94,4 +96,4 @@ class PhyloFilter(object):
             raise RuntimeError('No reference sequence found, aborting')
 
         for i in xrange(len(ref)):
-
+            pass

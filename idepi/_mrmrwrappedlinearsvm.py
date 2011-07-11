@@ -5,7 +5,7 @@
 # and utilities to help identify neutralizing antibody epitopes via machine
 # learning.
 #
-# Copyright (C) 2011 N Lance Hepler <nlhepler@gmail.com> 
+# Copyright (C) 2011 N Lance Hepler <nlhepler@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
-from _mrmr import Mrmr
+from _mrmr import DiscreteMrmr
 from _linearsvm import LinearSvm
 
 
@@ -31,7 +31,7 @@ __all__ = ['MrmrWrappedLinearSvm']
 
 class MrmrWrappedLinearSvm(object):
 
-    def __init__(self, num_features=10, method=Mrmr.MID, svm_type='c_svc',
+    def __init__(self, num_features=10, method=DiscreteMrmr.MID, svm_type='c_svc',
                  degree=3, gamma=0.001, coef0=0, C=1, nu=0.5, eps=0.001, p=0.1,
                  cache_size=100, shrinking=True, probability=False, weight={}):
         self.__mrmr = Mrmr(num_features, method)
@@ -46,13 +46,13 @@ class MrmrWrappedLinearSvm(object):
     def predict(self, x):
         x = self.__mrmr.subset(x)
         return self.__lsvm.predict(x)
-   
+
     def subset(self, x):
         # raise ValueError('You need to learn() a model before you can reduce() other datasets.')
         return self.__mrmr.subset(x)
 
     def features(self):
-        # raise ValueError('You need to learn() a model before you can determine the selected features().') 
+        # raise ValueError('You need to learn() a model before you can determine the selected features().')
         return self.__mrmr.features()
 
     def weights(self):

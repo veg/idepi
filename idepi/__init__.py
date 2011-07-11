@@ -26,11 +26,11 @@ from _abrecord import *
 from _alphabet import *
 from _crossvalidator import *
 from _discretizer import *
+from _fastcaim import *
 from _filter import *
 from _gridsearcher import *
 from _hmmer import *
-from _hyphy import *
-from _kde import *
+# from _kde import *
 from _linearsvm import *
 from _logo import *
 from _mlpy import *
@@ -56,12 +56,12 @@ __all__ = []
 __all__ += _abrecord.__all__
 __all__ += _alphabet.__all__
 __all__ += _crossvalidator.__all__
+__all__ += _fastcaim.__all__
 __all__ += _filter.__all__
 __all__ += _discretizer.__all__
 __all__ += _gridsearcher.__all__
 __all__ += _hmmer.__all__
-__all__ += _hyphy.__all__
-__all__ += _kde.__all__
+# __all__ += _kde.__all__
 __all__ += _linearsvm.__all__
 __all__ += _logo.__all__
 __all__ += _mlpy.__all__

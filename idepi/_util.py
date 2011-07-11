@@ -36,7 +36,7 @@ from scipy.special import fdtrc
 from Bio import SeqIO
 
 from _abrecord import AbRecord
-from _alphabet import Alphabet
+from _filter._alphabet import Alphabet
 from _hmmer import Hmmer
 from _seqtable import SeqTable
 from _smldata import SmlData

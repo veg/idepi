@@ -32,11 +32,11 @@ import numpy as np
 from _fakepool import FakePool
 
 
-__all__ = ['Mrmr']
+__all__ = ['BaseMrmr']
 
 
-class Mrmr(object):
-    __DEFAULT_THRESHOLD = 0.8
+class BaseMrmr(object):
+    _DEFAULT_THRESHOLD = 0.8
 
     MAXREL = 0
     MID = 1
@@ -45,10 +45,10 @@ class Mrmr(object):
 
     def __init__(self, num_features=10, method=None, threshold=None):
         if method is None:
-            method = Mrmr.MID
+            method = BaseMrmr.MID
 
         if threshold is None:
-            threshold = self.__DEFAULT_THRESHOLD
+            threshold = self._DEFAULT_THRESHOLD
 
         self.__computed = False
         self.__colsize = 0
@@ -58,47 +58,13 @@ class Mrmr(object):
         self.num_features = num_features
         self.threshold = threshold
 
-    @staticmethod
-    def __compute_mi_inner(x, vars_v, targets_t, p=None):
-        p_t = float(np.sum(targets_t)) / x # p(X == t)
-        p_v = np.sum(vars_v, axis=0).astype(float) / x # p(Y == v)
-        p_tv = np.sum(np.multiply(targets_t, vars_v), axis=0).astype(float) / x # p(X == t, Y == v)
-        mi = np.nan_to_num(np.multiply(p_tv, np.log2(p_tv / (p_t * p_v))))
-        h = -np.nan_to_num(np.multiply(p_tv, np.log2(p_tv)))
+#     @staticmethod
+#     def __compute_mi_inner(nrow, vars_v, targets_t, p=None):
+#         return mi, h
 
-        if p is not None:
-            p.value += 1
-
-        return mi, h
-
-    @classmethod
-    def __compute_mi(cls, x, vars, targets, progress=None):
-
-        vcache = { True: vars == True, False: vars == False }
-        tcache = { True: targets == True, False: targets == False }
-
-        res = {}
-
-        pool = FakePool() # mp.Pool(mp.cpu_count())
-
-        for t in (True, False):
-            for v in (True, False):
-                res[(t, v)] = pool.apply_async(Mrmr.__compute_mi_inner, (x, vcache[v], tcache[t], progress))
-
-        pool.close()
-        pool.join()
-
-        y = vars.shape[1]
-        mi, h = np.zeros(y, dtype=float), np.zeros(y, dtype=float)
-
-        for r in res.values():
-            __mi, __h = r.get()
-            mi = np.add(mi, __mi)
-            h = np.add(h, __h)
-            if progress is not None:
-                progress.value += 1
-
-        return mi, h
+#     @classmethod
+#     def _compute_mi(cls, x, y, ui=None):
+#         return mi, h
 
     @staticmethod
     def __compute_mi_xbar(mi, a):
@@ -117,8 +83,8 @@ class Mrmr(object):
     @classmethod
     def __compute_apc(cls, mi, a, b, mibar=None):
         if mibar is None:
-            mibar = Mrmr.__compute_mibar(mi)
-        return Mrmr.__compute_mi_xbar(mi, a) * Mrmr.__compute_mi_xbar(mi, b) / mibar
+            mibar = BaseMrmr.__compute_mibar(mi)
+        return BaseMrmr.__compute_mi_xbar(mi, a) * BaseMrmr.__compute_mi_xbar(mi, b) / mibar
 
     # taken from Dunn et al 2007, 'Mutual information without the influence
     # of phylogeny or entropy dramatically improves residue contact prediction',
@@ -126,38 +92,38 @@ class Mrmr(object):
     @classmethod
     def __compute_mip(cls, mi, a, b, mibar=None):
         if mibar is None:
-            mibar = Mrmr.__compute_mibar(mi)
-        return mi[a, b] - Mrmr.__compute_apc(mi, a, b, mibar)
+            mibar = BaseMrmr.__compute_mibar(mi)
+        return mi[a, b] - BaseMrmr.__compute_apc(mi, a, b, mibar)
 
     @classmethod
-    def __mrmr_selection(cls, num_features, method, vars, targets, threshold=None, ui=None):
-        if method not in (Mrmr.MAXREL, Mrmr.MID, Mrmr.MIQ):
-            raise ValueError('method must be one of Mrmr.MAXREL, Mrmr.MID, or Mrmr.MIQ')
+    def _mrmr_selection(cls, num_features, method, x, y, threshold=None, ui=None):
+        if method not in (BaseMrmr.MAXREL, BaseMrmr.MID, BaseMrmr.MIQ):
+            raise ValueError('method must be one of BaseMrmr.MAXREL, BaseMrmr.MID, or BaseMrmr.MIQ')
 
         if threshold is None:
-            threshold = cls.__DEFAULT_THRESHOLD
+            threshold = cls._DEFAULT_THRESHOLD
 
-        np_err = np.geterr()
+        np_err = np.seterr(divide='ignore', invalid='ignore')
 
-        np.seterr(divide='ignore', invalid='ignore')
+        nrow = x.shape[0]
+        ncol = x.shape[1]
 
-        x = vars.shape[0]
-        y = vars.shape[1]
+#         res_t = {}
+#         res_v = [{} for i in xrange(ncol)]
 
-        res_t = {}
-        res_v = [{} for i in xrange(y)]
-
-        if ui:
-            ui.complete.value = 8 * (2 + num_features) # * (y + 1)
+        if ui is not None:
+            ui.complete.value = 2 + num_features
             ui.progress.value = 0
             ui.start()
 
-        MI_t, H_t = Mrmr.__compute_mi(x, vars, targets, ui.progress if ui else None)
+        vars, targets, joint = cls._prepare(x, y, ui)
 
-#         MI_v, H_v = np.zeros((y, y), dtype=float), np.zeros((y, y), dtype=float)
+        MI_t, H_t = cls._compute_mi(vars, targets, ui)
+
+#         MI_v, H_v = np.zeros((ncol, ncol), dtype=float), np.zeros((ncol, ncol), dtype=float)
 #
-#         for i in xrange(y):
-#             MI_v[i, :], H_v[i, :] = compute_mi(x, vars, vars[:, i], ui.progress if ui else None)
+#         for i in xrange(ncol):
+#             MI_v[i, :], H_v[i, :] = compute_mi(nrow, vars, vars[:, i], ui.progress if ui else None)
 
         MIr_t = np.divide(MI_t, H_t)
 
@@ -177,46 +143,50 @@ class Mrmr(object):
 #             d_v[i, :] = np.subtract(H_v[i, :], MI_v[i, :])
 #             D_v[i, :] = np.divide(d_v[i, :], H_v[i, :])
 
-        L_MI_t = MI_t.tolist()[0]
-        L_MIr_t = MIr_t.tolist()[0]
+        L_MI_t = MI_t.tolist()
+        L_MIr_t = MIr_t.tolist()
 
-#         L_d_t = d_t.tolist()[0]
-#         L_D_t = D_t.tolist()[0]
+#         L_d_t = d_t.tolist()
+#         L_D_t = D_t.tolist()
 
         mi_vals = sorted(zip(range(len(L_MIr_t)), L_MIr_t), key=itemgetter(1), reverse=True)
 
         idx, maxrel = mi_vals[0]
         mi_vars, h_vars, mir_vars = {}, {}, {}
 
-        mi_vars[idx], h_vars[idx] = Mrmr.__compute_mi(x, vars, vars[:, idx], ui.progress if ui else None)
+        mi_vars[idx], h_vars[idx] = cls._compute_mi(vars, vars[:, idx], ui)
         mir_vars[idx] = np.divide(mi_vars[idx], h_vars[idx])
 
         # find related values
-        mu = sorted(zip(range(y), mir_vars[idx].tolist()[0]), key=itemgetter(1), reverse=True)
+        mu = sorted(zip(range(ncol), mir_vars[idx].tolist()), key=itemgetter(1), reverse=True)
         related = [k for k in mu if k[1] > threshold and k[0] != idx]
 
         mrmr_vals = [(idx, maxrel, related)]
         mask_idxs = [idx]
 
         # do one extra because the sorting is sometimes off, do y-1 because we already include a feature by default
-        for k in xrange(min(num_features, y-1)):
+        for k in xrange(min(num_features, ncol-1)):
             idx, maxrel, mrmr = sorted(
                 [
                     (
                         idx,
                         maxrel,
                         # mRMR: MID then MIQ
-                        maxrel - np.sum(mir_vars[j][0, idx] for j, _, _ in mrmr_vals) / len(mrmr_vals) if method is Mrmr.MID else \
-                        maxrel / np.sum(mir_vars[j][0, idx] for j, _, _ in mrmr_vals) / len(mrmr_vals)
+                        np.nan_to_num(
+                            maxrel - np.sum(mir_vars[j][idx] for j, _, _ in mrmr_vals) / len(mrmr_vals)
+                        ) if method is BaseMrmr.MID else \
+                        np.nan_to_num(
+                            maxrel / np.sum(mir_vars[j][idx] for j, _, _ in mrmr_vals) / len(mrmr_vals)
+                        )
                     ) \
                     for idx, maxrel in mi_vals[1:] if idx not in mask_idxs
                 ], key=itemgetter(2), reverse=True)[0]
-            mi_vars[idx], h_vars[idx] = Mrmr.__compute_mi(x, vars, vars[:, idx], ui.progress if ui else None)
+            mi_vars[idx], h_vars[idx] = cls._compute_mi(vars, vars[:, idx], ui)
             mir_vars[idx] = np.divide(mi_vars[idx], h_vars[idx])
 
             # find related values
-            mu = sorted(zip(range(y), mir_vars[idx].tolist()[0]), key=itemgetter(1), reverse=True)
-            related = [k for k in mu if k[1] > cls.__DEFAULT_THRESHOLD and k[0] != idx]
+            mu = sorted(zip(range(ncol), mir_vars[idx].tolist()), key=itemgetter(1), reverse=True)
+            related = [k for k in mu if k[1] > threshold and k[0] != idx]
 
             mrmr_vals.append((idx, mrmr, related))
             mask_idxs.append(idx)
@@ -228,11 +198,11 @@ class Mrmr(object):
             stdout.write(' ' * 30 + '\r')
 
 #         idx = mi_vals[0][0]
-#         print 'I:', mi_vars[idx][0, idx]
-#         print 'H:', h_vars[idx][0, idx]
-#         print 'r:', mir_vars[idx][0, idx]
-#         print 'd:', mi_vars[idx][0, idx] - h_vars[idx][0, idx]
-#         print 'D:', (mi_vars[idx][0, idx] - h_vars[idx][0, idx]) / h_vars[idx][0, idx]
+#         print 'I:', mi_vars[idx][idx]
+#         print 'H:', h_vars[idx][idx]
+#         print 'r:', mir_vars[idx][idx]
+#         print 'd:', mi_vars[idx][idx] - h_vars[idx][idx]
+#         print 'D:', (mi_vars[idx][idx] - h_vars[idx][idx]) / h_vars[idx][idx]
 
         # should be symmetric
 #         assert(MI_v[0, 1] == MI_v[1, 0] and MI_v[0, y-1] == MI_v[y-1, 0])
@@ -255,26 +225,21 @@ class Mrmr(object):
         return True
 
     def select(self, x, y):
-        vars = np.matrix(x, dtype=bool)
-        targets = np.matrix(y, dtype=bool)
-
-        # transpose if necessary (likely if coming from array)
-        if targets.shape[0] == 1 and targets.shape[1] == vars.shape[0]:
-            targets = targets.T
-        elif targets.shape[1] != 1 or targets.shape[0] != vars.shape[0]:
-            raise ValueError('`y\' should have as many entries as `x\' has rows.')
-
+        # make sure we've got nothing here
         self.__maxrel, self.__mrmr = None, None
-        self.__maxrel, self.__mrmr = Mrmr.__mrmr_selection(self.num_features, self.method, vars, targets, self.threshold)
 
-        self.__colsize = vars.shape[1]
+        # this must be self._mrmr_selection so that its implementations can appropriately implement and access
+        # their _compute_mi() methods
+        self.__maxrel, self.__mrmr = self._mrmr_selection(self.num_features, self.method, x, y, self.threshold)
+
+        self.__colsize = x.shape[1]
         self.__computed = True
 
     def features(self):
         if not self.__computed:
             raise StandardError('No mRMR model computed')
 
-        if self.method is Mrmr.MAXREL:
+        if self.method is BaseMrmr.MAXREL:
             return [iv[0] for iv in self.__maxrel]
         else:
             return [ivr[0] for ivr in self.__mrmr]
@@ -284,4 +249,4 @@ class Mrmr(object):
             raise StandardError('No mRMR model computed')
         if x.shape[1] != self.__colsize:
             raise ValueError('model, number of features: shape mismatch')
-        return x[:, Mrmr.features(self)]
+        return x[:, BaseMrmr.features(self)]

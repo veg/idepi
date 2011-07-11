@@ -4,8 +4,8 @@
 #
 # mrmr.py :: computes Maximum Relevance (MaxRel) and minimum
 # Redundancy Maximum Relevance (mRMR) for a dataset
-# 
-# Copyright (C) 2011 N Lance Hepler <nlhepler@gmail.com> 
+#
+# Copyright (C) 2011 N Lance Hepler <nlhepler@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,6 +22,8 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
+NUM_COLS = 2000
+
 import os, sys, time
 
 import multiprocessing as mp
@@ -36,7 +38,7 @@ if platform.system().lower() == 'darwin':
         if os.path.exists(path):
             sys.path.insert(0, path)
 
-from idepi import MAXREL, MID, MIQ, Mrmr, UiThread
+from idepi import DiscreteMrmr, FastCaim, GaussianKde, MixedMrmr, UiThread
 
 
 THRESHOLD = 0.8
@@ -49,6 +51,7 @@ def __usage():
 
 def main(argv, ui=None):
 
+    klass = None
     num_features = 10
 
     i = 0
@@ -59,6 +62,14 @@ def main(argv, ui=None):
                 num_features = int(argv[i+1])
                 i += 2
                 continue
+            elif opt is 'd':
+                klass = DiscreteMrmr
+                i += 1
+                continue
+            elif opt is 'c':
+                klass = MixedMrmr
+                i += 1
+                continue
             elif opt is '-':
                 if argv[i][2:] == 'gpl':
                     print gplv2
@@ -67,6 +78,9 @@ def main(argv, ui=None):
         else:
             argv = argv[i:]
             break
+
+    if klass is None:
+        klass = DiscreteMrmr
 
     if len(argv) != 1 or not os.path.exists(argv[0]):
         return usage()
@@ -77,25 +91,38 @@ def main(argv, ui=None):
 
     names = lines[0].split(',')[1:]
     arr = [[int(x) for x in l.split(',')] for l in lines[1:] if l != '']
-    m = np.matrix(arr, dtype=bool)
+    m = np.array(arr, dtype=bool)
 
     targets = m[:, 0]
     vars = m[:, 1:]
 
-    selector = Mrmr()
+    nrow, ncol = vars.shape
 
-    # hax to get at 'private' method 
-    maxrel, mrmr = selector._Mrmr__mrmr_selection(num_features, MID, vars, targets, threshold=THRESHOLD, ui=ui)
+    if klass == MixedMrmr:
+        # vars = vars[:, :NUM_COLS]
+        fc = FastCaim()
+        print 'starting discretization'
+        b = time.time()
+        vars = fc.discretize(vars, targets)
+        print 'done discretizing %i columns, took' % vars.shape[1], time.time() - b, 'seconds'
+        klass = DiscreteMrmr
+
+    selector = klass()
+
+    print 'starting...'
+
+    # hax to get at 'private' method
+    maxrel, mrmr = selector._mrmr_selection(num_features, klass.MID, vars, targets, threshold=THRESHOLD, ui=ui)
 
     print 'I(X, Y) / H(X, Y)'
-    for idx, value in maxrel: 
+    for idx, value in maxrel:
         print '   %4d   % 5s   %6.4f' % (idx + 1, names[idx], value)
-   
-    print '\nI(X, Y) / H(X, Y) - I(X, X) / H(X, X) (related > %.3g)' % THRESHOLD    
+
+    print '\nI(X, Y) / H(X, Y) - I(X, X) / H(X, X) (related > %.3g)' % THRESHOLD
     for idx, value, related in mrmr:
-        print '   %4d   % 5s   %6.4f   (%s)' % (idx + 1, names[idx], value, ', '.join([(names[i], v) for i, v in related]))
-    
-    return 0 
+        print '   %4d   % 5s   %6.4f   (%s)' % (idx + 1, names[idx], value, ', '.join([names[i] + ': %6.4f' % v for i, v in related]))
+
+    return 0
 
 
 if __name__ == '__main__':

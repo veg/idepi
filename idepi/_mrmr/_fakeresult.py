@@ -5,7 +5,7 @@
 # and utilities to help identify neutralizing antibody epitopes via machine
 # learning.
 #
-# Copyright (C) 2011 N Lance Hepler <nlhepler@gmail.com>
+# Copyright (C) 2011 N Lance Hepler <nlhepler@gmail.com> 
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,39 +21,10 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
+class FakeResult(object):
 
-import sys
-import multiprocessing as mp
+    def __init__(self, vals):
+        self.__vals = vals
 
-from time import sleep
-
-
-__all__ = ['UiThread']
-
-
-class UiThread(mp.Process):
-
-    def __init__(self):
-        m = mp.Manager()
-        p = m.Value('i', 0)
-        c = m.Value('i', sys.maxint)
-        super(UiThread, self).__init__(target=UiThread.completion, args=(p, c))
-        self.daemon = True
-        self.manager = m
-        self.progress = p
-        self.complete = c
-
-    @staticmethod
-    def completion(progress, complete):
-        while True:
-            num = progress.value
-            den = complete.value
-
-            if num > den:
-                break
-
-            msg = 'completion: %6.2f%%\r' % (100. * float(num) / float(den))
-            sys.stdout.write(msg)
-            sys.stdout.flush()
-
-            sleep(0.1)
+    def get(self):
+        return self.__vals

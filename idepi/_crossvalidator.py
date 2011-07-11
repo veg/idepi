@@ -5,7 +5,7 @@
 # and utilities to help identify neutralizing antibody epitopes via machine
 # learning.
 #
-# Copyright (C) 2011 N Lance Hepler <nlhepler@gmail.com> 
+# Copyright (C) 2011 N Lance Hepler <nlhepler@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -90,7 +90,7 @@ class CrossValidator(object):
         for f in xrange(self.folds):
             inpart = [i for i in xrange(r) if p[i] != f]
             outpart = [i for i in xrange(r) if p[i] == f]
-            
+
             xin = x[inpart, :].astype(float)
             yin = y[inpart].astype(float)
 
@@ -104,14 +104,14 @@ class CrossValidator(object):
             l = getattr(classifier, self.__learnfunc)(xin, yin)
             if l is not None:
                 lret.append(l)
-            
+
             preds = getattr(classifier, self.__predictfunc)(xout)
-            
+
             # do this after both learning and prediction just in case either performs some necessary computation
             if extra is not None:
                 if isinstance(extra, str):
                     xtra.append(getattr(classifier, extra)())
-                elif isinstance(extra, FunctionType): 
+                elif isinstance(extra, FunctionType):
                     xtra.append(extra(classifier))
 
             stats.append(*ystoconfusionmatrix(yout, preds))

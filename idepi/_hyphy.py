@@ -11,6 +11,10 @@ __all__ = ['HyPhy']
 class HyPhy(object):
     __DEFAULT_NUM_CPUS = 2
 
+    MATRIX = hp.THYPHY_TYPE_MATRIX
+    NUMBER = hp.THYPHY_TYPE_NUMBER
+    STRING = hp.THYPHY_TYPE_STRING
+
     def __init__(self, num_cpus=None):
 
         if num_cpus is None:
@@ -35,4 +39,4 @@ class HyPhy(object):
         if err.strip() != '':
             raise RuntimeError(err)
 
-        return out 
+        return out
