@@ -26,20 +26,22 @@ from _abrecord import *
 from _alphabet import *
 from _crossvalidator import *
 from _discretizer import *
+from _fakepool import *
+from _fakeresult import *
 from _fastcaim import *
-from _filter import *
 from _gridsearcher import *
 from _hmmer import *
-# from _kde import *
+from _hyphy import *
 from _linearsvm import *
 from _logo import *
 from _mlpy import *
 from _mrmr import *
-from _mrmrwrappedlinearsvm import *
+from _naivefilter import *
 from _nestedcrossvalidator import *
 from _normalvalue import *
 from _orflist import *
 from _perfstats import *
+from _phylofilter import *
 from _randomsequences import *
 from _selectinggridsearcher import *
 from _selectingnestedcrossvalidator import *
@@ -56,21 +58,23 @@ __all__ = []
 __all__ += _abrecord.__all__
 __all__ += _alphabet.__all__
 __all__ += _crossvalidator.__all__
+__all__ += _fakepool.__all__
+__all__ += _fakeresult.__all__
 __all__ += _fastcaim.__all__
-__all__ += _filter.__all__
 __all__ += _discretizer.__all__
 __all__ += _gridsearcher.__all__
 __all__ += _hmmer.__all__
-# __all__ += _kde.__all__
+__all__ += _hyphy.__all__
 __all__ += _linearsvm.__all__
 __all__ += _logo.__all__
 __all__ += _mlpy.__all__
 __all__ += _mrmr.__all__
-__all__ += _mrmrwrappedlinearsvm.__all__
+__all__ += _naivefilter.__all__
 __all__ += _nestedcrossvalidator.__all__
 __all__ += _normalvalue.__all__
 __all__ += _orflist.__all__
 __all__ += _perfstats.__all__
+__all__ += _phylofilter.__all__
 __all__ += _randomsequences.__all__
 __all__ += _selectinggridsearcher.__all__
 __all__ += _selectingnestedcrossvalidator.__all__

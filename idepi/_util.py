@@ -5,7 +5,7 @@
 # and utilities to help identify neutralizing antibody epitopes via machine
 # learning.
 #
-# Copyright (C) 2011 N Lance Hepler <nlhepler@gmail.com> 
+# Copyright (C) 2011 N Lance Hepler <nlhepler@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -36,7 +36,7 @@ from scipy.special import fdtrc
 from Bio import SeqIO
 
 from _abrecord import AbRecord
-from _filter._alphabet import Alphabet
+from _alphabet import Alphabet
 from _hmmer import Hmmer
 from _seqtable import SeqTable
 from _smldata import SmlData
@@ -217,8 +217,8 @@ def base_n_to_10(cols, N):
 
 # very heavily based on the design of friedmanchisquare in scipy
 def durbin(*args):
-    
-    # taken verbatim from scipy.stats._support.abut 
+
+    # taken verbatim from scipy.stats._support.abut
     def _abut(source, *args):
         source = np.asarray(source)
         if len(source.shape) == 1:
@@ -274,7 +274,7 @@ def durbin(*args):
 
     data = apply(_abut,args)
     data = data.astype(float)
-    
+
     A = 0.
     t = data.shape[1]
     R = np.zeros(t, float)
@@ -294,7 +294,7 @@ def durbin(*args):
     C = b * k * pow(k + 1, 2) / 4
     T1 = (t-1) * sum(map(lambda x: pow(x, 2) - r*C, R)) / (A-C)
     T2 = (T1 / (t-1)) / ((b*k - b - T1) / (b*k - b - t + 1))
-   
+
     print data
     print R
     print "r = %g, t = %g, b = %g, k = %g, C = %g, A = %g, T1 = %g" % (r, t, b, k, C, A, T1)
@@ -429,14 +429,14 @@ def binarize_row(row, alphabet):
 
 def sanitize_seq(seq, alphabet):
     alphdict = alphabet.todict()
-    assert(len(SeqTable.SPACE) > 0 and len(seq) > 0 and len(alphdict.keys()) > 0)
+    assert(len(Alphabet.SPACE) > 0 and len(seq) > 0 and len(alphdict.keys()) > 0)
     try:
         seq = str(seq)
         seq = seq.upper()
-        seq = sub(r'[%s]' % SeqTable.SPACE, '-', seq)
+        seq = sub(r'[%s]' % Alphabet.SPACE, '-', seq)
         seq = sub(r'[^%s]' % ''.join(alphdict.keys()), 'X', seq)
     except TypeError, e:
-        raise RuntimeError('something is amiss with things:\n  SPACE = %s\n  seq = %s\n  alphabet = %s\n' % (SeqTable.SPACE, seq, alphdict))
+        raise RuntimeError('something is amiss with things:\n  SPACE = %s\n  seq = %s\n  alphabet = %s\n' % (Alphabet.SPACE, seq, alphdict))
     return seq
 
 def generate_relevant_data(feature_names, seq_table, alphabet, feature_idxs, target, subtypes=[], simulation=None):
@@ -487,7 +487,7 @@ def generate_feature_names(seq_table, alph):
     c = 0
     ins = 0
     for p in hxb2_seq:
-        if p not in SeqTable.SPACE:
+        if p not in Alphabet.SPACE:
             c += 1
             ins = 0
         else:
@@ -501,7 +501,7 @@ def generate_feature_names(seq_table, alph):
 def compute_relevant_features_and_names(seq_table, alph, names, limits={ 'max': 1.0, 'min': 1.0, 'gap': 0.1 }, filter_list=[]):
     if type(limits) != dict:
         raise ValueError('limits must be of type `dict\'')
-    
+
     for lim in ('max', 'min', 'gap'):
         if lim not in limits:
             raise ValueError('limits must contain `%s\'' % lim)

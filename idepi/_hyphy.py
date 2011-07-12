@@ -26,8 +26,10 @@ class HyPhy(object):
 
         self.__instance = hp._THyPhy(getcwd(), num_cpus)
 
-    def execute(self, batchfile, quiet=False):
-        result = self.__instance.ExecuteBF('ExecuteAFile("%s")' % batchfile)
+    def execute(self, batchfile, arguments=None, quiet=False):
+        execstr = 'ExecuteAFile("%s")' % batchfile if (arguments is None or len(arguments) < 1) else \
+                  'ExecuteAFile("%s", { %s })' % (batchfile, ', '.join(['"%d": "%s"' % (i, arguments[i]) for i in xrange(len(arguments))]))
+        result = self.__instance.ExecuteBF(execstr)
         out = self.__instance.GetStdout()
         err = self.__instance.GetErrors()
         war = self.__instance.GetWarnings()
@@ -40,3 +42,22 @@ class HyPhy(object):
             raise RuntimeError(err)
 
         return out
+    
+    def retrieve(self, variable, type):
+        _res = self.__instance.AskFor(variable)
+        if type not in (HyPhy.MATRIX, HyPhy.NUMBER, HyPhy.STRING):
+            raise ValueError('Unknown type supplied: please use one of PhyloFilter.{MATRIX,NUMBER,STRING}')
+        if (self.__instance.CanICast(_res, type)):
+            res = self.__instance.CastResult(_res, type)
+            if type == HyPhy.STRING:
+                return res.castToString().sData
+            elif type == HyPhy.NUMBER:
+                return res.castToNumber().nValue
+            elif type == HyPhy.MATRIX:
+                return res.castToMatrix()
+            else:
+                # dead code, we assume
+                assert(0)
+        else:
+            raise RuntimeError('Cast failed in HyPhy, assume an incorrect type was supplied for variable `%s\'' % variable)
+

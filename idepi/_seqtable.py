@@ -5,7 +5,7 @@
 # and utilities to help identify neutralizing antibody epitopes via machine
 # learning.
 #
-# Copyright (C) 2011 N Lance Hepler <nlhepler@gmail.com> 
+# Copyright (C) 2011 N Lance Hepler <nlhepler@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,186 +22,116 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
-
 from exceptions import ValueError
-from math import ceil
-from random import randint
+from itertools import chain
+from math import ceil, floor
+from random import randint, shuffle
 from sys import exit, stderr
-from Bio import AlignIO
 from types import ListType, IntType
+
+import numpy as np
+
+from Bio import AlignIO
 
 
 __all__ = ['SeqTable']
 
 
-class Column(object):
-
-    def __init__(self, n):
-        self._values = dict()
-        self.number = n
-
-    def __contains__(self, key):
-        if key in self._values:
-            return True
-        else:
-            return False
-
-    def __delitem__(self, key):
-        del self._values[key]
-
-    def __getitem__(self, key):
-        return self._values[key]
-
-    def __len__(self):
-        return len(self._values.keys())
-
-    def __setitem__(self, key, value):
-        self._values[key] = value
-
-    def values(self):
-        return self._values.keys()
-
-    def counts(self):
-        return dict(self._values)
-
-    def count(self):
-        return sum(self._values.values())
-
-
 class SeqTable(object):
-    DNA_ALPHABET   = 'ACGTUN-'
-    AMINO_ALPHABET = 'ACGILMPSTVDENQFWYHKRX-'
 
-    # underscore must go first or re.compile blows up
-    SPACE = '_.-='
+    def __init__(self, alignment, alphabet, keep_func=None, skip_func=None):
 
-    def __init__(self, filename, alphabet, keep_func = None, skip_func = None):
-        if not alphabet in (self.DNA_ALPHABET, self.AMINO_ALPHABET):
-            print >> stderr, 'ERROR: alphabet must be one of SeqTable.DNA_ALPHABET or SeqTable.AMINO_ALPHABET'
-            raise ValueError
+        self.__alph = alphabet
+        self.__alignment = alignment
 
-        self._fh = open(filename, 'rU')
-        self.alphabet = alphabet
-        self.alignment = AlignIO.read(self._fh, 'stockholm')
+        self.__keep = SeqTable.__filter(self, keep_func)
+        self.__skip = SeqTable.__filter(self, skip_func)
+        self.__rest = sorted(set(xrange(len(self.__alignment))) - (self.__keep | self.__skip))
+        
+        self.nrow = len(self.__alignment) - len(self.__keep) - len(self.__skip)
+        self.ncol = self.__alignment.get_alignment_length()
+        
+        self.__fulldata = np.zeros((self.nrow, self.ncol), dtype=self.__alph.todtype)
+        self.data = self.__fulldata
+        self.cols = np.zeros((self.ncol, len(self.__alph)), dtype=int)
+        self.cols[:, :] = np.sum(self.data, axis=0)
 
-        self.keep_indices = SeqTable.__filter(self, keep_func)
-        self.skip_indices = SeqTable.__filter(self, skip_func)
+        SeqTable.__fill_data(self.__alignment, self.__alph, self.__fulldata, self.__keep, self.__skip)
 
-        self.num_columns = self.alignment.get_alignment_length()
-        self.num_rows = len(self.alignment)
+        self.__folds = 1
+        self.__rowlabels = -np.ones((len(alignment),), dtype=int)
 
-        self.num_partitions = 1
-        self.row_partitions = [-1] * self.num_rows
+        self.__mask = None
 
-        self.columns = {}
-        self.curr_mask = None
-        self.loaded = False
+    @staticmethod
+    def __fill_data(alignment, alphabet, data, keep_idxs, skip_idxs):
+        _, ncol, _ = data.shape
+        for i in xrange(len(alignment)):
+            if i in keep_idxs or i in skip_idxs:
+                continue
+            row = alignment[i].seq
+            for j in xrange(ncol):
+                v = row.seq[j]
+                data[i, j, alphabet[v]] = True
 
     def __filter(self, func):
-        indices = []
-        if func:
+        idxs = set()
+        if func is not None:
             if type(func) is ListType:
                 for f in func:
-                    for i in xrange(len(self.alignment)):
-                        if f(self.alignment[i].id):
-                            indices.append(i)
+                    for i in xrange(len(self.__alignment)):
+                        if apply(f, (self.__alignment[i].id,)):
+                            idxs.add(i)
             else:
-                for i in xrange(len(self.alignment)):
-                    if func(self.alignment[i].id):
-                        indices.append(i)
-        return indices
+                for i in xrange(len(self.__alignment)):
+                    if apply(func, (self.__alignment[i].id,)):
+                        idxs.add(i)
+        return idxs
 
-    def fill_columns(self):
-        if self.loaded:
-            return
+    @staticmethod
+    def __partition(l, folds):
+        npf = int(floor(l / folds)) # num per fold
+        r = l % folds
+        p = list(chain(*[[i] * npf for i in xrange(folds)])) + range(r)
+        shuffle(p)
+        assert(len(p) == l)
+        return p
 
-        self.columns.clear()
-
-        for r in self.alignment:
-            for p in r.seq:
-                if p in self.SPACE and p != '-':
-                    print >> stderr, 'ERROR: space character not matching '-' found!'
-                    raise ValueError
-
-            for i in xrange(self.alignment.get_alignment_length()):
-                v = r.seq[i]
-
-                if v not in self.alphabet:
-                    v = 'X'
-
-                if not i in self.columns:
-                    self.columns[i] = Column(i)
-
-                # initialize if not already there
-                if not v in self.columns[i]:
-                    self.columns[i][v] = 0
-
-                self.columns[i][v] += 1
-
-        self.loaded = True
-
-    def partition(self, num_partitions):
-        self.num_partitions = num_partitions
-
-        # set div to div++ to accomodate remainder logic below
-        nr_rows = self.num_rows - len(self.skip_indices) - len(self.keep_indices)
-        div = int(ceil(nr_rows / self.num_partitions))
-        rem = int(nr_rows % self.num_partitions)
-
-        indices = [i for i in xrange(self.num_rows) if i not in (self.keep_indices + self.skip_indices)]
-
-        if len(indices) > num_partitions:
-            for i in xrange(num_partitions):
-                for j in xrange(div):
-                    try:
-                        k = randint(0, len(indices)-1)
-                    except ValueError:
-                        k = 0
-                    try:
-                        self.row_partitions[indices[k]] = i
-                        del indices[k]
-                    except IndexError, e:
-                        print >> stderr, 'ERROR: ran out of indices before we should have!'
-                        raise e
-                # keep decrementing remainder until we hit 0, then drop divisor by 1 and keep going
-                rem -= 1
-                if rem == 0:
-                    div -= 1
-        elif len(indices) == num_partitions:
-            c = 0
-            for i in indices:
-                self.row_partitions[i] = c
-                c += 1
-        else:
-            print >> stderr, 'ERROR: can\'t create more partitions than available rows'
-            exit(-1)
+    def partition(self, folds):
+        if folds > self.nrow:
+            raise ValueError('Unable to create more partitions than available rows')
+        self.__rowlabels[self.__rest] = SeqTable.__partition(self.nrow, folds)
 
     def set_row_fold(self, i, j):
-        self.row_partitions[i] = j
+        self.__rowlabels[i] = j
 
-    def rows(self):
-        if not self.loaded:
-            SeqTable.fill_columns(self)
-        if self.curr_mask is None or self.curr_mask == []:
+    @property
+    def alignment(self):
+        if self.__mask is None or len(self.__mask) == 0:
             # this is tricky, so try to follow: keep everything not in skip indices, but add back in things in keep_indices
-            return [self.alignment[i] for i in xrange(len(self.alignment)) if i not in (self.keep_indices + self.skip_indices)] + [self.alignment[i] for i in self.keep_indices]
-            # this one is even trickier: keep everything that isn't in the current mask or skip indices, but add back in the things in keep_indices
-        return [self.alignment[i] for i in xrange(len(self.alignment)) if self.row_partitions[i] not in self.curr_mask and i not in (self.keep_indices + self.skip_indices)] + \
-               [self.alignment[i] for i in self.keep_indices]
+            return [self.__alignment[i] for i in self.__rest] + [self.__alignment[i] for i in sorted(self.__keep)]
+            # this one is even trickier: keep everything that isn't in the current mask or skip indices, but add back in the things in the keep indices
+        return [self.__alignment[i] for i in self.__rest if self.__rowlabels[i] not in self.__mask] + \
+               [self.__alignment[i] for i in sorted(self.__keep)]
 
     def mask(self, i):
-        if type(i) is IntType:
-            self.curr_mask = [i]
-        elif type(i) is ListType:
-            self.curr_mask = i
+        if type(i) is int:
+            self.__mask = set([i])
+        elif type(i) is list:
+            self.__mask = set(i)
+        elif type(i) is set:
+            self.__mask = i
+        elif i is None:
+            self.__mask = None
         else:
-            print >> stderr, 'ERROR: mask must be of type int or a list of ints'
-            raise ValueError
-        self.loaded = False
+            raise ValueError('Mask must be an int, list of ints, set of ints, or None')
+        if self.__mask is None or len(self.__mask) == 0:
+            self.data = self.__fulldata
+        else:
+            self.data = self.__fulldata[sorted(self.__mask)]
+        self.cols[:, :] = np.sum(self.data, axis=0)
 
     def unmask(self):
-        self.curr_mask = None
-        self.loaded = False
-
-    def __del__(self):
-        self._fh.close()
+        self.__mask = None
+        self.data = self.__fulldata
+        self.cols[:, :] = np.sum(self.data, axis=0)
