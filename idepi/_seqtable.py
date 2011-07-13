@@ -53,12 +53,13 @@ class SeqTable(object):
 
         assert(len(self.__keep) == self.nrow)
 
-        self.__fulldata = np.zeros((self.nrow, self.ncol), dtype=self.__alph.todtype)
+        self.__fulldata = np.zeros((self.nrow, self.ncol), dtype=self.__alph.todtype())
         self.data = self.__fulldata
         self.cols = np.zeros((self.ncol, len(self.__alph)), dtype=int)
-        self.cols[:, :] = np.sum(self.data, axis=0)
 
         SeqTable.__fill_data(self.__alignment, self.__alph, self.__fulldata, self.__ref_id, self.__skip)
+        
+        self.cols[:, :] = np.sum(self.data, axis=0)
 
         self.__folds = 1
         self.__rowlabels = -np.ones((len(alignment),), dtype=int)
@@ -73,7 +74,7 @@ class SeqTable(object):
                 continue
             row = alignment[i].seq
             for j in xrange(ncol):
-                v = row.seq[j]
+                v = row[j]
                 data[i, j, alphabet[v]] = True
 
     def __filter(self, func):

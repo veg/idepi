@@ -128,3 +128,14 @@ class LinearSvmModel(object):
                         self.__feature_weights[f] = 0.
                     self.__feature_weights[f] += weight * float(w)
 
+            elif mode == 'W':
+                if len(vals) > 1:
+                    weight += sum([float(v) for v in vals[1:]])
+                self.__feature_weights[f] = weight
+                f += 1
+
+    def weights(self):
+        features = [0.] * (max(self.__feature_weights.keys()) + 1)
+        for k, v in self.__feature_weights.items():
+            features[k] += v
+        return features

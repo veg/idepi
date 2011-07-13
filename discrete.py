@@ -503,14 +503,14 @@ def main(argv = sys.argv):
         seqrecords = [r.to_SeqRecord(dna=True if OPTIONS.DNA else False) for r in abrecords]
         alignment = generate_alignment(seqrecords, alignment_filename)
         colfilter = NaiveFilter(
-            alphabet,
+            alph,
             OPTIONS.MAX_CONSERVATION,
             OPTIONS.MIN_CONSERVATION,
             OPTIONS.MAX_GAP_RATIO,
             is_HXB2,
             lambda x: False # TODO: add the appropriate filter function based on the args here
         )
-        x, colnames = colfilter.filter(alignment)
+        colnames, x = colfilter.filter(alignment)
     else:
         if OPTIONS.SIM_EPI_N is None:
             OPTIONS.SIM_EPI_N = len(abrecords)
@@ -582,12 +582,17 @@ def main(argv = sys.argv):
 
             crossvalidator = SelectingNestedCrossValidator(
                 classifiercls=LinearSvm,
-                selectorcls=Mrmr,
+                selectorcls=DiscreteMrmr,
                 folds=OPTIONS.CV_FOLDS,
                 cv={},
                 optstat=optstat,
                 gs={ 'C': C_range },
-                fs={ 'num_features': OPTIONS.NUM_FEATURES, 'method': Mrmr.MAXREL if OPTIONS.MAXREL else Mrmr.MID if OPTIONS.MRMR_METHOD == 'MID' else Mrmr.MIQ }
+                fs={
+                    'num_features': OPTIONS.NUM_FEATURES,
+                    'method': DiscreteMrmr.MAXREL if OPTIONS.MAXREL else \
+                              DiscreteMrmr.MID if OPTIONS.MRMR_METHOD == 'MID' else \
+                              DiscreteMrmr.MIQ
+                    }
             )
 
             results = crossvalidator.crossvalidate(x, y, cv={}, extra=lambda x: { 'features': x.features(), 'weights': x.classifier.weights() })
@@ -620,7 +625,7 @@ def main(argv = sys.argv):
         weightsdict = {}
         for idx, weights in featureweights.items():
             val = NormalValue(int, weights)
-            weightsdict[feature_names[idx]] = val
+            weightsdict[colnames[idx]] = val
 
         # remove minstat 'cause we don't want it here..
         if 'Minstat' in statsdict:

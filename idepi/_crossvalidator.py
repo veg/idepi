@@ -89,11 +89,11 @@ class CrossValidator(object):
             inpart = [i for i in xrange(nrow) if p[i] != f]
             outpart = [i for i in xrange(nrow) if p[i] == f]
 
-            xin = x[inpart, :].astype(float)
-            yin = y[inpart].astype(float)
+            xin = x[inpart, :]
+            yin = y[inpart]
 
-            xout = x[outpart, :].astype(float)
-            yout = y[outpart].astype(float)
+            xout = x[outpart, :]
+            yout = y[outpart]
 
             # print 'in:', xin.shape[0], 'out:', xout.shape[0], 'kwargs:', kwargs
 

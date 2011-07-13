@@ -50,13 +50,14 @@ class NaiveFilter(BaseFilter):
         for i in xrange(seqtable.ncol):
             col = seqtable.cols[i]
             colsum = float(np.sum(col))
-            if float(min(col)) / colsum > mincons or \
+            if colsum == 0. or \
+               float(min(col)) / colsum > mincons or \
                float(max(col)) / colsum > maxcons or \
                float(col[alphabet['-']]) / colsum > maxgap:
                 ignore_idxs.add(i)
 
         stride = len(alphabet)
-        ncol = (len(seqtable) - len(ignore_idxs)) * stride
+        ncol = (seqtable.ncol - len(ignore_idxs)) * stride
         data = np.zeros((seqtable.nrow, ncol), dtype=bool)
 
         j = 0
@@ -70,7 +71,7 @@ class NaiveFilter(BaseFilter):
 
         return colnames, data
 
-    def learn(self, alignment):
+    def filter(self, alignment):
         return NaiveFilter.__compute(
             alignment, self.__alph, self.__mincons, self.__maxcons, self.__maxgap,
             self.__rfn, self.__sfn

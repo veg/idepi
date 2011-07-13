@@ -36,29 +36,30 @@ class Alphabet(object):
 
         if mode == Alphabet.STANFEL:
             d = Alphabet.__STANFEL_ALPH
-            self.__list = []
+            l = []
             for i in xrange(max(d.values())):
-                self.__list.append('[%s]' % ''.join(sorted([k if k not in Alphabet.SPACE else '' for k, v_ in d.items() if i == v_])))
+                l.append('[%s]' % ''.join(sorted([k if k not in Alphabet.SPACE else '' for k, v_ in d.items() if i == v_])))
         
         elif mode in (Alphabet.AMINO, Alphabet.DNA):
             alph = Alphabet.__AMINO_ALPH if mode == self.AMINO else Alphabet.__DNA_ALPH 
-            d, self.__list = Alphabet.__dict_and_list(alph)
+            d, l = Alphabet.__dict_and_list(alph)
 
         elif mode == Alphabet.CUSTOM:
             if chars is None:
                 raise ValueError('Custom Alphabet requires a `chars\' parameter')
-            d, self.__list = Alphabet.__dict_and_list(chars)
+            d, l = Alphabet.__dict_and_list(chars)
 
         else:
             raise ValueError('mode must be one of Alphabet.AMINO, Alphabet.DNA, Alphabet.STANFEL, or Alphabet.CUSTOM')
         
         self.__dict = defaultdict(constant_factory(d['X']))
         self.__dict.update(d)
+        self.__list = l
 
     def __len__(self):
         return len(self.__list)
 
-    def __get__(self, idx):
+    def __getitem__(self, idx):
         if type(idx) is int:
             return self.__list[idx]
         elif type(idx) is str:

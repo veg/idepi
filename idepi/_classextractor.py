@@ -18,10 +18,10 @@ class ClassExtractor(object):
     @staticmethod
     def __extract(alignment, extract, skip, discretize):
         if discretize is None:
-            dtype = bool
+            dtype = float
             discretize = lambda x: x
         else:
-            dtype = float
+            dtype = bool
 
         skipped = 0
         if skip is None:
