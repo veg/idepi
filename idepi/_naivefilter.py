@@ -15,7 +15,8 @@ class NaiveFilter(BaseFilter):
     __DEFAULT_MAX_CONSERVATION = 1. # 100%
     __DEFAULT_MAX_GAP_RATIO = 1.
 
-    def __init__(self, alignment, alphabet=None, mincons=None, maxcons=None, maxgap=None, ref_id_func=None):
+    def __init__(self, alphabet=None, target=None, mincons=None,
+                 maxcons=None, maxgap=None, ref_id_func=None):
 
         if alphabet is None:
             alphabet = Alphabet()
@@ -33,7 +34,7 @@ class NaiveFilter(BaseFilter):
         self.__mincons = mincons
         self.__maxgap = maxgap
         self.__rfn = ref_id_func
-#         self.__run, self.__data, self.__labels = False, None, None
+#         self.__run, self.__data, self.__colnames = False, None, None
 
     @staticmethod
     def __compute(alignment, alphabet, mincons, maxcons, maxgap, ref_id_func):
@@ -51,7 +52,7 @@ class NaiveFilter(BaseFilter):
                 ignore_idxs.add(i)
 
         stride = len(alphabet)
-        ncol = (len(seqtable) - len(ignore_idxs)) * stride 
+        ncol = (len(seqtable) - len(ignore_idxs)) * stride
         data = np.zeros((seqtable.nrow, ncol), dtype=bool)
 
         j = 0
@@ -60,24 +61,24 @@ class NaiveFilter(BaseFilter):
                 continue
             data[:, j:(j+stride)] = seqtable.data[:, i]
             j += stride
+        
+        colnames = BaseFilter._colnames(alignment, alphabet, ref_id_func, ignore_idxs) 
 
-        labels = BaseFilter._labels(alignment, alphabet, ref_id_func, ignore_idxs)
+        return colnames, data
 
-        return labels, data
-
-    def filter(self, alignment):
+    def learn(self, alignment):
         return NaiveFilter.__compute(
-                alignment, self.__alph, self.__mincons, self.__maxcons, self.__maxgap, self.__rfn
-            )
+            alignment, self.__alph, self.__mincons, self.__maxcons, self.__maxgap, self.__rfn
+        )
 
 #     @property
 #     def data(self):
 #         if not self.__run:
 #             raise RuntimeError('No naive filtering model computed')
 #         return self.__data
-# 
+#
 #     @property
-#     def labels(self):
+#     def colnames(self):
 #         if not self.__run:
 #             raise RuntimeError('No naive filtering model computed')
-#         return self.__labels
+#         return self.__colnames

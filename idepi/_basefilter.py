@@ -1,5 +1,8 @@
 
+from numpy import zeros
+
 from _alphabet import Alphabet
+from _util import id_to_class
 
 __all__ = ['BaseFilter']
 
@@ -10,16 +13,16 @@ class BaseFilter(object):
         raise RuntimeError('You cannot use BaseFilter directly. Use one of its subclasses NaiveFilter or PhyloFilter.')
 
     @staticmethod
-    def _labels(seqrecords, alphabet, ref_id_func, ignore_idxs=set()):
+    def _colnames(alignment, alphabet, ref_id_func, ignore_idxs=set()):
         ref = None
-        for r in seqrecords:
+        for r in alignment:
             if apply(ref_id_func, (r.id,)):
                 ref = str(r.seq)
 
         if ref is None:
             raise RuntimeError('No reference sequence found, aborting')
 
-        labels = []
+        colnames = []
         c, col, ins = 0, 0, 0
         for p in ref:
             if p not in Alphabet.SPACE:
@@ -31,7 +34,7 @@ class BaseFilter(object):
                 if col in ignore_idxs:
                     continue
                 insert = base_26_to_alph(base_10_to_n(ins, BASE_ALPH))
-                labels.append('%s%d%s%s' % ('' if insert != '' else p.upper(), c, insert, alphabet[i]))
+                colnames.append('%s%d%s%s' % ('' if insert != '' else p.upper(), c, insert, alphabet[i]))
                 col += 1
 
-        return labels
+        return colnames

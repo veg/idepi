@@ -48,7 +48,7 @@ __all__ = [
     'is_testdata',
     'is_HXB2',
     'id_to_class',
-    'id_to_real',
+    'id_to_float',
     'id_to_subtype',
     'get_noise',
     'get_valid_antibodies_from_db',
@@ -143,7 +143,7 @@ def id_to_subtype(id):
     return subtype
 
 
-def id_to_real(id):
+def id_to_float(id):
     try:
         ic50 = float(id.rsplit('|', 3)[3]) # accession | subtype | ab | ic50
     except ValueError, e:
@@ -152,7 +152,7 @@ def id_to_real(id):
 
 
 def get_noise(id):
-    return id_to_real(id)
+    return id_to_float(id)
 
 
 def base_10_to_n(n, N):

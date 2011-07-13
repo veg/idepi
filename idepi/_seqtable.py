@@ -47,10 +47,10 @@ class SeqTable(object):
         self.__keep = SeqTable.__filter(self, keep_func)
         self.__skip = SeqTable.__filter(self, skip_func)
         self.__rest = sorted(set(xrange(len(self.__alignment))) - (self.__keep | self.__skip))
-        
+
         self.nrow = len(self.__alignment) - len(self.__keep) - len(self.__skip)
         self.ncol = self.__alignment.get_alignment_length()
-        
+
         self.__fulldata = np.zeros((self.nrow, self.ncol), dtype=self.__alph.todtype)
         self.data = self.__fulldata
         self.cols = np.zeros((self.ncol, len(self.__alph)), dtype=int)

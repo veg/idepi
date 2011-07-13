@@ -37,7 +37,7 @@ class PhyloFilter(BaseFilter):
         self.__alph = alphabet
         self.__batchfile = batchfile
         self.__rfn = ref_id_func
-#         self.__run, self.__data, self.__labels = False, None, None
+#         self.__run, self.__data, self.__colnames = False, None, None
 
     def __del__(self):
         for file in (self.__inputfile,):
@@ -87,15 +87,15 @@ class PhyloFilter(BaseFilter):
             if colsum[j] == 0.:
                 ignore_idxs.add(j)
 
-        labels = BaseFilter._labels(alignment, alphabet, ref_id_func, ignore_idxs)
+        colnames = BaseFilter._colnames(alignment, alphabet, ref_id_func, ignore_idxs)
 
-        # return ids, mat, order, labels
-        return labels, mat
+        # return ids, mat, order, colnames
+        return colnames, mat
 
     def filter(self, alignment):
         return PhyloFilter.__compute(
-                alignment, self.__alph, self.__batchfile, self.__inputfile, self.__rfn
-            )
+            alignment, self.__alph, self.__batchfile, self.__inputfile, self.__rfn
+        )
 
 #     @property
 #     def data(self):
@@ -104,7 +104,7 @@ class PhyloFilter(BaseFilter):
 #         return self.__data
 # 
 #     @property
-#     def labels(self):
+#     def colnames(self):
 #         if not self.__run:
 #             raise RuntimeError('No phylofiltering model computed')
-#         return self.__labels
+#         return self.__colnames

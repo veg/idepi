@@ -2,11 +2,11 @@
 # -*- coding: utf-8 -*-
 
 #
-# discrete.py :: computes a predictive model for an nAb in IDEPI's database, 
+# discrete.py :: computes a predictive model for an nAb in IDEPI's database,
 # and provides cross-validation performance statistics and HXB2-relative
 # feature information for this model.
-# 
-# Copyright (C) 2011 N Lance Hepler <nlhepler@gmail.com> 
+#
+# Copyright (C) 2011 N Lance Hepler <nlhepler@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -217,7 +217,7 @@ def setup_option_parser():
     parser.set_defaults(SIM_RUNS           = 1) # can be 'randtarget' for now
     parser.set_defaults(SIM_EPI_SIZE       = 10)
     parser.set_defaults(SIM_EPI_MUT_RATE   = 0.01)
-    parser.set_defaults(SIM_EPI_N          = None) # default is to use len(ab_records)
+    parser.set_defaults(SIM_EPI_N          = None) # default is to use len(abrecords)
     parser.set_defaults(SIM_EPI_NOISE      = 0.08)
     parser.set_defaults(SIM_EPI_PERCENTILE = 0.5)
     parser.set_defaults(RAND_SEED          = 42) # magic number for determinism
@@ -264,7 +264,7 @@ def run_tests():
 
             alph = Alphabet(Alphabet.STANFEL if OPTIONS.STANFEL else Alphabet.DNA if OPTIONS.DNA else Alphabet.AMINO)
 
-            all_feature_names = generate_feature_names(seq_table, alph) 
+            all_feature_names = generate_feature_names(seq_table, alph)
 
             # TODO: fix this stupidity
             feature_idxs, feature_names = compute_relevant_features_and_names(
@@ -332,23 +332,30 @@ def fix_hxb2_fasta():
         OPTIONS.HXB2_FASTA = _HXB2_DNA_FASTA
 
 
-def collect_SeqTable_and_feature_names(ab_alignment_filename, seq_records):
-
-    if not exists(ab_alignment_filename) and OPTIONS.SIM != _RAND_DUMB:
+def generate_alignment(seqrecords, filename):
+    if not exists(filename) and OPTIONS.SIM != _RAND_DUMB:
         generate_alignment_from_SeqRecords(
             OPTIONS.HXB2_FASTA,
-            seq_records,
+            seqrecords,
             OPTIONS.HMMER_ALIGN_BIN,
             OPTIONS.HMMER_BUILD_BIN,
             OPTIONS.HMMER_ITER,
-            ab_alignment_filename,
+            filename,
             dna=True if OPTIONS.DNA else False
         )
     elif OPTIONS.SIM == _RAND_DUMB:
         # we're assuming pre-aligned because they're all generated from the same refseq
-        ab_alignment_fh = open(ab_alignment_filename, 'w')
-        SeqIO.write(seq_records, ab_alignment_fh, 'stockholm')
-        ab_alignment_fh.close()
+        fh = open(filename, 'w')
+        SeqIO.write(seqrecords, fh, 'stockholm')
+        fh.close()
+
+    with open(filename) as fh:
+        alignment = AlignIO.read(fh, 'stockholm')
+
+    return alignment
+
+
+def collect_SeqTable_and_feature_names(alignment_filename, seq_records):
 
     skip_func = None
     if len(OPTIONS.SUBTYPES) != 0:
@@ -356,9 +363,9 @@ def collect_SeqTable_and_feature_names(ab_alignment_filename, seq_records):
 
     alph = Alphabet(Alphabet.STANFEL if OPTIONS.STANFEL else Alphabet.DNA if OPTIONS.DNA else Alphabet.AMINO)
 
-    seq_table = SeqTable(ab_alignment_filename, SeqTable.DNA_ALPHABET if OPTIONS.DNA else SeqTable.AMINO_ALPHABET, is_HXB2, skip_func)
+    seq_table = SeqTable(alignment_filename, SeqTable.DNA_ALPHABET if OPTIONS.DNA else SeqTable.AMINO_ALPHABET, is_HXB2, skip_func)
 
-    all_feature_names = generate_feature_names(seq_table, alph) 
+    all_feature_names = generate_feature_names(seq_table, alph)
 
     # set the right number of CV_FOLDS for Leave-One-Out-Crossvalidation
     if OPTIONS.LOOCV:
@@ -464,6 +471,9 @@ def main(argv = sys.argv):
     # set the util params
     set_util_params(OPTIONS.HXB2_IDS, OPTIONS.IC50GT, OPTIONS.IC50LT)
 
+    # fetch the alphabet, we'll probably need it later
+    alph = Alphabet(mode=Alphabet.STANFEL if OPTIONS.STANFEL else Alphabet.DNA if OPTIONS.DNA else Alphabet.AMINO)
+
     sim = None
     if OPTIONS.SIM != '':
         if OPTIONS.SIM == _RAND_DUMB:
@@ -482,28 +492,28 @@ def main(argv = sys.argv):
 
     # grab the relevant antibody from the SQLITE3 data
     # format as SeqRecord so we can output as FASTA
-    ab_records = collect_AbRecords_from_db(OPTIONS.NEUT_SQLITE3_DB, antibody)
+    abrecords = collect_AbRecords_from_db(OPTIONS.NEUT_SQLITE3_DB, antibody)
 
     # do not generate the sequences here for the random sequence or random epitope simulations
-    ab_alignment_filename = None
-    if sim is None: 
-        ab_alignment_filename = '%s_%s_%s.sto' % (ab_basename, splitext(basename(OPTIONS.NEUT_SQLITE3_DB))[0], __version__)
+    alignment_filename = None
+    if sim is None:
+        alignment_filename = '%s_%s_%s.sto' % (ab_basename, splitext(basename(OPTIONS.NEUT_SQLITE3_DB))[0], __version__)
 
         # generate an alignment using HMMER if it doesn't already exist
-        seq_records = [r.to_SeqRecord(dna=True if OPTIONS.DNA else False) for r in ab_records]
-        seq_table, all_feature_names = collect_SeqTable_and_feature_names(ab_alignment_filename, seq_records)
+        seqrecords = [r.to_SeqRecord(dna=True if OPTIONS.DNA else False) for r in abrecords]
+        alignment = generate_alignment(seqrecords, alignment_filename)
+        # x = NaiveFilter(alphabet, 
+        # seq_table, all_feature_names = collect_SeqTable_and_feature_names(alignment_filename, seq_records)
     else:
         if OPTIONS.SIM_EPI_N is None:
-            OPTIONS.SIM_EPI_N = len(ab_records)
+            OPTIONS.SIM_EPI_N = len(abrecords)
 
-    # fetch the alphabet, we'll probably need it later
-    alph = Alphabet(mode=Alphabet.STANFEL if OPTIONS.STANFEL else Alphabet.DNA if OPTIONS.DNA else Alphabet.AMINO)
 
     # compute features
     for target in OPTIONS.TARGETS:
         results = None
 
-        if sim is None: 
+        if sim is None:
             seq_table.unmask()
 
         # simulations, ho!
@@ -511,9 +521,9 @@ def main(argv = sys.argv):
 
             # here is where the sequences must be generated for the random sequence and random epitope simulations
             if sim is not None:
-                ab_alignment_filename = '%s_%s_%d_%s.sto' % (ab_basename, OPTIONS.SIM, i + 1, __version__)
+                alignment_filename = '%s_%s_%d_%s.sto' % (ab_basename, OPTIONS.SIM, i + 1, __version__)
                 seq_records = sim.generate_sequences(
-                    ab_alignment_filename,
+                    alignment_filename,
                     N=OPTIONS.SIM_EPI_N,
                     idfmt='%s|||',
                     noise=OPTIONS.SIM_EPI_NOISE,
@@ -521,7 +531,7 @@ def main(argv = sys.argv):
                     alphabet=alph
                 )
 
-                seq_table, all_feature_names = collect_SeqTable_and_feature_names(ab_alignment_filename, seq_records)
+                seq_table, all_feature_names = collect_SeqTable_and_feature_names(alignment_filename, seq_records)
 
                 # simulates the epitope and assigns the appropriate class
                 epi_def = sim.simulate_epitope(
@@ -557,6 +567,10 @@ def main(argv = sys.argv):
                 C_begin, C_end = int(recip * C_begin), int(recip * C_end)
                 C_step = 1
             C_range = [pow(2., float(C) / recip) for C in xrange(C_begin, C_end + 1, C_step)]
+
+            discretize = lambda x: x < OPTIONS.IC50LT if target == 'lt' else lambda x: x > OPTIONS.IC50GT
+            y = ClassExtractor(alignment, id_to_float, is_HXB2, discretize)
+            x = NaiveFilter().filter(alignment)
 
             crossvalidator = SelectingNestedCrossValidator(
                 classifiercls=LinearSvm,
@@ -596,12 +610,12 @@ def main(argv = sys.argv):
 
             # remove the alignment
             if OPTIONS.SIM in (_RAND_DUMB, _RAND_EPI):
-                remove(ab_alignment_filename)
+                remove(alignment_filename)
 
         # print stats and results:
 #         print >> sys.stdout, '********************* REPORT FOR ANTIBODY %s IC50 %s *********************' % \
 #           (antibody, '< %d' % OPTIONS.IC50LT if target == 'lt' else '> %d' % OPTIONS.IC50GT)
-# 
+#
 #         if OPTIONS.SIM not in (_RAND_SEQ, _RAND_TARGET, _RAND_EPI):
 #             fmt = ('', OPTIONS.CV_FOLDS, '')
 #         else:
@@ -624,7 +638,7 @@ def main(argv = sys.argv):
             val = NormalValue(int, weights)
             weightsdict[feature_names[idx]] = val
 
-        # remove minstat 'cause we don't want it here.. 
+        # remove minstat 'cause we don't want it here..
         if 'Minstat' in statsdict:
             del statsdict['Minstat']
 
@@ -635,7 +649,7 @@ def main(argv = sys.argv):
             weightsdict.items(),
             key=lambda x: int(sub(r'[a-zA-Z\[\]]+', '', x[0]))
         )]
-        
+
         print >> sys.stdout, '{\n  "statistics": {'#  % OPTIONS.CV_FOLDS
 
         stat_len = max([len(k) for k in ret['statistics'].keys()]) + 3
