@@ -2,7 +2,7 @@
 import multiprocessing as mp
 import numpy as np
 
-# from _fakepool import FakePool
+# from _mrmr._fakepool import FakePool
 
 
 __all__ = ['FastCaim']

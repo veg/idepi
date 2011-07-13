@@ -27,8 +27,8 @@ from _alphabet import *
 from _classextractor import *
 from _crossvalidator import *
 from _discretizer import *
-from _fakepool import *
-from _fakeresult import *
+# from _fakepool import *
+# from _fakeresult import *
 from _fastcaim import *
 from _gridsearcher import *
 from _hmmer import *
@@ -60,8 +60,8 @@ __all__ += _abrecord.__all__
 __all__ += _alphabet.__all__
 __all__ += _classextractor.__all__
 __all__ += _crossvalidator.__all__
-__all__ += _fakepool.__all__
-__all__ += _fakeresult.__all__
+# __all__ += _fakepool.__all__
+# __all__ += _fakeresult.__all__
 __all__ += _fastcaim.__all__
 __all__ += _discretizer.__all__
 __all__ += _gridsearcher.__all__

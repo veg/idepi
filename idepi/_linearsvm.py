@@ -35,7 +35,6 @@ from mlpy import LibSvm
 from numpy import mean, std
 
 from _smldata import SmlData
-from _linearsvmmodel import LinearSvmModel
 
 
 __all__ = ['LinearSvm']
@@ -77,3 +76,55 @@ class LinearSvm(object):
         if self.__modelfile is not None:
             if exists(self.__modelfile):
                 remove(self.__modelfile)
+
+
+class LinearSvmModel(object):
+
+    def __init__(self, modelfile, feature_names=None):
+        self.__feature_weights = {}
+        self.__modelfile = modelfile
+        self.__feature_names = feature_names
+        self.type = None
+        fh = open(self.__modelfile, 'rU')
+        mode = None
+        f = 0 # for LIBLINEAR models
+        for line in fh:
+            line = line.strip().upper()
+
+            if line[:11] == 'KERNEL_TYPE':
+                assert(line.split(' ', 1)[1] == 'LINEAR')
+
+            # get the mode from the line right before the SVs (LIBSVM) or weight-vector (LIBLINEAR)
+            if line == 'SV' or line == 'W':
+                mode = line
+                if mode == 'SV':
+                    self.type = 'LIBSVM'
+                elif mode == 'W':
+                    self.type = 'LIBLINEAR'
+                continue
+
+            # if we don't have a mode yet or the line is empty skip
+            if mode is None or line == '':
+                continue
+
+            vals = line.split()
+            try:
+                weight = float(vals[0])
+            except ValueError:
+                print >> stderr, 'ERROR: broken SVM model, skipping line \'%s\'' % line
+                with open(self.__modelfile) as fh:
+                    print >> stderr, fh.read() 
+                raise ValueError
+
+            if mode == 'SV':
+                if len(vals) <= 1:
+                    # empty vector is useless, so keep going
+                    continue
+                for v in vals[1:]:
+                    f, w = v.split(':')
+                    # subtract 1 from here because model indices are 1-indexed for LIBSVM format
+                    f = int(f)-1
+                    if not f in self.__feature_weights:
+                        self.__feature_weights[f] = 0.
+                    self.__feature_weights[f] += weight * float(w)
+
