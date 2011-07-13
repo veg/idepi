@@ -39,24 +39,26 @@ __all__ = ['SeqTable']
 
 class SeqTable(object):
 
-    def __init__(self, alignment, alphabet, keep_func=None, skip_func=None):
+    def __init__(self, alignment, alphabet, ref_id_func=None, skip_func=None):
 
         self.__alph = alphabet
         self.__alignment = alignment
 
-        self.__keep = SeqTable.__filter(self, keep_func)
+        self.__ref_id = SeqTable.__filter(self, ref_id_func)
         self.__skip = SeqTable.__filter(self, skip_func)
-        self.__rest = sorted(set(xrange(len(self.__alignment))) - (self.__keep | self.__skip))
+        self.__keep = sorted(set(xrange(len(self.__alignment))) - (self.__ref_id | self.__skip))
 
-        self.nrow = len(self.__alignment) - len(self.__keep) - len(self.__skip)
+        self.nrow = len(self.__alignment) - len(self.__ref_id) - len(self.__skip)
         self.ncol = self.__alignment.get_alignment_length()
+
+        assert(len(self.__keep) == self.nrow)
 
         self.__fulldata = np.zeros((self.nrow, self.ncol), dtype=self.__alph.todtype)
         self.data = self.__fulldata
         self.cols = np.zeros((self.ncol, len(self.__alph)), dtype=int)
         self.cols[:, :] = np.sum(self.data, axis=0)
 
-        SeqTable.__fill_data(self.__alignment, self.__alph, self.__fulldata, self.__keep, self.__skip)
+        SeqTable.__fill_data(self.__alignment, self.__alph, self.__fulldata, self.__ref_id, self.__skip)
 
         self.__folds = 1
         self.__rowlabels = -np.ones((len(alignment),), dtype=int)
@@ -100,7 +102,7 @@ class SeqTable(object):
     def partition(self, folds):
         if folds > self.nrow:
             raise ValueError('Unable to create more partitions than available rows')
-        self.__rowlabels[self.__rest] = SeqTable.__partition(self.nrow, folds)
+        self.__rowlabels[self.__keep] = SeqTable.__partition(self.nrow, folds)
 
     def set_row_fold(self, i, j):
         self.__rowlabels[i] = j
@@ -108,11 +110,11 @@ class SeqTable(object):
     @property
     def alignment(self):
         if self.__mask is None or len(self.__mask) == 0:
-            # this is tricky, so try to follow: keep everything not in skip indices, but add back in things in keep_indices
-            return [self.__alignment[i] for i in self.__rest] + [self.__alignment[i] for i in sorted(self.__keep)]
-            # this one is even trickier: keep everything that isn't in the current mask or skip indices, but add back in the things in the keep indices
-        return [self.__alignment[i] for i in self.__rest if self.__rowlabels[i] not in self.__mask] + \
-               [self.__alignment[i] for i in sorted(self.__keep)]
+            # this is tricky, so try to follow: keep everything not in skip indices, but add back in the refseqs
+            return [self.__alignment[i] for i in self.__keep] + [self.__alignment[i] for i in sorted(self.__ref_id)]
+            # this one is even trickier: keep everything that isn't in the current mask or skip indices, but add back in the refseqs 
+        return [self.__alignment[i] for i in self.__keep if self.__rowlabels[i] not in self.__mask] + \
+               [self.__alignment[i] for i in sorted(self.__ref_id)]
 
     def mask(self, i):
         if type(i) is int:

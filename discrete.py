@@ -502,8 +502,15 @@ def main(argv = sys.argv):
         # generate an alignment using HMMER if it doesn't already exist
         seqrecords = [r.to_SeqRecord(dna=True if OPTIONS.DNA else False) for r in abrecords]
         alignment = generate_alignment(seqrecords, alignment_filename)
-        # x = NaiveFilter(alphabet, 
-        # seq_table, all_feature_names = collect_SeqTable_and_feature_names(alignment_filename, seq_records)
+        colfilter = NaiveFilter(
+            alphabet,
+            OPTIONS.MAX_CONSERVATION,
+            OPTIONS.MIN_CONSERVATION,
+            OPTIONS.MAX_GAP_RATIO,
+            is_HXB2,
+            lambda x: False # TODO: add the appropriate filter function based on the args here
+        )
+        x, colnames = colfilter.filter(alignment)
     else:
         if OPTIONS.SIM_EPI_N is None:
             OPTIONS.SIM_EPI_N = len(abrecords)
@@ -513,8 +520,13 @@ def main(argv = sys.argv):
     for target in OPTIONS.TARGETS:
         results = None
 
-        if sim is None:
-            seq_table.unmask()
+        yextractor = ClassExtractor(
+            id_to_float,
+            lambda row: is_HXB2(row) or False, # TODO: again filtration function
+            lambda x: x < OPTIONS.IC50LT if target == 'lt' else x > OPTIONS.IC50GT
+        )
+
+        y = yextractor.extract(alignment)
 
         # simulations, ho!
         for i in xrange(sim.runs if sim is not None else 1):
@@ -568,10 +580,6 @@ def main(argv = sys.argv):
                 C_step = 1
             C_range = [pow(2., float(C) / recip) for C in xrange(C_begin, C_end + 1, C_step)]
 
-            discretize = lambda x: x < OPTIONS.IC50LT if target == 'lt' else lambda x: x > OPTIONS.IC50GT
-            y = ClassExtractor(alignment, id_to_float, is_HXB2, discretize)
-            x = NaiveFilter().filter(alignment)
-
             crossvalidator = SelectingNestedCrossValidator(
                 classifiercls=LinearSvm,
                 selectorcls=Mrmr,
@@ -581,30 +589,6 @@ def main(argv = sys.argv):
                 gs={ 'C': C_range },
                 fs={ 'num_features': OPTIONS.NUM_FEATURES, 'method': Mrmr.MAXREL if OPTIONS.MAXREL else Mrmr.MID if OPTIONS.MRMR_METHOD == 'MID' else Mrmr.MIQ }
             )
-
-            # make sure the whole thing is unmasked for the nestedcrossvalidator
-            seq_table.unmask()
-            feature_idxs, feature_names = compute_relevant_features_and_names(
-                seq_table,
-                alph,
-                all_feature_names,
-                {
-                    'max': OPTIONS.MAX_CONSERVATION,
-                    'min': OPTIONS.MIN_CONSERVATION,
-                    'gap': OPTIONS.MAX_GAP_RATIO
-                },
-                OPTIONS.FILTER,
-            )
-            smldata = generate_relevant_data(
-                feature_names,
-                seq_table,
-                alph,
-                feature_idxs,
-                target,
-                subtypes=OPTIONS.SUBTYPES,
-                simulation=sim,
-            )
-            x, y = smldata.tondarrays()
 
             results = crossvalidator.crossvalidate(x, y, cv={}, extra=lambda x: { 'features': x.features(), 'weights': x.classifier.weights() })
 

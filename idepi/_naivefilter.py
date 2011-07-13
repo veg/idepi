@@ -15,8 +15,8 @@ class NaiveFilter(BaseFilter):
     __DEFAULT_MAX_CONSERVATION = 1. # 100%
     __DEFAULT_MAX_GAP_RATIO = 1.
 
-    def __init__(self, alphabet=None, target=None, mincons=None,
-                 maxcons=None, maxgap=None, ref_id_func=None):
+    def __init__(self, alphabet=None, mincons=None, maxcons=None,
+                 maxgap=None, ref_id_func=None, skip_func=None):
 
         if alphabet is None:
             alphabet = Alphabet()
@@ -28,18 +28,22 @@ class NaiveFilter(BaseFilter):
             maxgap = NaiveFilter.__DEFAULT_MAX_GAP_RATIO
         if ref_id_func is None:
             ref_id_func = is_HXB2
+        if skip_func is None:
+            skip_func = lambda x: False
 
         self.__alph = alphabet
         self.__maxcons = maxcons
         self.__mincons = mincons
         self.__maxgap = maxgap
         self.__rfn = ref_id_func
+        self.__sfn = skip_func
 #         self.__run, self.__data, self.__colnames = False, None, None
 
     @staticmethod
-    def __compute(alignment, alphabet, mincons, maxcons, maxgap, ref_id_func):
+    def __compute(alignment, alphabet, mincons, maxcons, maxgap,
+                  ref_id_func, skip_func):
 
-        seqtable = SeqTable(alignment, alphabet, ref_id_func)
+        seqtable = SeqTable(alignment, alphabet, ref_id_func, skip_func)
 
         ignore_idxs = set()
 
@@ -68,7 +72,8 @@ class NaiveFilter(BaseFilter):
 
     def learn(self, alignment):
         return NaiveFilter.__compute(
-            alignment, self.__alph, self.__mincons, self.__maxcons, self.__maxgap, self.__rfn
+            alignment, self.__alph, self.__mincons, self.__maxcons, self.__maxgap,
+            self.__rfn, self.__sfn
         )
 
 #     @property

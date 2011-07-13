@@ -20,7 +20,7 @@ __all__ = ['PhyloFilter']
 
 class PhyloFilter(BaseFilter):
 
-    def __init__(self, alphabet=None, batchfile=None, ref_id_func=None):
+    def __init__(self, alphabet=None, batchfile=None, ref_id_func=None, skip_func=None):
         if batchfile is None:
             batchfile = join(dirname(realpath(__file__)), '..', 'res', 'CorrectForPhylogeny.bf')
 
@@ -31,12 +31,15 @@ class PhyloFilter(BaseFilter):
             alphabet = Alphabet()
         if ref_id_func is None:
             ref_id_func = is_HXB2
+        if skip_func is None:
+            skip_func = lambda x: False
 
         fd, self.__inputfile = mkstemp(); close(fd)
 
         self.__alph = alphabet
         self.__batchfile = batchfile
         self.__rfn = ref_id_func
+        self.__sfn = skip_func
 #         self.__run, self.__data, self.__colnames = False, None, None
 
     def __del__(self):
@@ -45,9 +48,19 @@ class PhyloFilter(BaseFilter):
                 remove(file)
 
     @staticmethod
-    def __compute(alignment, alphabet, batchfile, inputfile, ref_id_func, hyphy=None):
+    def __compute(alignment, alphabet, batchfile, inputfile, ref_id_func, skip_func, hyphy=None):
         if hyphy is None:
             hyphy = HyPhy()
+
+        refseq = None
+        for row in alignment:
+            r = apply(ref_id_func, (row.id,))
+            if r and refseq is None:
+                refseq = row
+            elif r:
+                raise RuntimeError('Reference sequence found twice!?!?!?!')
+
+        alignment = [row for row in alignment if not apply(ref_id_func, (row.id,)) and not apply(skip_func, (row.id,))]
 
         with open(inputfile, 'w') as fh:
             SeqIO.write(alignment, fh, 'fasta')
@@ -55,22 +68,22 @@ class PhyloFilter(BaseFilter):
         HyPhy.execute(hyphy, batchfile, (inputfile,))
 
         _ids  = HyPhy.retrieve(hyphy, 'ids', HyPhy.MATRIX)
-        _mat  = HyPhy.retrieve(hyphy, 'data', HyPhy.MATRIX)
+        mat  = HyPhy.retrieve(hyphy, 'data', HyPhy.MATRIX)
         order = HyPhy.retrieve(hyphy, 'order', HyPhy.STRING).strip(',').split(',')
 
         assert(_ids.mRows == 0)
 
         ids = [_ids.MatrixCell(0, i) for i in xrange(_ids.mCols)]
 
-        ncol = _mat.mCols / len(order) * len(alphabet)
-        mat = np.zeros((_mat.mRows, ncol), dtype=float, order='F') # use column-wise order in memory
+        ncol = mat.mCols / len(order) * len(alphabet)
+        data = np.zeros((mat.mRows, ncol), dtype=float, order='F') # use column-wise order in memory
 
         # cache the result for each stride's indexing into the alphabet
         alphidx = []
         for i in xrange(len(order)):
             alphidx.append(alphabet[order[i]])
 
-        for j in xrange(_mat.mCols):
+        for j in xrange(mat.mCols):
             # we map j from HyPhy column order into self.__alph column order
             # by getting at the MSA column (j / len(order)), multiplying by
             # the self.__alph stride (len(self.__alph)), and then finally adding
@@ -78,23 +91,31 @@ class PhyloFilter(BaseFilter):
             q = int(floor(j / len(order))) # quotient
             r = j % len(order) # remainder
             k = (q * len(alphabet)) + alphidx[r]
-            for i in xrange(_mat.mRows):
-                mat[i, k] += _mat.MatrixCell(i, j)
+            for i in xrange(mat.mRows):
+                data[i, k] += mat.MatrixCell(i, j)
 
         ignore_idxs = set()
-        colsum = np.sum(mat, axis=0)
+        colsum = np.sum(data, axis=0)
         for j in xrange(ncol):
             if colsum[j] == 0.:
                 ignore_idxs.add(j)
 
+        data = data[:, sorted(ignore_idxs)]
+
+        if refseq is not None:
+            alignment.append(refseq)
+
         colnames = BaseFilter._colnames(alignment, alphabet, ref_id_func, ignore_idxs)
 
+        # make sure that the columns do line up
+        assert(len(colnames) == data.shape[1])
+
         # return ids, mat, order, colnames
-        return colnames, mat
+        return colnames, data
 
     def filter(self, alignment):
         return PhyloFilter.__compute(
-            alignment, self.__alph, self.__batchfile, self.__inputfile, self.__rfn
+            alignment, self.__alph, self.__batchfile, self.__inputfile, self.__rfn, self.__sfn
         )
 
 #     @property
