@@ -47,6 +47,9 @@ class NaiveFilter(BaseFilter):
 
         ignore_idxs = set()
 
+        stride = len(alphabet)
+        assert(len(seqtable.cols[0]) == stride)
+
         for i in xrange(seqtable.ncol):
             col = seqtable.cols[i]
             colsum = float(np.sum(col))
@@ -54,20 +57,23 @@ class NaiveFilter(BaseFilter):
                float(min(col)) / colsum > mincons or \
                float(max(col)) / colsum > maxcons or \
                float(col[alphabet['-']]) / colsum > maxgap:
-                ignore_idxs.add(i)
+                ignore_idxs.update(xrange(i, stride))
+            else:
+                ignore_idxs.update([j for j in xrange(stride) if col[j] == 0.])
 
-        stride = len(alphabet)
-        ncol = (seqtable.ncol - len(ignore_idxs)) * stride
+        ncol = seqtable.ncol * stride - len(ignore_idxs)
         data = np.zeros((seqtable.nrow, ncol), dtype=bool)
 
-        j = 0
+        k = 0
         for i in xrange(seqtable.ncol):
-            if i in ignore_idxs:
-                continue
-            data[:, j:(j+stride)] = seqtable.data[:, i]
-            j += stride
-        
-        colnames = BaseFilter._colnames(alignment, alphabet, ref_id_func, ignore_idxs) 
+            for j in xrange(stride):
+                idx = i * stride + j
+                if idx in ignore_idxs:
+                    continue
+                data[:, k] = seqtable.data[:, i, j]
+                k += 1
+
+        colnames = BaseFilter._colnames(alignment, alphabet, ref_id_func, ignore_idxs)
 
         return colnames, data
 

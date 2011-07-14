@@ -2,7 +2,8 @@
 from numpy import zeros
 
 from _alphabet import Alphabet
-from _util import id_to_class
+from _util import BASE_ALPH, base_10_to_n, base_26_to_alph, id_to_class
+
 
 __all__ = ['BaseFilter']
 
@@ -32,9 +33,10 @@ class BaseFilter(object):
                 ins += 1
             for i in xrange(len(alphabet)):
                 if col in ignore_idxs:
-                    continue
-                insert = base_26_to_alph(base_10_to_n(ins, BASE_ALPH))
-                colnames.append('%s%d%s%s' % ('' if insert != '' else p.upper(), c, insert, alphabet[i]))
+                    pass
+                else:
+                    insert = base_26_to_alph(base_10_to_n(ins, BASE_ALPH))
+                    colnames.append('%s%d%s%s' % ('' if insert != '' else p.upper(), c, insert, alphabet[i]))
                 col += 1
 
         return colnames

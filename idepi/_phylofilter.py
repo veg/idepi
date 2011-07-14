@@ -76,31 +76,36 @@ class PhyloFilter(BaseFilter):
         ids = [_ids.MatrixCell(0, i) for i in xrange(_ids.mCols)]
 
         ncol = mat.mCols / len(order) * len(alphabet)
-        data = np.zeros((mat.mRows, ncol), dtype=float, order='F') # use column-wise order in memory
+        tmp = np.zeros((mat.mRows, ncol), dtype=float, order='F') # use column-wise order in memory
 
         # cache the result for each stride's indexing into the alphabet
-        alphidx = []
-        for i in xrange(len(order)):
-            alphidx.append(alphabet[order[i]])
+        alphidx = [alphabet[order[i]] for i in xrange(len(order))]
 
-        for j in xrange(mat.mCols):
-            # we map j from HyPhy column order into self.__alph column order
-            # by getting at the MSA column (j / len(order)), multiplying by
-            # the self.__alph stride (len(self.__alph)), and then finally adding
-            # the alphabet-specific index (alphidx[r])
-            q = int(floor(j / len(order))) # quotient
-            r = j % len(order) # remainder
-            k = (q * len(alphabet)) + alphidx[r]
-            for i in xrange(mat.mRows):
-                data[i, k] += mat.MatrixCell(i, j)
+        for i in xrange(mat.mRows):
+            for j in xrange(mat.mCols):
+                # we map j from HyPhy column order into self.__alph column order
+                # by getting at the MSA column (j / len(order)), multiplying by
+                # the self.__alph stride (len(self.__alph)), and then finally adding
+                # the alphabet-specific index (alphidx[r])
+                q = int(floor(j / len(order))) # quotient
+                r = j % len(order) # remainder
+                k = (q * len(alphabet)) + alphidx[r]
+                tmp[i, k] += mat.MatrixCell(i, j)
 
-        ignore_idxs = set()
-        colsum = np.sum(data, axis=0)
-        for j in xrange(ncol):
-            if colsum[j] == 0.:
-                ignore_idxs.add(j)
+        colsum = np.sum(tmp, axis=0)
+        idxs = [i for i in xrange(ncol) if colsum[i] != 0.]
+        ignore_idxs = set([i for i in xrange(ncol) if colsum[i] == 0.])
 
-        data = data[:, sorted(ignore_idxs)]
+        data = tmp[:, idxs]
+
+#         data = np.zeros((mat.mRows, ncol - len(ignore_idxs)), dtype=float)
+# 
+#         j = 0
+#         for i in xrange(ncol):
+#             if i in ignore_idxs:
+#                 continue
+#             data[:, j] = tmp[:, i]
+#             j += 1
 
         if refseq is not None:
             alignment.append(refseq)

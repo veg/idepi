@@ -4,19 +4,19 @@
 # cross-validation, grid-search, and maximum-relevance/mRMR feature selection)
 # and utilities to help identify neutralizing antibody epitopes via machine
 # learning.
-# 
-# Copyright (C) 2011 N Lance Hepler <nlhepler@gmail.com> 
-# 
+#
+# Copyright (C) 2011 N Lance Hepler <nlhepler@gmail.com>
+#
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License along
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
@@ -37,7 +37,6 @@ class Regressor(object):
 
     def __init__(self, data, regressorcls=RidgeLar, *args, **kwargs):
 
-        self.__method = method
         self.__regressor = regressorcls(*args, **kwargs)
         self.__learned = False
 
@@ -58,32 +57,32 @@ class Regressor(object):
     def __normalize(self):
         nperr = np.geterr()
         np.seterr(divide='ignore')
-        
+
         try:
-            if self.__method not in ('gd',):
-                __zero = pow(10.0, -9.0) # numerically close enough to 0.0
-                ncol = self.__x_active.shape[1]
-    
-                # normalize y and validate
-                self.__ybar = np.mean(self.__y_active)
-                self.__y_active -= self.__ybar
-                assert(np.abs(np.mean(self.__y_active)) < __zero)
-    
-                # normalize x and validate
-                self.__xbar = np.zeros(ncol, dtype=float)
-                self.__xvar = np.zeros(ncol, dtype=float)
-                for j in xrange(ncol):
-                    self.__xbar[j] = np.mean(self.__x_active[:, j])
-                    self.__x_active[:, j] -= self.__xbar[j]
-                    assert(np.abs(np.mean(self.__x_active[:, j])) < __zero)
-                    if self.__method not in ('ridge', 'gd'):
-                        self.__xvar[j] = np.sqrt(sum(pow(self.__x_active[:, j], 2.0)))
-                        if self.__xvar[j] != 0.0:
-                            self.__x_active[:, j] /= self.__xvar[j]
-                            try:
-                                assert(np.abs(sum([pow(i, 2.0) for i in self.__x_active[:, j]]) - 1.0) < __zero)
-                            except AssertionError, e:
-                                print u'\u03c3: %.4g, \u03a3x\u00b2: %.4g' % (self.__xvar[j], sum([pow(i, 2.0) for i in self.__x_active[:, j]]))
+#           if self.__method not in ('gd',):
+            __zero = pow(10.0, -9.0) # numerically close enough to 0.0
+            ncol = self.__x_active.shape[1]
+
+            # normalize y and validate
+            self.__ybar = np.mean(self.__y_active)
+            self.__y_active -= self.__ybar
+            assert(np.abs(np.mean(self.__y_active)) < __zero)
+
+            # normalize x and validate
+            self.__xbar = np.zeros(ncol, dtype=float)
+            self.__xvar = np.zeros(ncol, dtype=float)
+            for j in xrange(ncol):
+                self.__xbar[j] = np.mean(self.__x_active[:, j])
+                self.__x_active[:, j] -= self.__xbar[j]
+                assert(np.abs(np.mean(self.__x_active[:, j])) < __zero)
+#               if self.__method not in ('ridge', 'gd'):
+                self.__xvar[j] = np.sqrt(sum(pow(self.__x_active[:, j], 2.0)))
+                if self.__xvar[j] != 0.0:
+                    self.__x_active[:, j] /= self.__xvar[j]
+                    try:
+                        assert(np.abs(sum([pow(i, 2.0) for i in self.__x_active[:, j]]) - 1.0) < __zero)
+                    except AssertionError, e:
+                        print u'\u03c3: %.4g, \u03a3x\u00b2: %.4g' % (self.__xvar[j], sum([pow(i, 2.0) for i in self.__x_active[:, j]]))
         finally:
             np.seterr(**nperr)
 
@@ -98,7 +97,7 @@ class Regressor(object):
 
     def mask(self, fold):
         assert(0 <= fold and fold < self.__folds)
-        active = [i for i in xrange(self.__x.shape[0]) if self.__partition[i] != fold]  
+        active = [i for i in xrange(self.__x.shape[0]) if self.__partition[i] != fold]
         inactive = [i for i in xrange(self.__x.shape[0]) if self.__partition[i] == fold]
         # don't need to issue a copy() here
         self.__x_active = self.__x[active, :]
@@ -136,14 +135,14 @@ class Regressor(object):
 
         ncol = x.shape[1]
 
-        if self.__method not in ('gd',):
-            y -= self.__ybar # LAR, LASSO, ElasticNet: responses have mean 0
-            # skip index 0 because it's our y-intercept
-            for j in xrange(1, ncol):
-                x[:, j] -= self.__xbar[j] # LAR, LASSO, ElasticNet: covariates have mean 0
-                if self.__method not in ('ridge', 'gd'):
-                    if self.__xvar[j] != 0.0:
-                        x[:, j] /= self.__xvar[j] # LAR, LASSO: covariates have unit length
+#       if self.__method not in ('gd',):
+        y -= self.__ybar # LAR, LASSO, ElasticNet: responses have mean 0
+        # skip index 0 because it's our y-intercept
+        for j in xrange(1, ncol):
+            x[:, j] -= self.__xbar[j] # LAR, LASSO, ElasticNet: covariates have mean 0
+#           if self.__method not in ('ridge', 'gd'):
+            if self.__xvar[j] != 0.0:
+                x[:, j] /= self.__xvar[j] # LAR, LASSO: covariates have unit length
 
         np.seterr(**nperr)
 

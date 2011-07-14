@@ -22,7 +22,7 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
-import multiprocessing as mp
+# import multiprocessing as mp
 
 from exceptions import StandardError
 from re import match
@@ -31,7 +31,7 @@ from sys import exit, stderr, stdout
 
 import numpy as np
 
-# from _fakepool import FakePool
+from _fakepool import FakePool
 from _basemrmr import BaseMrmr
 
 
@@ -101,7 +101,7 @@ class DiscreteMrmr(BaseMrmr):
 
         res = {}
 
-        pool = mp.Pool(mp.cpu_count())
+        pool = FakePool() # mp.Pool(mp.cpu_count())
 
         for v in xrange(vclasses):
             vcache[v] = vars == v
