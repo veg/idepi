@@ -41,6 +41,9 @@ __all__ = ['MixedMrmr']
 
 class MixedMrmr(BaseMrmr):
 
+    def __init__(self, *args, **kwargs):
+        super(MixedMrmr, self).__init__(*args, **kwargs)
+
     @staticmethod
     def __estimate_pdf(x_j, idxs, p=None):
         nrow, = x_j.shape

@@ -42,7 +42,6 @@ class BaseMrmr(object):
     MID = 1
     MIQ = 2
 
-
     def __init__(self, num_features=10, method=None, threshold=None):
         if method is None:
             method = BaseMrmr.MID

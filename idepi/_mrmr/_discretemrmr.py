@@ -66,6 +66,9 @@ def _compute_mi_inner_log10(nrow, vars_v, targets_t, p=None):
 
 class DiscreteMrmr(BaseMrmr):
 
+    def __init__(self, *args, **kwargs):
+        super(DiscreteMrmr, self).__init__(*args, **kwargs)
+
     @classmethod
     def _compute_mi(cls, vars, targets, ui=None):
 

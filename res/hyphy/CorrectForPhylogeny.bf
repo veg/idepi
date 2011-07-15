@@ -58,7 +58,7 @@ _characterDimension 	= Columns (_AncestralFilterChars);
 
 
 _marginalInformation	= {};
-/* [(i,j)] -> {chars,1} - marginal support for each character */
+// [(i,j)] -> {chars,1} - marginal support for each character
 
 for (_idx_1 = 0; _idx_1 < _marginalAncestorsFilter.species; _idx_1 = _idx_1 + 1)
 {
@@ -72,20 +72,21 @@ for (_idx_1 = 0; _idx_1 < _marginalAncestorsFilter.species; _idx_1 = _idx_1 + 1)
 }
 
 _ids = {_marginalAncestorsFilter.species};
-_output = {_marginalAncestorsFilter.species,(_marginalAncestorsFilter.sites*_characterDimension)};
+_output = {_marginalAncestorsFilter.species, (_marginalAncestorsFilter.sites * _characterDimension)};
 
 // _outputCSV = ""; _outputCSV * 8192; 
-/* _outputCSV * ("Sequence,[Site:["+Join(",",_AncestralFilterChars)+"]]\n"); */
+// _outputCSV * ("Sequence,[Site:["+Join(",",_AncestralFilterChars)+"]]\n");
 
 // _outputCSV * ("{\"order\":[\""+Join("\",\"",_AncestralFilterChars)+"\"],\n\"data\":[\n");
 
 _idx_3 = 0;
+// _idx_5 = 0;
 for (_idx_1 = 0; _idx_1 < _marginalAncestorsFilter.species; _idx_1 = _idx_1 + 1)
 {
-    if (_idx_1 > 0)
-    {
-        _outputCSV * (",\n");
-    }
+    // if (_idx_1 > 0)
+    // {
+    //     _outputCSV * (",\n");
+    // }
 
     _ids[_idx_1] = newNamesToOldNames[_AncestralNodeNames[_idx_1]];
 
@@ -93,36 +94,38 @@ for (_idx_1 = 0; _idx_1 < _marginalAncestorsFilter.species; _idx_1 = _idx_1 + 1)
 
 	for (_idx_2 = 0; _idx_2 < _marginalAncestorsFilter.sites; _idx_2 = _idx_2 + 1)
 	{
-        /* trailing commas */
-        if (_idx_2 > 0)
-        {
-            _outputCSV * (",");
-        }
+        // trailing commas
+        // if (_idx_2 > 0)
+        // {
+        //     _outputCSV * (",");
+        // }
 
         // _outputCSV * ("[");
-        /* _outputCSV * ("\n" + newNamesToOldNames[_AncestralNodeNames[_idx_1]] + "," + (1+_idx_2)); */
+        // _outputCSV * ("\n" + newNamesToOldNames[_AncestralNodeNames[_idx_1]] + "," + (1+_idx_2));
 
-		_maxValue = 0;
-		_maxIndex = 0;
+		// _maxValue = 0;
+		// _maxIndex = 0;
 
 		for (_idx_4 = 0; _idx_4 < _characterDimension; _idx_4 = _idx_4 + 1)
 		{
 			_thisCharacter = (_marginalInformation[_idx_3])[_idx_4];
             
-            if (_idx_4 > 0)
-            {
-                _outputCSV * (",");
-            }
-		
+            // if (_idx_4 > 0)
+            // {
+            //     _outputCSV * (",");
+            // }
+
+            // _idx_5 = ((_marginalAncestorsFilter.sites * _characterDimension * _idx_1) + (_characterDimension * _idx_2) + _idx_4);
             _output[_idx_1][((_characterDimension * _idx_2) + _idx_4)] = _thisCharacter;
+            // _idx_5 = _idx_5 + 1;
 
             // _outputCSV * (""+_thisCharacter);
 			
-            if (_thisCharacter > _maxValue)
-			{
-				_maxValue = _thisCharacter;
-				_maxIndex = _idx_4;
-			}
+            // if (_thisCharacter > _maxValue)
+			// {
+			// 	_maxValue = _thisCharacter;
+			// 	_maxIndex = _idx_4;
+			// }
 		}
 		
 		_idx_3 = _idx_3 + 1;
@@ -147,9 +150,21 @@ function _THyPhyAskFor(key)
     {
         return "" + Join(",",_AncestralFilterChars);
     }
-    if (key == "data")
+    if (key == "output")
     {
         return _output;
+    }
+    if (key == "numSites")
+    {
+        return _marginalAncestorsFilter.sites;
+    }
+    if (key == "numChars")
+    {
+        return _characterDimension;
+    }
+    if (key == "numSpecies")
+    {
+        return  _marginalAncestorsFilter.species;
     }
     return "_THyPhy_NOT_HANDLED_";
 }

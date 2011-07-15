@@ -70,30 +70,34 @@ class PhyloFilter(BaseFilter):
 
         HyPhy.execute(hyphy, batchfile, (inputfile,))
 
-        _ids  = HyPhy.retrieve(hyphy, 'ids', HyPhy.MATRIX)
-        mat  = HyPhy.retrieve(hyphy, 'data', HyPhy.MATRIX)
         order = HyPhy.retrieve(hyphy, 'order', HyPhy.STRING).strip(',').split(',')
+#         _ids = HyPhy.retrieve(hyphy, 'ids', HyPhy.MATRIX)
+        mat = HyPhy.retrieve(hyphy, 'output', HyPhy.MATRIX)
+        nspecies = int(HyPhy.retrieve(hyphy, 'numSpecies', HyPhy.NUMBER))
+        nsites = int(HyPhy.retrieve(hyphy, 'numSites', HyPhy.NUMBER))
+        nchars = int(HyPhy.retrieve(hyphy, 'numChars', HyPhy.NUMBER))
 
-        assert(_ids.mRows == 0)
+        assert(len(order) == nchars)
+        assert(mat.mCols == (nsites * nchars))
+        assert(mat.mRows == nspecies)
+#         assert(_ids.mRows == 0)
+#         ids = [_ids.MatrixCell(0, i) for i in xrange(_ids.mCols)]
 
-        ids = [_ids.MatrixCell(0, i) for i in xrange(_ids.mCols)]
-
-        ncol = mat.mCols / len(order) * len(alphabet)
-        tmp = np.zeros((mat.mRows, ncol), dtype=float, order='F') # use column-wise order in memory
+        ncol = nsites * len(alphabet)
+        tmp = np.zeros((nspecies, ncol), dtype=float, order='F') # use column-wise order in memory
 
         # cache the result for each stride's indexing into the alphabet
         alphidx = [alphabet[order[i]] for i in xrange(len(order))]
 
-        for i in xrange(mat.mRows):
-            for j in xrange(mat.mCols):
-                # we map j from HyPhy column order into self.__alph column order
-                # by getting at the MSA column (j / len(order)), multiplying by
-                # the self.__alph stride (len(self.__alph)), and then finally adding
-                # the alphabet-specific index (alphidx[r])
-                q = int(floor(j / len(order))) # quotient
-                r = j % len(order) # remainder
-                k = (q * len(alphabet)) + alphidx[r]
-                tmp[i, k] += mat.MatrixCell(i, j)
+        for i in xrange(nspecies):
+            for j in xrange(nsites):
+                for k in xrange(nchars):
+                    # we map j from HyPhy column order into self.__alph column order
+                    # by getting at the MSA column (j / len(order)), multiplying by
+                    # the self.__alph stride (len(self.__alph)), and then finally adding
+                    # the alphabet-specific index (alphidx[r])
+                    l = (j * len(alphabet)) + alphidx[k]
+                    tmp[i, l] += mat.MatrixCell(i, j*nchars + k)
 
         colsum = np.sum(tmp, axis=0)
         idxs = [i for i in xrange(ncol) if colsum[i] != 0.]

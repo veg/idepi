@@ -6,7 +6,7 @@ from _discretemrmr import DiscreteMrmr
 __all__ = ['FastCaimMrmr']
 
 
-def FastCaimMrmr(DiscreteMrmr):
+class FastCaimMrmr(DiscreteMrmr):
 
     def __init__(self, *args, **kwargs):
         self.__selected = False

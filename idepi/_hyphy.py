@@ -47,7 +47,7 @@ class HyPhy(object):
         _res = self.__instance.AskFor(variable)
         if type not in (HyPhy.MATRIX, HyPhy.NUMBER, HyPhy.STRING):
             raise ValueError('Unknown type supplied: please use one of PhyloFilter.{MATRIX,NUMBER,STRING}')
-        if (self.__instance.CanICast(_res, type)):
+        if (self.__instance.CanCast(_res, type)):
             res = self.__instance.CastResult(_res, type)
             if type == HyPhy.STRING:
                 return res.castToString().sData
