@@ -25,8 +25,8 @@
 from copy import deepcopy
 
 from _crossvalidator import CrossValidator
+from _perfstats import PerfStats
 from _selectinggridsearcher import SelectingGridSearcher
-from _perfstats import *
 
 
 __all__ = ['SelectingNestedCrossValidator']

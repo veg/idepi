@@ -24,7 +24,7 @@ def _compute_caim(y, y_eye, intervals, nY, nI, tmp1=None):
     return res / nI
 
 
-def _discretize(x, y):
+def _compute_fcaim(x, y):
     assert(x.shape == y.shape)
 
     nrow, = y.shape
@@ -39,8 +39,9 @@ def _discretize(x, y):
     for i in xrange(1, nrow):
         # only insert boundaries if the class changes between two sorted variables
         a, b = sortxy[[i-1, i]]
-        if a['class'] != b['class']:
-            boundary = (a['value'] + b['value']) / 2.
+        # if their value doesn't change, we've not actually inserted any boundary
+        if a['class'] != b['class'] and a['value'] != b['value']:
+            boundary = 0.5 * (a['value'] + b['value'])
             B[nB] = boundary
             nB += 1
 
@@ -76,7 +77,7 @@ def _discretize(x, y):
             # increment its label -- this lets us add intervals
             # above and below the previous maximum boundary,
             # since compute_caim() is stateless.
-            intervals += 1 * (x > B[i])
+            intervals += (x > B[i])
             caim = _compute_caim(y, y_eye, intervals, nY, k + 2, tmp1)
             if caim > innermaxcaim:
                 innermaxcaim = caim
@@ -84,13 +85,21 @@ def _discretize(x, y):
 
         if innermaxcaim > outermaxcaim:
             outermaxcaim = innermaxcaim
+            innermaxcaim = 0.
             included.add(cidx)
             D += (x > B[cidx])
             k += 1
         else:
             break
 
-    return D, outermaxcaim
+    return outermaxcaim, B[sorted(included)]
+
+
+def _discretize(x, b):
+    n = np.zeros(x.shape, dtype=int)
+    for i in xrange(b.shape[0]):
+        n += (x > b[i])
+    return n
 
 
 class FastCaim(object):
@@ -101,9 +110,11 @@ class FastCaim(object):
     '''
 
     def __init__(self):
-        pass
+        self.__boundaries = None
 
-    def discretize(self, x, y):
+    def learn(self, x, y):
+        self.__boundaries = None
+
         np_err = np.seterr(divide='ignore')
 
         nrow, ncol = x.shape
@@ -112,20 +123,53 @@ class FastCaim(object):
 
         pool = mp.Pool(mp.cpu_count())
 
-        res = [None] * ncol
+        res = []
 
         for j in xrange(ncol):
-            res[j] = pool.apply_async(_discretize, (self.__x[j, :], self.__y))
+            res.append(pool.apply_async(_compute_fcaim, (self.__x[j, :], self.__y)))
+
+#         newx = np.zeros(self.__x.shape, dtype=int)
+        caims = np.zeros((ncol,), dtype=float)
+        boundaries = []
 
         pool.close()
         pool.join()
 
-        newx = np.zeros(self.__x.shape, dtype=int)
-        caims = np.zeros((ncol,), dtype=float)
-
         for j in xrange(ncol):
-            newx[j, :], caims[j] = res[j].get()
+            caims[j], b = res[j].get()
+            boundaries.append(b)
 
         np.seterr(**np_err)
 
-        return newx.T
+        self.__boundaries = boundaries
+
+    def discretize(self, x):
+        if self.__boundaries is None:
+            raise RuntimeError('An F-CAIM model hasn\'t been learned.')
+
+        if x.shape[1] != len(self.__boundaries):
+            raise ValueError('x is incompatible with learned model: differing numbers of columns')
+
+        newx = np.zeros(x.shape, dtype=int)
+
+        for i in xrange(newx.shape[1]):
+            b = self.__boundaries[i]
+            for j in xrange(b.shape[0]):
+                newx[:, i] += (x[:, i] > b[j])
+
+#         pool = mp.Pool(mp.cpu_count())
+# 
+#         res = []
+# 
+#         # I don't usher everything around in result objects because
+#         # these columns are accessed independently of one another ... I hope
+#         for i in xrange(newx.shape[1]):
+#             res.append(pool.apply_async(_discretize, (x[:, i], self.__boundaries[i])))
+# 
+#         pool.close()
+#         pool.join()
+# 
+#         for i in xrange(newx.shape[1]):
+#             newx[:, i] = res[i].get()
+
+        return newx

@@ -5,7 +5,7 @@
 # and utilities to help identify neutralizing antibody epitopes via machine
 # learning.
 #
-# Copyright (C) 2011 N Lance Hepler <nlhepler@gmail.com> 
+# Copyright (C) 2011 N Lance Hepler <nlhepler@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
-from math import sqrt 
+from math import sqrt
 from numpy import mean, nan_to_num, var
 
 
@@ -99,7 +99,7 @@ class NormalValue(list):
         return '%g +- %g' % (self.mu, sqrt(self.sigma))
 
     def __unicode__(self):
-        return NormalValue.sprintf(self) 
+        return NormalValue.sprintf(self)
 
     def sprintf(self, format=u'%g \xb1 %g'):
         return format % (self.mu, sqrt(self.sigma))

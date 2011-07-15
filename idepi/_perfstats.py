@@ -5,7 +5,7 @@
 # and utilities to help identify neutralizing antibody epitopes via machine
 # learning.
 #
-# Copyright (C) 2011 N Lance Hepler <nlhepler@gmail.com> 
+# Copyright (C) 2011 N Lance Hepler <nlhepler@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -48,7 +48,7 @@ class PerfStats(object):
         self.minstat = NormalValue(float)
 
     def append(self, tp, tn, fp, fn):
-        # convert to ints otherwise numpyshit may happen and screw crap up 
+        # convert to ints otherwise numpyshit may happen and screw crap up
         tp, tn, fp, fn = int(tp), int(tn), int(fp), int(fn)
 
         tot = tp + tn + fp + fn

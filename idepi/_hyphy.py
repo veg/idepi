@@ -26,13 +26,13 @@ class HyPhy(object):
 
         self.__instance = hp._THyPhy(getcwd(), num_cpus)
 
-    def execute(self, batchfile, arguments=None, quiet=False):
+    def execute(self, batchfile, arguments=None, quiet=True):
         execstr = 'ExecuteAFile("%s")' % batchfile if (arguments is None or len(arguments) < 1) else \
                   'ExecuteAFile("%s", { %s })' % (batchfile, ', '.join(['"%d": "%s"' % (i, arguments[i]) for i in xrange(len(arguments))]))
         result = self.__instance.ExecuteBF(execstr)
-        out = self.__instance.GetStdout()
-        err = self.__instance.GetErrors()
-        war = self.__instance.GetWarnings()
+        out = self.__instance.GetStdout().sData
+        err = self.__instance.GetErrors().sData
+        war = self.__instance.GetWarnings().sData
 
         if not quiet:
             if war.strip() != '':
@@ -42,7 +42,7 @@ class HyPhy(object):
             raise RuntimeError(err)
 
         return out
-    
+
     def retrieve(self, variable, type):
         _res = self.__instance.AskFor(variable)
         if type not in (HyPhy.MATRIX, HyPhy.NUMBER, HyPhy.STRING):

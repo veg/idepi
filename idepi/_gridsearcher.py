@@ -25,8 +25,7 @@
 from copy import deepcopy
 from types import FunctionType
 
-from _perfstats import *
-from _normalvalue import NormalValue
+from _perfstats import PerfStats
 from _crossvalidator import CrossValidator
 
 

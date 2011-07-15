@@ -22,7 +22,7 @@ class PhyloFilter(BaseFilter):
 
     def __init__(self, alphabet=None, batchfile=None, ref_id_func=None, skip_func=None):
         if batchfile is None:
-            batchfile = join(dirname(realpath(__file__)), '..', 'res', 'CorrectForPhylogeny.bf')
+            batchfile = join(dirname(realpath(__file__)), '..', 'res', 'hyphy', 'CorrectForPhylogeny.bf')
 
         if not exists(batchfile):
             raise ValueError('Please pass a valid (and existing) batchfile to PhyloFilter()')
@@ -60,7 +60,10 @@ class PhyloFilter(BaseFilter):
             elif r:
                 raise RuntimeError('Reference sequence found twice!?!?!?!')
 
-        alignment = [row for row in alignment if not apply(ref_id_func, (row.id,)) and not apply(skip_func, (row.id,))]
+        alignment = [row for row in alignment if \
+                     not apply(ref_id_func, (row.id,)) and \
+                     not apply(skip_func, (row.id,))
+                    ]
 
         with open(inputfile, 'w') as fh:
             SeqIO.write(alignment, fh, 'fasta')

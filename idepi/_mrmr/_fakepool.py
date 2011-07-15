@@ -32,7 +32,7 @@ class FakePool(object):
 
     @staticmethod
     def apply_async(f, args):
-        return FakeResult(f(*args)) 
+        return FakeResult(apply(f, args))
 
     @staticmethod
     def close():

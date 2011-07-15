@@ -38,7 +38,7 @@ if platform.system().lower() == 'darwin':
         if os.path.exists(path):
             sys.path.insert(0, path)
 
-from idepi import DiscreteMrmr, FastCaim, GaussianKde, MixedMrmr, UiThread
+from idepi import DiscreteMrmr, FastCaim, UiThread, GaussianKde, MixedMrmr
 
 
 THRESHOLD = 0.8
@@ -103,16 +103,20 @@ def main(argv, ui=None):
         fc = FastCaim()
         print 'starting discretization'
         b = time.time()
-        vars = fc.discretize(vars, targets)
+        fc.learn(vars, targets)
+        vars = fc.discretize(vars)
         print 'done discretizing %i columns, took' % vars.shape[1], time.time() - b, 'seconds'
         klass = DiscreteMrmr
 
     selector = klass()
 
-    print 'starting...'
+    print 'starting feature selection'
+    b = time.time()
 
     # hax to get at 'private' method
     maxrel, mrmr = selector._mrmr_selection(num_features, klass.MID, vars, targets, threshold=THRESHOLD, ui=ui)
+
+    print 'done feature selection across %i columns, took' % vars.shape[1], time.time() - b, 'seconds'
 
     print 'I(X, Y) / H(X, Y)'
     for idx, value in maxrel:

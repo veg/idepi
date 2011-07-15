@@ -1,9 +1,13 @@
 
 from _discretemrmr import *
+from _fastcaim import *
+from _fastcaimmrmr import *
 from _kde import *
 from _mixedmrmr import *
 
 __all__ = []
 __all__ += _discretemrmr.__all__
+__all__ += _fastcaim.__all__
+__all__ += _fastcaimmrmr.__all__
 __all__ += _kde.__all__
 __all__ += _mixedmrmr.__all__

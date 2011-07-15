@@ -69,6 +69,8 @@ _RAND_DUMB = 'randdumbepi'
 _SIM_VALS = (_RAND_SEQ, _RAND_TARGET, _RAND_EPI, _RAND_DUMB)
 _RAND_SEQ_STOCKHOLM = join(_WORKING_DIR, 'res', 'randhivenvpep_final.sto')
 
+_PHYLOFILTER_BATCHFILE = join(_WORKING_DIR, 'res', 'hyphy', 'CorrectForPhylogeny.bf')
+
 # strip the _TEST variables because of the beginning and trailing newlines
 _TEST_DNA_STO = '''# STOCKHOLM 1.0
 1||A|1       AUGAUUCCCGACUUUAAANNN
@@ -177,6 +179,7 @@ def setup_option_parser():
     parser.add_option('--simepinoise',                                                      type = 'float',             dest = 'SIM_EPI_NOISE')
     parser.add_option('--simepiperc',                                                       type = 'float',             dest = 'SIM_EPI_PERCENTILE')
     parser.add_option('--seed',                                                             type = 'int',               dest = 'RAND_SEED')
+    parser.add_option('--phylofilt',    action = 'store_true',                                                          dest = 'PHYLOFILTER')
 
     parser.set_defaults(HMMER_ALIGN_BIN    = join(_WORKING_DIR, 'contrib', 'hmmer-3.0', 'src', 'hmmalign'))
     parser.set_defaults(HMMER_BUILD_BIN    = join(_WORKING_DIR, 'contrib', 'hmmer-3.0', 'src', 'hmmbuild'))
@@ -221,6 +224,7 @@ def setup_option_parser():
     parser.set_defaults(SIM_EPI_NOISE      = 0.08)
     parser.set_defaults(SIM_EPI_PERCENTILE = 0.5)
     parser.set_defaults(RAND_SEED          = 42) # magic number for determinism
+    parser.set_defaults(PHYLOFILTER        = False)
 
     return parser
 
@@ -502,14 +506,23 @@ def main(argv = sys.argv):
         # generate an alignment using HMMER if it doesn't already exist
         seqrecords = [r.to_SeqRecord(dna=True if OPTIONS.DNA else False) for r in abrecords]
         alignment = generate_alignment(seqrecords, alignment_filename)
-        colfilter = NaiveFilter(
-            alph,
-            OPTIONS.MAX_CONSERVATION,
-            OPTIONS.MIN_CONSERVATION,
-            OPTIONS.MAX_GAP_RATIO,
-            is_HXB2,
-            lambda x: False # TODO: add the appropriate filter function based on the args here
-        )
+        colfilter = None
+        if OPTIONS.PHYLOFILTER:
+            colfilter = PhyloFilter(
+                alph,
+                _PHYLOFILTER_BATCHFILE,
+                is_HXB2,
+                lambda x: False
+            )
+        else:
+            colfilter = NaiveFilter(
+                alph,
+                OPTIONS.MAX_CONSERVATION,
+                OPTIONS.MIN_CONSERVATION,
+                OPTIONS.MAX_GAP_RATIO,
+                is_HXB2,
+                lambda x: False # TODO: add the appropriate filter function based on the args here
+            )
         colnames, x = colfilter.filter(alignment)
     else:
         if OPTIONS.SIM_EPI_N is None:
@@ -582,7 +595,7 @@ def main(argv = sys.argv):
 
             crossvalidator = SelectingNestedCrossValidator(
                 classifiercls=LinearSvm,
-                selectorcls=DiscreteMrmr,
+                selectorcls=FastCaimMrmr if OPTIONS.PHYLOFILTER else DiscreteMrmr,
                 folds=OPTIONS.CV_FOLDS,
                 cv={},
                 optstat=optstat,

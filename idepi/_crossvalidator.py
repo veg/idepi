@@ -31,10 +31,20 @@ from types import FunctionType
 import numpy as np
 
 from _perfstats import PerfStats
-from _util import ystoconfusionmatrix
 
 
 __all__ = ['CrossValidator']
+
+
+def ystoconfusionmatrix(truth, preds):
+    tps = truth > 0.
+    tns = truth <= 0.
+    pps = preds > 0.
+    pns = preds <= 0.
+                                                           # true pos    true neg    false pos   false neg
+    tp, tn, fp, fn = map(lambda a: np.sum(np.multiply(*a)), [(tps, pps), (tns, pns), (tns, pps), (tps, pns)])
+
+    return (tp, tn, fp, fn)
 
 
 # implement cross-validation interface here, grid-search optional
