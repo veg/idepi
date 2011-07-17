@@ -16,13 +16,12 @@ class FastCaimMrmr(DiscreteMrmr):
     def select(self, x, y):
         self.__selected = False
         self.__fc.learn(x, y)
-        x = self.__fc.discretize(x)
-        r = DiscreteMrmr.select(self, x, y)
+        DiscreteMrmr.select(self, self.__fc.discretize(x), y)
         self.__selected = True
-        return r
 
-    def subset(self, x):
-        if not self.__selected:
-            raise RuntimeError('No FastCaimMrmr model computed.')
-        x = self.__fc.discretize(x)
-        return DiscreteMrmr.subset(self, x)
+    # I decided to use FastCaimDiscreteMrmr as a heuristic proxy for ContinuousMrmr
+#     def subset(self, x):
+#         if not self.__selected:
+#             raise RuntimeError('No FastCaimMrmr model computed.')
+#         x = self.__fc.discretize(x)
+#         return DiscreteMrmr.subset(self, x)

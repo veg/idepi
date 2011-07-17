@@ -53,6 +53,7 @@ class BaseMrmr(object):
         self.__colsize = 0
         self.__maxrel = None
         self.__mrmr = None
+        self.__booltype = False
         self.method = method
         self.num_features = num_features
         self.threshold = threshold
@@ -226,6 +227,11 @@ class BaseMrmr(object):
     def select(self, x, y):
         # make sure we've got nothing here
         self.__maxrel, self.__mrmr = None, None
+
+        if x.dtype == bool:
+            self.__booltype = True
+        else:
+            self.__booltype = False
 
         # this must be self._mrmr_selection so that its implementations can appropriately implement and access
         # their _compute_mi() methods

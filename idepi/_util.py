@@ -67,6 +67,7 @@ __all__ = [
     'generate_relevant_data',
     'generate_feature_names',
     'compute_relevant_features_and_names',
+    'binarize',
 ]
 
 __HXB2_IDS = None
@@ -589,3 +590,47 @@ def compute_relevant_features_and_names(seq_table, alph, names, limits={ 'max': 
             del trimmed_names[i]
 
     return (columns, trimmed_names)
+
+
+def binarize(x, colnames=None, dox=True):
+    assert(x.dtype == int or x.dtype == bool)
+    if colnames is None and not dox:
+        raise RuntimeError('binarize() does no work under these parameters!')
+    nrow, ncol = x.shape
+    donames = colnames is not None
+    if donames:
+        assert(ncol == len(colnames))
+    coldim = np.zeros((ncol,), dtype=int)
+    for j in xrange(ncol):
+        m = max(x[:, j]) + 1
+        coldim[j] = m if m > 2 else 1 if m > 1 else 0
+    newcol = np.sum(coldim)
+    if dox:
+        newx = np.zeros((nrow, newcol), dtype=bool)
+    if donames:
+        newcolnames = []
+    i = 0
+    for j in xrange(ncol):
+        if coldim[j] == 1:
+            continue
+        elif coldim[j] == 2:
+            if dox:
+                newx[:, i] = x[:, j] > 0 # binary 1 stays binary 1
+            if donames:
+                newcolnames.append(colnames[j])
+            i += 1
+        else:
+            for k in xrange(coldim[j]):
+                if dox:
+                    newx[:, i] = x[:, j] == k
+                if donames:
+                    newcolnames.append(colnames[j] + '-' + base_26_to_alph(base_10_to_n(k, 26)).upper())
+                i += 1
+    if dox and donames:
+        return newx, newcolnames
+    elif dox:
+        return newx
+    elif donames:
+        return newcolnames
+    else:
+        assert(0) # dead block, I think

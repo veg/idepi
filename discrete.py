@@ -514,6 +514,10 @@ def main(argv = sys.argv):
                 is_HXB2,
                 lambda x: False
             )
+            colnames, x = colfilter.filter(alignment)
+            # TODO: I don't think we need to binarize the colnames here, though we can if we want.
+            # I need to think more about how to properly handle this case.
+#             colnames = binarize(x, colnames, dox=False)
         else:
             colfilter = NaiveFilter(
                 alph,
@@ -523,7 +527,7 @@ def main(argv = sys.argv):
                 is_HXB2,
                 lambda x: False # TODO: add the appropriate filter function based on the args here
             )
-        colnames, x = colfilter.filter(alignment)
+            colnames, x = colfilter.filter(alignment)
     else:
         if OPTIONS.SIM_EPI_N is None:
             OPTIONS.SIM_EPI_N = len(abrecords)
