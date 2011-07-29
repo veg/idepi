@@ -69,8 +69,12 @@ class NormalValue(list):
         NormalValue.__compute(self)
 
     def __compute(self):
-        self.mu = float(nan_to_num(mean(self)))
-        self.sigma = float(nan_to_num(var(self)))
+        if len(self) == 0:
+            self.mu = 0.
+            self.sigma = 0.
+        else:
+            self.mu = float(nan_to_num(mean(self)))
+            self.sigma = float(nan_to_num(var(self)))
 
     def __ge__(self, other):
         assert(isinstance(other, NormalValue))

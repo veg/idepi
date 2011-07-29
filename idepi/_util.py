@@ -31,7 +31,6 @@ from sys import stderr
 from tempfile import mkstemp
 
 import numpy as np
-from scipy.special import fdtrc
 
 from Bio import SeqIO
 
@@ -57,7 +56,6 @@ __all__ = [
     'base_26_to_alph',
     'alph_to_base_26',
     'base_n_to_10',
-    'durbin',
     'ystoconfusionmatrix',
     'collect_AbRecords_from_db',
     'clamp',
@@ -217,90 +215,97 @@ def base_n_to_10(cols, N):
 
 
 # very heavily based on the design of friedmanchisquare in scipy
-def durbin(*args):
+try:
+    from scipy.special import fdtrc
+    def durbin(*args):
 
-    # taken verbatim from scipy.stats._support.abut
-    def _abut(source, *args):
-        source = np.asarray(source)
-        if len(source.shape) == 1:
-            width = 1
-            source = np.resize(source, [source.shape[0], width])
-        else:
-            width = source.shape[1]
-        for addon in args:
-            if len(addon.shape) == 1:
+        # taken verbatim from scipy.stats._support.abut
+        def _abut(source, *args):
+            source = np.asarray(source)
+            if len(source.shape) == 1:
                 width = 1
-                addon = np.resize(addon, [source.shape[0], width])
+                source = np.resize(source, [source.shape[0], width])
             else:
                 width = source.shape[1]
-            if len(addon) < len(source):
-                addon = np.resize(addon, [source.shape[0], addon.shape[1]])
-            elif len(addon) > len(source):
-                source = np.resize(source, [addon.shape[0], source.shape[1]])
-            source = np.concatenate((source, addon), 1)
-        return source
+            for addon in args:
+                if len(addon.shape) == 1:
+                    width = 1
+                    addon = np.resize(addon, [source.shape[0], width])
+                else:
+                    width = source.shape[1]
+                if len(addon) < len(source):
+                    addon = np.resize(addon, [source.shape[0], addon.shape[1]])
+                elif len(addon) > len(source):
+                    source = np.resize(source, [addon.shape[0], source.shape[1]])
+                source = np.concatenate((source, addon), 1)
+            return source
 
-    # also taken from scipy.stats, but ignores everything under 0.
-    def _rankposdata(a):
-        a = np.ravel(a)
-        b = np.argsort(a)
-        a = a[b]
-        n = len(a)
-        dupcount = 0
-        oldrank = -1
-        sumranks = 0
-        newarray = np.zeros(n, float)
-        for i in xrange(n):
-            if a[i] <= 0.:
-                newarray[b[i]] = 0.
-                continue
-            oldrank += 1
-            sumranks += oldrank
-            dupcount += 1
-            if i == n-1 or a[i] != a[i+1]:
-                averrank = float(sumranks) / float(dupcount) + 1
-                for j in xrange(i-dupcount+1, i+1):
-                    newarray[b[j]] = averrank
-                sumranks = 0
-                dupcount = 0
-        return newarray
+        # also taken from scipy.stats, but ignores everything under 0.
+        def _rankposdata(a):
+            a = np.ravel(a)
+            b = np.argsort(a)
+            a = a[b]
+            n = len(a)
+            dupcount = 0
+            oldrank = -1
+            sumranks = 0
+            newarray = np.zeros(n, float)
+            for i in xrange(n):
+                if a[i] <= 0.:
+                    newarray[b[i]] = 0.
+                    continue
+                oldrank += 1
+                sumranks += oldrank
+                dupcount += 1
+                if i == n-1 or a[i] != a[i+1]:
+                    averrank = float(sumranks) / float(dupcount) + 1
+                    for j in xrange(i-dupcount+1, i+1):
+                        newarray[b[j]] = averrank
+                    sumranks = 0
+                    dupcount = 0
+            return newarray
 
-    b = len(args)
-    if b < 3:
-        raise ValueError, 'Less than 3 levels. Durbin test is not appropriate'
-    k = len(args[0])
-    for i in xrange(1, b):
-        if len(args[i]) <> k:
-            raise ValueError, 'Unequal N in durbin. Aborting.'
+        b = len(args)
+        if b < 3:
+            raise ValueError, 'Less than 3 levels. Durbin test is not appropriate'
+        k = len(args[0])
+        for i in xrange(1, b):
+            if len(args[i]) <> k:
+                raise ValueError, 'Unequal N in durbin. Aborting.'
 
-    data = apply(_abut,args)
-    data = data.astype(float)
+        data = apply(_abut,args)
+        data = data.astype(float)
 
-    A = 0.
-    t = data.shape[1]
-    R = np.zeros(t, float)
-    rs = np.zeros(t, int)
-    for i in xrange(len(data)):
-        data[i] = _rankposdata(data[i])
-        for j in xrange(len(data[i])):
-            A += pow(data[i,j], 2.)
-            R[j] += data[i,j]
-            if data[i,j] > 0.:
-                rs[j] += 1
+        A = 0.
+        t = data.shape[1]
+        R = np.zeros(t, float)
+        rs = np.zeros(t, int)
+        for i in xrange(len(data)):
+            data[i] = _rankposdata(data[i])
+            for j in xrange(len(data[i])):
+                A += pow(data[i,j], 2.)
+                R[j] += data[i,j]
+                if data[i,j] > 0.:
+                    rs[j] += 1
 
-    r = np.mean(rs)
-    t = float(t)
-    b = float(b)
-    k = float(k)
-    C = b * k * pow(k + 1, 2) / 4
-    T1 = (t-1) * sum(map(lambda x: pow(x, 2) - r*C, R)) / (A-C)
-    T2 = (T1 / (t-1)) / ((b*k - b - T1) / (b*k - b - t + 1))
+        r = np.mean(rs)
+        t = float(t)
+        b = float(b)
+        k = float(k)
+        C = b * k * pow(k + 1, 2) / 4
+        T1 = (t-1) * sum(map(lambda x: pow(x, 2) - r*C, R)) / (A-C)
+        T2 = (T1 / (t-1)) / ((b*k - b - T1) / (b*k - b - t + 1))
 
-    print data
-    print R
-    print "r = %g, t = %g, b = %g, k = %g, C = %g, A = %g, T1 = %g" % (r, t, b, k, C, A, T1)
+        print data
+        print R
+        print "r = %g, t = %g, b = %g, k = %g, C = %g, A = %g, T1 = %g" % (r, t, b, k, C, A, T1)
 
-    return T2, fdtrc(k-1, b*k-b-t+1, T2)
+        return T2, fdtrc(k-1, b*k-b-t+1, T2)
+
+    __all__ += ['durbin']
+
+except ImportError:
+    pass
 
 def ystoconfusionmatrix(truth, preds):
     tps = truth > 0.

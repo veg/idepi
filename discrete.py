@@ -52,7 +52,7 @@ from Bio.SeqRecord import SeqRecord
 
 from idepi import *
 
-from numpy import mean, median, std
+from numpy import mean, median, std, seterr
 
 __version__ = 0.5
 
@@ -382,6 +382,8 @@ def collect_SeqTable_and_feature_names(alignment_filename, seq_records):
 
 
 def main(argv = sys.argv):
+    seterr(all='raise')
+
     global OPTIONS
 
     # fix some stupid bugs
