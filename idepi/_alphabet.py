@@ -14,7 +14,7 @@ class Alphabet(object):
 
     # underscore must go first or re.compile blows up
     SPACE = '_.-='
-    
+
     __DNA_ALPH   = 'ACGTUN-'
     __AMINO_ALPH = 'ACGILMPSTVDENQFWYHKRX-'
     __STANFEL_ALPH = {
@@ -27,7 +27,7 @@ class Alphabet(object):
     }
 
     def __init__(self, mode=None, chars=None):
-    
+
         def constant_factory(value):
             return repeat(value).next
 
@@ -39,9 +39,9 @@ class Alphabet(object):
             l = []
             for i in xrange(max(d.values())):
                 l.append('[%s]' % ''.join(sorted([k if k not in Alphabet.SPACE else '' for k, v_ in d.items() if i == v_])))
-        
+
         elif mode in (Alphabet.AMINO, Alphabet.DNA):
-            alph = Alphabet.__AMINO_ALPH if mode == self.AMINO else Alphabet.__DNA_ALPH 
+            alph = Alphabet.__AMINO_ALPH if mode == self.AMINO else Alphabet.__DNA_ALPH
             d, l = Alphabet.__dict_and_list(alph)
 
         elif mode == Alphabet.CUSTOM:
@@ -51,7 +51,7 @@ class Alphabet(object):
 
         else:
             raise ValueError('mode must be one of Alphabet.AMINO, Alphabet.DNA, Alphabet.STANFEL, or Alphabet.CUSTOM')
-        
+
         self.__dict = defaultdict(constant_factory(d['X']))
         self.__dict.update(d)
         self.__list = l
