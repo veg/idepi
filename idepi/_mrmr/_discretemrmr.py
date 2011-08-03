@@ -75,7 +75,7 @@ class DiscreteMrmr(BaseMrmr):
         nrow, ncol = vars.shape
 
         logmod = None
-        maxclasses = np.maximum(np.max(vars, axis=0), np.max(targets)) + 1
+        maxclasses = np.ones(vars.shape, dtype=int) + 1 # this is broken, methinx: np.maximum(np.max(vars, axis=0), np.max(targets)) + 1
 
         if np.all(maxclasses == 2):
             workerfunc = _compute_mi_inner_log2
