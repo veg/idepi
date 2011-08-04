@@ -37,7 +37,8 @@ class Alphabet(object):
         if mode == Alphabet.STANFEL:
             d = Alphabet.__STANFEL_ALPH
             l = []
-            for i in xrange(max(d.values())):
+            # don't forget to +1 here, otherwise we miss the '-' character 
+            for i in xrange(max(d.values()) + 1):
                 l.append('[%s]' % ''.join(sorted([k if k not in Alphabet.SPACE else '' for k, v_ in d.items() if i == v_])))
 
         elif mode in (Alphabet.AMINO, Alphabet.DNA):

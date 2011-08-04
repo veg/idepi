@@ -58,7 +58,7 @@ class SeqTable(object):
         self.cols = np.zeros((self.ncol, len(self.__alph)), dtype=int)
 
         SeqTable.__fill_data(self.__alignment, self.__alph, self.__fulldata, self.__ref_id, self.__skip)
-        
+
         self.cols[:, :] = np.sum(self.data, axis=0)
 
         self.__folds = 1

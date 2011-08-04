@@ -251,7 +251,7 @@ def run_tests():
         print >> fh, _TEST_AMINO_STO
         fh.close()
 
-        seq_table = SeqTable(sto_filename, SeqTable.AMINO_ALPHABET)
+        alignment = AlignIO.read(sto_filename, 'stockholm')
 
         for OPTIONS.STANFEL in (True, False):
 
@@ -268,54 +268,44 @@ def run_tests():
 
             alph = Alphabet(Alphabet.STANFEL if OPTIONS.STANFEL else Alphabet.DNA if OPTIONS.DNA else Alphabet.AMINO)
 
-            all_feature_names = generate_feature_names(seq_table, alph)
-
-            # TODO: fix this stupidity
-            feature_idxs, feature_names = compute_relevant_features_and_names(
-                seq_table,
+            colfilter = NaiveFilter(
                 alph,
-                all_feature_names,
-                {
-                    'max': OPTIONS.MAX_CONSERVATION,
-                    'min': OPTIONS.MIN_CONSERVATION,
-                    'gap': OPTIONS.MAX_GAP_RATIO
-                },
-                OPTIONS.FILTER,
+                OPTIONS.MAX_CONSERVATION,
+                OPTIONS.MIN_CONSERVATION,
+                OPTIONS.MAX_GAP_RATIO,
+                is_HXB2,
+                lambda x: False # TODO: add the appropriate filter function based on the args here
             )
-
-            feature_names_ = list(feature_names)
+            colnames, x = colfilter.filter(alignment)
 
             # test the feature names portion
             try:
-                assert(len(feature_names_) == len(_TEST_NAMES))
-            except AssertionError, e:
-                print 'gen:   %s\ntruth: %s' % (feature_names_, _TEST_NAMES)
-                raise e
-
-            mrmr_header = ','.join(['class'] + _TEST_NAMES)
+                assert(len(colnames) == len(_TEST_NAMES))
+            except AssertionError:
+                raise RuntimeError('gen:   %s\ntruth: %s' % (colnames, _TEST_NAMES))
 
             for name in _TEST_NAMES:
                 try:
-                    assert(name in feature_names_)
-                    del feature_names_[feature_names_.index(name)]
-                except AssertionError, e:
-                    print >> sys.stderr, 'ERROR: \'%s\' not found in %s' % (name, ', '.join(feature_names_))
-                    raise e
+                    assert(name in colnames)
+                except AssertionError:
+                    raise AssertionError('ERROR: \'%s\' not found in %s' % (name, ', '.join(feature_names_)))
 
             # test mRMR and LSVM file generation
             for target in OPTIONS.TARGETS:
-                data = generate_relevant_data(
-                    feature_names,
-                    seq_table,
-                    Alphabet(mode=Alphabet.AMINO),
-                    feature_idxs,
-                    target
+                yextractor = ClassExtractor(
+                    id_to_float,
+                    lambda row: is_HXB2(row) or False, # TODO: again filtration function
+                    lambda x: x < OPTIONS.IC50LT if target == 'lt' else x > OPTIONS.IC50GT
                 )
-
-                x, y = data.tondarrays()
+                y = yextractor.extract(alignment)
 
                 # generate and test the mRMR portion
-                mrmr = Mrmr(num_features=OPTIONS.NUM_FEATURES, method=Mrmr.MAXREL if OPTIONS.MAXREL else Mrmr.MID if OPTIONS.MRMR_METHOD == 'MID' else Mrmr.MIQ)
+                mrmr = DiscreteMrmr(
+                    num_features=OPTIONS.NUM_FEATURES,
+                    method=DiscreteMrmr.MAXREL if OPTIONS.MAXREL \
+                      else DiscreteMrmr.MID if OPTIONS.MRMR_METHOD == 'MID' \
+                      else DisceteMrmr.MIQ
+                )
 
                 mrmr.select(x, y)
 

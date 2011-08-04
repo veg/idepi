@@ -53,13 +53,14 @@ class NaiveFilter(BaseFilter):
         for i in xrange(seqtable.ncol):
             col = seqtable.cols[i]
             colsum = float(np.sum(col))
+            idx = stride * i
             if colsum == 0. or \
                float(min(col)) / colsum > mincons or \
                float(max(col)) / colsum > maxcons or \
                float(col[alphabet['-']]) / colsum > maxgap:
-                ignore_idxs.update(xrange(i, stride))
+                ignore_idxs.update(xrange(idx, idx + stride))
             else:
-                ignore_idxs.update([j for j in xrange(stride) if col[j] == 0.])
+                ignore_idxs.update([idx + j for j in xrange(stride) if col[j] == 0.])
 
         ncol = seqtable.ncol * stride - len(ignore_idxs)
         data = np.zeros((seqtable.nrow, ncol), dtype=bool)
