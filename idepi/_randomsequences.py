@@ -28,7 +28,12 @@ from types import DictType, IntType, TupleType
 from operator import itemgetter
 from random import gauss, randint, random
 
-from Bio import SeqIO
+try:
+    from cStringIO import StringIO
+except ImportError:
+    from StringIO import StringIO
+
+from Bio import AlignIO, SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 from Bio.Alphabet import generic_protein
@@ -70,6 +75,7 @@ def parse_opts(argv):
     return None, None, help()
 
 
+# TODO: replace this idiocy with a BioPython parser...
 def read_alignment(file):
     fh = open(file)
 
@@ -109,6 +115,14 @@ def read_alignment(file):
     return seq_len, id_seqs
 
 
+def seqrecords_to_alignment(seqrecords):
+    buf = StringIO()
+    AlignIO.write(seqrecords, buf, 'stockholm')
+    buf.seek(0)
+    alignment = AlignIO.read(buf, 'stockholm')
+    return alignment
+
+
 def DumbRandomSequences(base_seq, N=1, consensus=False, gaps=False, opts={}, idfmt='', noise=0., rate=0., alphabet=None):
     
     if len(opts) == 0:
@@ -119,7 +133,7 @@ def DumbRandomSequences(base_seq, N=1, consensus=False, gaps=False, opts={}, idf
     if alphabet is not None:
         alphabet = [a for a in alphabet if a not in ('X', '-')]
 
-    seq_records = []
+    seqrecords = []
         
     for n in xrange(opts['N'][1]):
         seq = [i for i in base_seq]
@@ -139,9 +153,11 @@ def DumbRandomSequences(base_seq, N=1, consensus=False, gaps=False, opts={}, idf
             trim_chars = (' ', __GAP)
         assert(seq_str == ''.join([seq[i] for i in xrange(len(seq)) if seq[i] not in trim_chars]))
         seq_id = idfmt % ('sample-%i' % (n + 1), gauss(0, noise))
-        seq_records.append(SeqRecord(Seq(seq_str, generic_protein), id=seq_id, name=seq_id))
+        seqrecords.append(SeqRecord(Seq(seq_str, generic_protein), id=seq_id, name=seq_id))
 
-    return seq_records
+    alignment = seqrecords_to_alignment(seqrecords)
+
+    return alignment
 
 
 def MarkovRandomSequences(file, N=1, consensus=False, gaps=False, opts={}, idfmt='', noise=0., rate=0., alphabet=None):
@@ -198,7 +214,7 @@ def MarkovRandomSequences(file, N=1, consensus=False, gaps=False, opts={}, idfmt
         tree[i] = vals
 
     # make the seqs
-    seq_records = []
+    seqrecords = []
 
     for n in xrange(opts['N'][1]):
         seq = [' '] * seq_len
@@ -239,9 +255,11 @@ def MarkovRandomSequences(file, N=1, consensus=False, gaps=False, opts={}, idfmt
         seq_str = ''.join(seq)
         # seq_str = '\n'.join(['%s' % ''.join(seq[i:i+80]) for i in xrange(len(seq), 80)])
         seq_id = idfmt % ('sample-%i' % (n + 1), gauss(0, noise))
-        seq_records.append(SeqRecord(Seq(seq_str, generic_protein), id=seq_id, name=seq_id))
+        seqrecords.append(SeqRecord(Seq(seq_str, generic_protein), id=seq_id, name=seq_id))
+   
+    alignment = seqrecords_to_alignment(seqrecords)
 
-    return seq_records
+    return alignment
 
 
 def main(argv = sys.argv):

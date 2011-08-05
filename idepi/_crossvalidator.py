@@ -28,32 +28,24 @@ from math import floor
 from random import shuffle
 from types import FunctionType
 
-import numpy as np
-
 from _perfstats import PerfStats
 
 
 __all__ = ['CrossValidator']
 
 
-def ystoconfusionmatrix(truth, preds):
-    tps = truth > 0.
-    tns = truth <= 0.
-    pps = preds > 0.
-    pns = preds <= 0.
-                                                           # true pos    true neg    false pos   false neg
-    tp, tn, fp, fn = map(lambda a: np.sum(np.multiply(*a)), [(tps, pps), (tns, pns), (tns, pps), (tps, pns)])
-
-    return (tp, tn, fp, fn)
-
-
 # implement cross-validation interface here, grid-search optional
 class CrossValidator(object):
+    CONTINUOUS = PerfStats.CONTINUOUS
+    DISCRETE   = PerfStats.DISCRETE
 
-    def __init__(self, classifiercls, folds, cv={}):
+    def __init__(self, classifiercls, folds, cv={}, mode=None):
+        if mode is None:
+            mode = CrossValidator.DISCRETE
         self.classifiercls = classifiercls
         self.folds = folds
         self.cv = cv
+        self.mode = mode
         classifiercls_dir = dir(classifiercls)
         self.__learnfunc = None
         for m in ('learn', 'compute'):
@@ -69,6 +61,13 @@ class CrossValidator(object):
                 break
         if self.__predictfunc is None:
             raise ValueError('No known prediction mechanism in base class `%s\'' % repr(classifiercls))
+        self.__weightfunc = None
+        for m in ('weights',):
+            if m in classifiercls_dir:
+                self.__weightfunc = m
+                break
+        if self.__weightfunc is None and self.mode == CrossValidator.CONTINUOUS:
+            raise ValueError('No known weight-retrieval mechanism in base class `%s\'' % repr(classifiercls))
 
     @staticmethod
     def __partition(l, folds):
@@ -91,7 +90,7 @@ class CrossValidator(object):
 
         p = CrossValidator.__partition(nrow, self.folds)
 
-        stats = PerfStats()
+        stats = PerfStats(self.mode)
         lret = []
         xtra = []
 
@@ -121,8 +120,15 @@ class CrossValidator(object):
                     xtra.append(getattr(classifier, extra)())
                 elif isinstance(extra, FunctionType):
                     xtra.append(extra(classifier))
+                
+            weights = None
+            if self.mode == CrossValidator.CONTINUOUS:
+                try:
+                    weights = apply(getattr(classifier, self.__weightfunc),)
+                except AttributeError:
+                    raise RuntimeError('Cannot retrieve weights from underlying classifier')
 
-            stats.append(*ystoconfusionmatrix(yout, preds))
+            stats.append(yout, preds, weights)
 
         return {
             'learn': lret if len(lret) else None,

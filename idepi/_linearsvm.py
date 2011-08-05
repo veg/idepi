@@ -31,10 +31,9 @@ from subprocess import Popen, PIPE
 from sys import stderr
 from tempfile import mkstemp
 
-from mlpy import LibSvm
-from numpy import mean, std
+import numpy as np
 
-from _smldata import SmlData
+from mlpy import LibSvm
 
 
 __all__ = ['LinearSvm']
@@ -135,7 +134,7 @@ class LinearSvmModel(object):
                 f += 1
 
     def weights(self):
-        features = [0.] * (max(self.__feature_weights.keys()) + 1)
+        features = np.zeros((max(self.__feature_weights.keys()) + 1,), dtype=float)
         for k, v in self.__feature_weights.items():
             features[k] += v
         return features

@@ -43,8 +43,8 @@ class SelectingGridSearcher(GridSearcher):
     FSCORE              = PerfStats.FSCORE
     MINSTAT             = PerfStats.MINSTAT
 
-    def __init__(self, classifiercls, selectorcls, folds, cv={}, optstat=PerfStats.MINSTAT, gs={}, fs={}):
-        super(SelectingGridSearcher, self).__init__(classifiercls, folds, cv, optstat, gs)
+    def __init__(self, classifiercls, selectorcls, folds, cv={}, mode=None, optstat=PerfStats.MINSTAT, gs={}, fs={}):
+        super(SelectingGridSearcher, self).__init__(classifiercls, folds, cv, mode, optstat, gs)
         self.__selected = False
         self.selector = selectorcls(**fs)
 

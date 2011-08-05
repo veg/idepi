@@ -35,6 +35,8 @@ from random import gauss, random, seed
 from re import sub, match
 from tempfile import mkstemp
 
+import numpy as np
+
 # add biopython, cvxopt, pil to my path if I'm on Mac OS X
 import platform
 if platform.system().lower() == 'darwin':
@@ -45,14 +47,14 @@ if platform.system().lower() == 'darwin':
         if exists(path):
             sys.path.insert(0, path)
 
-from Bio import AlignIO
-from Bio import SeqIO
+from Bio import AlignIO, SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
-from idepi import *
-
-from numpy import mean, median, std, seterr
+from idepi import Alphabet, ClassExtractor, DiscreteMrmr, DumbSimulation, FastCaimMrmr, LinearSvm, MarkovSimulation, \
+                  NaiveFilter, NormalValue, PerfStats, PhyloFilter, SelectingNestedCrossValidator, SeqTable, \
+                  Simulation, collect_AbRecords_from_db, generate_alignment, generate_feature_names, \
+                  get_valid_antibodies_from_db, get_valid_subtypes_from_db, id_to_float, is_HXB2, set_util_params
 
 __version__ = 0.5
 
@@ -62,11 +64,6 @@ _HXB2_AMINO_FASTA = join(_WORKING_DIR, 'res', 'hxb2_pep.fa')
 
 _DEFAULT_NUM_FEATURES = 10
 
-_RAND_SEQ = 'randseq'
-_RAND_TARGET = 'randtarget'
-_RAND_EPI = 'randepi'
-_RAND_DUMB = 'randdumbepi'
-_SIM_VALS = (_RAND_SEQ, _RAND_TARGET, _RAND_EPI, _RAND_DUMB)
 _RAND_SEQ_STOCKHOLM = join(_WORKING_DIR, 'res', 'randhivenvpep_final.sto')
 
 _PHYLOFILTER_BATCHFILE = join(_WORKING_DIR, 'res', 'hyphy', 'CorrectForPhylogeny.bf')
@@ -92,26 +89,17 @@ _TEST_AMINO_NAMES = ['0aM', '0a[]', 'M1I', 'M1M', 'P2P', 'D3D', 'D3[]', 'F4F', '
 _TEST_STANFEL_NAMES = ['0a[ACGILMPSTV]', '0a[]', 'M1[ACGILMPSTV]', 'P2[ACGILMPSTV]', 'D3[DENQ]', 'D3[]', \
                        'F4[FWY]', 'F4[]', 'K5[HKR]', 'H6[HKR]', 'H6[X]', '6a[HKR]', '6a[]']
 
-_TEST_AMINO_MRMR = ['1,1,0,1,0,1,1,0,1,0,1,0,1,0,1',
-                    '0,1,0,1,0,1,1,0,1,0,1,0,1,1,0',
-                    '0,1,0,1,0,1,0,1,0,1,1,0,1,1,0',
-                    '1,0,1,0,1,1,1,0,1,0,1,1,0,0,1']
+_TEST_Y = np.array([1,0,0,1])
 
-_TEST_STANFEL_MRMR = ['1,1,0,1,1,1,0,1,0,1,0,1,0,1',
-                      '0,1,0,1,1,1,0,1,0,1,0,1,1,0',
-                      '0,1,0,1,1,0,1,0,1,1,0,1,1,0',
-                      '1,0,1,1,1,1,0,1,0,1,1,0,0,1']
+_TEST_AMINO_X = np.array([[1,0,1,0,1,1,0,1,0,1,0,1,0,1],
+                          [1,0,1,0,1,1,0,1,0,1,0,1,1,0],
+                          [1,0,1,0,1,0,1,0,1,1,0,1,1,0],
+                          [0,1,0,1,1,1,0,1,0,1,1,0,0,1]])
 
-_TEST_AMINO_SVM = ['1 1:1 3:1 5:1 6:1 8:1 10:1 12:1 14:1',
-                   '0 1:1 3:1 5:1 6:1 8:1 10:1 12:1 13:1',
-                   '0 1:1 3:1 5:1 7:1 9:1 10:1 12:1 13:1',
-                   '1 2:1 4:1 5:1 6:1 8:1 10:1 11:1 14:1']
-
-_TEST_STANFEL_SVM = ['1 1:1 3:1 4:1 5:1 7:1 9:1 11:1 13:1',
-                     '0 1:1 3:1 4:1 5:1 7:1 9:1 11:1 12:1',
-                     '0 1:1 3:1 4:1 6:1 8:1 9:1 11:1 12:1',
-                     '1 2:1 3:1 4:1 5:1 7:1 9:1 10:1 13:1']
-
+_TEST_STANFEL_X = np.array([[1,0,1,1,1,0,1,0,1,0,1,0,1],
+                            [1,0,1,1,1,0,1,0,1,0,1,1,0],
+                            [1,0,1,1,0,1,0,1,1,0,1,1,0],
+                            [0,1,1,1,1,0,1,0,1,1,0,0,1]])
 
 OPTIONS = None
 
@@ -168,7 +156,7 @@ def setup_option_parser():
     parser.add_option('--ic50gt',                                                           type = 'float',             dest = 'IC50GT')
     parser.add_option('--ic50lt',                                                           type = 'float',             dest = 'IC50LT')
     parser.add_option('--neuts',                                                            type = 'string',            dest = 'NEUT_SQLITE3_DB')
-    parser.add_option('--hxb2',                                                             type = 'string',            dest = 'HXB2_FASTA')
+    parser.add_option('--refseq',                                                           type = 'string',            dest = 'REFSEQ_FASTA')
     parser.add_option('--ids',          action = 'callback',    callback = optparse_csv,    type = 'string',            dest = 'HXB2_IDS')
     parser.add_option('--test',         action = 'store_true',                                                          dest = 'TEST')
     parser.add_option('--sim',                                                              type = 'string',            dest = 'SIM')
@@ -214,7 +202,7 @@ def setup_option_parser():
     parser.set_defaults(IC50GT             = 20.)
     parser.set_defaults(IC50LT             = 2.)
     parser.set_defaults(NEUT_SQLITE3_DB    = join(_WORKING_DIR, 'res', 'allneuts.sqlite3'))
-    parser.set_defaults(HXB2_FASTA         = _HXB2_AMINO_FASTA)
+    parser.set_defaults(REFSEQ_FASTA       = _HXB2_AMINO_FASTA)
     parser.set_defaults(HXB2_IDS           = ['9629357', '9629363'])
     parser.set_defaults(SIM                = '') # can be 'randtarget' for now
     parser.set_defaults(SIM_RUNS           = 1) # can be 'randtarget' for now
@@ -258,13 +246,11 @@ def run_tests():
             if OPTIONS.STANFEL:
                 OPTIONS.AMINO = False
                 _TEST_NAMES = _TEST_STANFEL_NAMES
-                _TEST_MRMR = _TEST_STANFEL_MRMR
-                _TEST_SVM = _TEST_STANFEL_SVM
+                _TEST_X = _TEST_STANFEL_X
             else:
                 OPTIONS.AMINO = True
                 _TEST_NAMES = _TEST_AMINO_NAMES
-                _TEST_MRMR = _TEST_AMINO_MRMR
-                _TEST_SVM = _TEST_AMINO_SVM
+                _TEST_X = _TEST_AMINO_X
 
             alph = Alphabet(Alphabet.STANFEL if OPTIONS.STANFEL else Alphabet.DNA if OPTIONS.DNA else Alphabet.AMINO)
 
@@ -282,13 +268,15 @@ def run_tests():
             try:
                 assert(len(colnames) == len(_TEST_NAMES))
             except AssertionError:
-                raise RuntimeError('gen:   %s\ntruth: %s' % (colnames, _TEST_NAMES))
+                raise AssertionError('gen:   %s\ntruth: %s' % (colnames, _TEST_NAMES))
 
             for name in _TEST_NAMES:
                 try:
                     assert(name in colnames)
                 except AssertionError:
-                    raise AssertionError('ERROR: \'%s\' not found in %s' % (name, ', '.join(feature_names_)))
+                    raise AssertionError('ERROR: \'%s\' not found in %s' % (name, ', '.join(colnames)))
+
+            assert(np.all(_TEST_X == x))
 
             # test mRMR and LSVM file generation
             for target in OPTIONS.TARGETS:
@@ -299,12 +287,14 @@ def run_tests():
                 )
                 y = yextractor.extract(alignment)
 
+                assert(np.all(_TEST_Y == y))
+
                 # generate and test the mRMR portion
                 mrmr = DiscreteMrmr(
                     num_features=OPTIONS.NUM_FEATURES,
                     method=DiscreteMrmr.MAXREL if OPTIONS.MAXREL \
                       else DiscreteMrmr.MID if OPTIONS.MRMR_METHOD == 'MID' \
-                      else DisceteMrmr.MIQ
+                      else DiscreteMrmr.MIQ
                 )
 
                 mrmr.select(x, y)
@@ -322,34 +312,11 @@ def run_tests():
 
 def fix_hxb2_fasta():
     '''If DNA mode was selected but the AMINO reference sequence is still in place, fix it'''
-    if OPTIONS.DNA == True and OPTIONS.HXB2_FASTA == _HXB2_AMINO_FASTA:
-        OPTIONS.HXB2_FASTA = _HXB2_DNA_FASTA
+    if OPTIONS.DNA == True and OPTIONS.REFSEQ_FASTA == _HXB2_AMINO_FASTA:
+        OPTIONS.REFSEQ_FASTA = _HXB2_DNA_FASTA
 
 
-def generate_alignment(seqrecords, filename):
-    if not exists(filename) and OPTIONS.SIM != _RAND_DUMB:
-        generate_alignment_from_SeqRecords(
-            OPTIONS.HXB2_FASTA,
-            seqrecords,
-            OPTIONS.HMMER_ALIGN_BIN,
-            OPTIONS.HMMER_BUILD_BIN,
-            OPTIONS.HMMER_ITER,
-            filename,
-            dna=True if OPTIONS.DNA else False
-        )
-    elif OPTIONS.SIM == _RAND_DUMB:
-        # we're assuming pre-aligned because they're all generated from the same refseq
-        fh = open(filename, 'w')
-        SeqIO.write(seqrecords, fh, 'stockholm')
-        fh.close()
-
-    with open(filename) as fh:
-        alignment = AlignIO.read(fh, 'stockholm')
-
-    return alignment
-
-
-def collect_SeqTable_and_feature_names(alignment_filename, seq_records):
+def collect_SeqTable_and_feature_names(alignment, seq_records):
 
     skip_func = None
     if len(OPTIONS.SUBTYPES) != 0:
@@ -357,7 +324,7 @@ def collect_SeqTable_and_feature_names(alignment_filename, seq_records):
 
     alph = Alphabet(Alphabet.STANFEL if OPTIONS.STANFEL else Alphabet.DNA if OPTIONS.DNA else Alphabet.AMINO)
 
-    seq_table = SeqTable(alignment_filename, SeqTable.DNA_ALPHABET if OPTIONS.DNA else SeqTable.AMINO_ALPHABET, is_HXB2, skip_func)
+    seq_table = SeqTable(alignment, alph, is_HXB2, skip_func)
 
     all_feature_names = generate_feature_names(seq_table, alph)
 
@@ -372,7 +339,7 @@ def collect_SeqTable_and_feature_names(alignment_filename, seq_records):
 
 
 def main(argv = sys.argv):
-    seterr(all='raise')
+    np.seterr(all='raise')
 
     global OPTIONS
 
@@ -388,8 +355,17 @@ def main(argv = sys.argv):
         run_tests()
         return 0
 
-    if OPTIONS.SIM != '' and OPTIONS.SIM not in _SIM_VALS:
-        option_parser.error('option --sim takes one of %s' % ', '.join(_SIM_VALS))
+    if OPTIONS.SIM != '':
+        if OPTIONS.SIM == 'randdumbepi':
+            OPTIONS.SIM = Simulation.DUMB
+        elif OPTIONS.SIM == 'randepi':
+            OPTIONS.SIM == Simulation.EPITOPE
+        elif OPTIONS.SIM == 'randseq':
+            OPTIONS.SIM == Simulation.SEQUENCE
+        elif OPTIONS.SIM == 'randtarget':
+            OPTIONS.SIM == Simulation.TARGET
+        else:
+            option_parser.error('option --sim takes one of %s' % ', '.join(Simulation.VALUES))
 
     if OPTIONS.RAND_SEED is not None:
         seed(OPTIONS.RAND_SEED)
@@ -435,7 +411,7 @@ def main(argv = sys.argv):
         if subtype not in valid_subtypes:
             option_parser.error('%s not in the list of permitted subtypes: \n  %s' % (subtype, '\n  '.join([st.strip() for st in valid_subtypes])))
 
-    if OPTIONS.SIM in (_RAND_EPI, _RAND_SEQ) and OPTIONS.DNA:
+    if OPTIONS.SIM in (Simulation.EPITOPE, Simulation.SEQUENCE) and OPTIONS.DNA:
         option_parser.error('randseq simulation target not compatible with DNA mode')
 
     if OPTIONS.SIM_EPI_MUT_RATE < 0. or OPTIONS.SIM_EPI_MUT_RATE > 1.:
@@ -472,15 +448,15 @@ def main(argv = sys.argv):
 
     sim = None
     if OPTIONS.SIM != '':
-        if OPTIONS.SIM == _RAND_DUMB:
-            hxb2fh = open(OPTIONS.HXB2_FASTA)
+        if OPTIONS.SIM == Simulation.DUMB:
+            hxb2fh = open(OPTIONS.REFSEQ_FASTA)
             for record in SeqIO.parse(hxb2fh, 'fasta'):
                 hxb2seq = str(record.seq)
                 break
             hxb2fh.close()
             sim = DumbSimulation(OPTIONS.SIM_RUNS, Simulation.EPITOPE, hxb2seq)
-        elif OPTIONS.SIM == _RAND_EPI or OPTIONS.SIM == _RAND_SEQUENCE:
-            sim = MarkovSimulation(OPTIONS.SIM_RUNS, Simulation.SEQUENCE if OPTIONS.SIM != _RAND_EPI else Simulation.EPITOPE, _RAND_SEQ_STOCKHOLM)
+        elif OPTIONS.SIM in (Simulation.EPITOPE, Simulation.SEQUENCE):
+            sim = MarkovSimulation(OPTIONS.SIM_RUNS, OPTIONS.SIM, _RAND_SEQ_STOCKHOLM)
         else:
             raise ValueError('Unknown simulation type `%s\'' % OPTIONS.SIM)
 
@@ -490,61 +466,57 @@ def main(argv = sys.argv):
     # format as SeqRecord so we can output as FASTA
     abrecords = collect_AbRecords_from_db(OPTIONS.NEUT_SQLITE3_DB, antibody)
 
-    # do not generate the sequences here for the random sequence or random epitope simulations
-    alignment_filename = None
-    if sim is None:
-        alignment_filename = '%s_%s_%s.sto' % (ab_basename, splitext(basename(OPTIONS.NEUT_SQLITE3_DB))[0], __version__)
+    alignment_filename = '%s_%s_%s.sto' % (ab_basename, splitext(basename(OPTIONS.NEUT_SQLITE3_DB))[0], __version__)
 
-        # generate an alignment using HMMER if it doesn't already exist
-        seqrecords = [r.to_SeqRecord(dna=True if OPTIONS.DNA else False) for r in abrecords]
-        alignment = generate_alignment(seqrecords, alignment_filename)
-        colfilter = None
-        if OPTIONS.PHYLOFILTER:
-            colfilter = PhyloFilter(
-                alph,
-                _PHYLOFILTER_BATCHFILE,
-                is_HXB2,
-                lambda x: False
-            )
-            colnames, x = colfilter.filter(alignment)
-            # TODO: I don't think we need to binarize the colnames here, though we can if we want.
-            # I need to think more about how to properly handle this case.
+    # generate an alignment using HMMER if it doesn't already exist
+    seqrecords = [r.to_SeqRecord(dna=True if OPTIONS.DNA else False) for r in abrecords]
+    alignment = generate_alignment(seqrecords, alignment_filename, OPTIONS)
+    colfilter = None
+    if OPTIONS.PHYLOFILTER:
+        colfilter = PhyloFilter(
+            alph,
+            _PHYLOFILTER_BATCHFILE,
+            is_HXB2,
+            lambda x: False
+        )
+    else:
+        colfilter = NaiveFilter(
+            alph,
+            OPTIONS.MAX_CONSERVATION,
+            OPTIONS.MIN_CONSERVATION,
+            OPTIONS.MAX_GAP_RATIO,
+            is_HXB2,
+            lambda x: False # TODO: add the appropriate filter function based on the args here
+        )
+
+    if sim is None:
+        colnames, x = colfilter.filter(alignment)
+        # TODO: I don't think we need to binarize the colnames here, though we can if we want.
+        # I need to think more about how to properly handle this case.
 #             colnames = binarize(x, colnames, dox=False)
-        else:
-            colfilter = NaiveFilter(
-                alph,
-                OPTIONS.MAX_CONSERVATION,
-                OPTIONS.MIN_CONSERVATION,
-                OPTIONS.MAX_GAP_RATIO,
-                is_HXB2,
-                lambda x: False # TODO: add the appropriate filter function based on the args here
-            )
-            colnames, x = colfilter.filter(alignment)
     else:
         if OPTIONS.SIM_EPI_N is None:
-            OPTIONS.SIM_EPI_N = len(abrecords)
+            OPTIONS.SIM_EPI_N = len(seqrecords)
 
 
     # compute features
     for target in OPTIONS.TARGETS:
         results = None
 
-        yextractor = ClassExtractor(
-            id_to_float,
-            lambda row: is_HXB2(row) or False, # TODO: again filtration function
-            lambda x: x < OPTIONS.IC50LT if target == 'lt' else x > OPTIONS.IC50GT
-        )
-
-        y = yextractor.extract(alignment)
+        if sim is not None:
+            yextractor = ClassExtractor(
+                id_to_float,
+                lambda row: is_HXB2(row) or False, # TODO: again filtration function
+                lambda x: x < OPTIONS.IC50LT if target == 'lt' else x > OPTIONS.IC50GT
+            ) 
+            y = yextractor.extract(alignment)
 
         # simulations, ho!
         for i in xrange(sim.runs if sim is not None else 1):
 
             # here is where the sequences must be generated for the random sequence and random epitope simulations
             if sim is not None:
-                alignment_filename = '%s_%s_%d_%s.sto' % (ab_basename, OPTIONS.SIM, i + 1, __version__)
-                seq_records = sim.generate_sequences(
-                    alignment_filename,
+                alignment = sim.generate_sequences(
                     N=OPTIONS.SIM_EPI_N,
                     idfmt='%s|||',
                     noise=OPTIONS.SIM_EPI_NOISE,
@@ -552,13 +524,13 @@ def main(argv = sys.argv):
                     alphabet=alph
                 )
 
-                seq_table, all_feature_names = collect_SeqTable_and_feature_names(alignment_filename, seq_records)
+                colnames, x = colfilter.filter(alignment)
 
                 # simulates the epitope and assigns the appropriate class
                 epi_def = sim.simulate_epitope(
-                    seq_table,
+                    alignment,
                     alph,
-                    all_feature_names,
+                    colnames,
                     OPTIONS.SIM_EPI_SIZE,
                     OPTIONS.SIM_EPI_PERCENTILE,
                 )
@@ -594,6 +566,7 @@ def main(argv = sys.argv):
                 selectorcls=FastCaimMrmr if OPTIONS.PHYLOFILTER else DiscreteMrmr,
                 folds=OPTIONS.CV_FOLDS,
                 cv={},
+                mode=SelectingNestedCrossValidator.DISCRETE,
                 optstat=optstat,
                 gs={ 'C': C_range },
                 fs={
@@ -601,20 +574,16 @@ def main(argv = sys.argv):
                     'method': DiscreteMrmr.MAXREL if OPTIONS.MAXREL else \
                               DiscreteMrmr.MID if OPTIONS.MRMR_METHOD == 'MID' else \
                               DiscreteMrmr.MIQ
-                    }
+                }
             )
 
             results = crossvalidator.crossvalidate(x, y, cv={}, extra=lambda x: { 'features': x.features(), 'weights': x.classifier.weights() })
-
-            # remove the alignment
-            if OPTIONS.SIM in (_RAND_DUMB, _RAND_EPI):
-                remove(alignment_filename)
 
         # print stats and results:
 #         print >> sys.stdout, '********************* REPORT FOR ANTIBODY %s IC50 %s *********************' % \
 #           (antibody, '< %d' % OPTIONS.IC50LT if target == 'lt' else '> %d' % OPTIONS.IC50GT)
 #
-#         if OPTIONS.SIM not in (_RAND_SEQ, _RAND_TARGET, _RAND_EPI):
+#         if OPTIONS.SIM not in (Simulation.EPITOPE, Simulation.SEQUENCE, Simulation.TARGET):
 #             fmt = ('', OPTIONS.CV_FOLDS, '')
 #         else:
 #             fmt = ('%d-run ' % OPTIONS.SIM_RUNS, OPTIONS.CV_FOLDS, ' per run')

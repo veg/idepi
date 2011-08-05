@@ -42,7 +42,7 @@ class SelectingNestedCrossValidator(CrossValidator):
     FSCORE              = PerfStats.FSCORE
     MINSTAT             = PerfStats.MINSTAT
 
-    def __init__(self, classifiercls, selectorcls, folds, cv={}, optstat=PerfStats.MINSTAT, gs={}, fs={}):
+    def __init__(self, classifiercls, selectorcls, folds, cv={}, mode=None, optstat=PerfStats.MINSTAT, gs={}, fs={}):
 
         ncv = {
             'classifiercls': classifiercls,
@@ -50,8 +50,9 @@ class SelectingNestedCrossValidator(CrossValidator):
             'folds': folds - 1,
             'optstat': optstat,
             'cv': cv,
+            'mode': mode,
             'gs': gs,
             'fs': fs
         }
 
-        super(SelectingNestedCrossValidator, self).__init__(SelectingGridSearcher, folds, ncv)
+        super(SelectingNestedCrossValidator, self).__init__(SelectingGridSearcher, folds, ncv, mode)

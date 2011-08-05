@@ -25,6 +25,7 @@
 from _abrecord import *
 from _alphabet import *
 from _classextractor import *
+from _common import *
 from _crossvalidator import *
 from _discretizer import *
 # from _fakepool import *
@@ -59,6 +60,7 @@ __all__ = []
 __all__ += _abrecord.__all__
 __all__ += _alphabet.__all__
 __all__ += _classextractor.__all__
+__all__ += _common.__all__
 __all__ += _crossvalidator.__all__
 # __all__ += _fakepool.__all__
 # __all__ += _fakeresult.__all__

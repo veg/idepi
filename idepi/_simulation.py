@@ -9,7 +9,7 @@ from _simulatedepitope import SimulatedEpitope
 from _util import get_noise, is_HXB2, sanitize_seq
 
 
-__all__ = ['DumbSimulation', 'MarkovSimulation']
+__all__ = ['Simulation', 'DumbSimulation', 'MarkovSimulation']
 
 
 def assign_class_by_percentile(seq_table, epi_def, percentile):
@@ -52,11 +52,20 @@ def random_column_subset(size, columns):
 
 class Simulation(object):
     SEQUENCE = 0
-    EPITOPE  = 1
+    TARGET = 1
+    EPITOPE = 2
+    DUMB = 3
+    
+    VALUES = (0, 1, 2, 3) 
 
-    def __init__(self, N, mode):
+
+class BaseSimulation(Simulation):
+
+    def __init__(self, mode, runs):
         self.mode = mode
+        self.runs = runs
 
+    # def simulate_epitope(self, alignment, alphabet, colnames, size, percentile, kernel_func=None):
     def simulate_epitope(self, seq_table, alphabet, column_names, size, percentile, kernel_func=None):
         if self.mode != Simulation.EPITOPE:
             return None
@@ -110,21 +119,21 @@ class Simulation(object):
         raise RuntimeError('Simulation is not intended to be used directly. Please use DumbSimulation or MarkovSimulation')
 
 
-class DumbSimulation(Simulation):
+class DumbSimulation(BaseSimulation):
 
-    def __init__(self, N, mode, refseq): 
+    def __init__(self, mode, runs, refseq): 
         self.__refseq = refseq
-        super(DumbSimulation, self).__init__(N, mode)
+        super(DumbSimulation, self).__init__(mode, runs)
 
     def generate_sequences(self, N, idfmt, noise, mutation_rate, alphabet):  
         return DumbRandomSequences(self.__refseq, N=N, idfmt=idfmt, noise=noise, rate=mutation_rate, alphabet=alphabet) 
 
 
-class MarkovSimulation(Simulation):
+class MarkovSimulation(BaseSimulation):
 
-    def __init__(self, N, mode, refmsa): 
+    def __init__(self, mode, runs, refmsa): 
         self.__refmsa = refmsa
-        super(MarkovSimulation, self).__init__(N, mode)
+        super(MarkovSimulation, self).__init__(mode, runs)
 
     def generate_sequences(self, N, idfmt, noise, mutation_rate, alphabet):
         return MarkovRandomSequences(self.__refmsa, N=N, idfmt=idfmt, noise=noise, rate=mutation_rate, alphabet=alphabet)

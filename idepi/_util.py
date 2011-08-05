@@ -59,7 +59,6 @@ __all__ = [
     'ystoconfusionmatrix',
     'collect_AbRecords_from_db',
     'clamp',
-    'generate_alignment_from_SeqRecords',
     'binarize_row',
     'sanitize_seq',
     'generate_relevant_data',
@@ -372,57 +371,6 @@ def clamp(x):
     if x > 1.:
         return 1.
     return x
-
-def generate_alignment_from_SeqRecords(refseqpath, seq_records, hmmer_align_bin, hmmer_build_bin, hmmer_iter, filename, dna=False):
-    fd, ab_fasta_filename = mkstemp(); close(fd)
-    fd, hmm_filename = mkstemp(); close(fd)
-    fd, sto_filename = mkstemp(); close(fd)
-    finished = False
-
-    try:
-        # get the FASTA format file so we can HMMER it
-        fafh = open(ab_fasta_filename, 'w')
-        hxb2fh = open(refseqpath, 'rU')
-
-        # grab the HXB2 Reference Sequence
-        hxb2_record = SeqIO.parse(hxb2fh, 'fasta')
-        seq_records.extend(hxb2_record)
-
-        # type errors here?
-        try:
-            SeqIO.write(seq_records, fafh, 'fasta')
-        except TypeError, e:
-            print >> stderr, seq_records
-            raise e
-
-        # close the handles in this order because BioPython wiki does so
-        fafh.close()
-        hxb2fh.close()
-
-        # make the tempfiles for the alignments, and close them out after we use them
-        SeqIO.convert(refseqpath, 'fasta', sto_filename, 'stockholm')
-
-        print >> stderr, 'Aligning %d sequences with HMMER:' % (len(seq_records)+1),
-
-        hmmer = Hmmer(hmmer_align_bin, hmmer_build_bin)
-
-        for i in xrange(0, hmmer_iter):
-            print >> stderr, '%d,' % i,
-            hmmer.build(hmm_filename, sto_filename)
-            hmmer.align(hmm_filename, ab_fasta_filename, output=sto_filename, alphabet=Hmmer.DNA if dna else Hmmer.AMINO, outformat=Hmmer.PFAM)
-
-        # rename the final alignment to its destination
-        print >> stderr, 'done, output moved to: %s' % filename
-        finished = True
-
-    finally:
-        # cleanup these files
-        if finished:
-            rename(sto_filename, filename)
-        else:
-            remove(sto_filename)
-        remove(ab_fasta_filename)
-        remove(hmm_filename)
 
 def binarize_row(row, alphabet):
     alphdict = alphabet.todict()

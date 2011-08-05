@@ -43,8 +43,8 @@ class GridSearcher(CrossValidator):
     FSCORE              = PerfStats.FSCORE
     MINSTAT             = PerfStats.MINSTAT
 
-    def __init__(self, classifiercls, folds, cv={}, optstat=PerfStats.MINSTAT, gs={}):
-        super(GridSearcher, self).__init__(classifiercls, folds, cv)
+    def __init__(self, classifiercls, folds, cv={}, mode=None, optstat=PerfStats.MINSTAT, gs={}):
+        super(GridSearcher, self).__init__(classifiercls, folds, cv, mode)
         self.gs = gs
         self.optstat = optstat
         self.classifier = None

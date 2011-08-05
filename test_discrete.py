@@ -591,19 +591,19 @@ def main(argv = sys.argv):
         )
 
         # perform mRMR
-        optstat = PerfStats.MINSTAT
+        optstat = DiscretePerfStats.MINSTAT
         if OPTIONS.ACCURACY:
-            optstat = PerfStats.ACCURACY
+            optstat = DiscretePerfStats.ACCURACY
         elif OPTIONS.PPV:
-            optstat = PerfStats.PPV
+            optstat = DiscretePerfStats.PPV
         elif OPTIONS.NPV:
-            optstat = PerfStats.NPV
+            optstat = DiscretePerfStats.NPV
         elif OPTIONS.SENSITIVITY:
-            optstat = PerfStats.SENSITIVITY
+            optstat = DiscretePerfStats.SENSITIVITY
         elif OPTIONS.SPECIFICITY:
-            optstat = PerfStats.SPECIFICITY
+            optstat = DiscretePerfStats.SPECIFICITY
         elif OPTIONS.FSCORE:
-            optstat = PerfStats.FSCORE
+            optstat = DiscretePerfStats.FSCORE
 
         C_begin, C_end, C_step = OPTIONS.LOG2C
         recip = 1
