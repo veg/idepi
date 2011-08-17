@@ -29,15 +29,6 @@ import os, sys, time
 import multiprocessing as mp
 import numpy as np
 
-import platform
-if platform.system().lower() == 'darwin':
-    __subpath = os.path.join('python%d%d' % sys.version_info[:2], 'lib', 'python')
-    # numpy must go first
-    for module in ('numpy-1.5.1', 'biopython-1.56', 'cvxopt-1.1.3', 'cython-0.14.1', 'mlpy-2.2.2', 'pil-1.1.7'):
-        path = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'contrib', module, __subpath)
-        if os.path.exists(path):
-            sys.path.insert(0, path)
-
 from idepi import DiscreteMrmr, FastCaim, UiThread, GaussianKde, MixedMrmr
 
 

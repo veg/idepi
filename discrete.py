@@ -37,16 +37,6 @@ from tempfile import mkstemp
 
 import numpy as np
 
-# add biopython, cvxopt, pil to my path if I'm on Mac OS X
-import platform
-if platform.system().lower() == 'darwin':
-    __subpath = join('python%d%d' % sys.version_info[:2], 'lib', 'python')
-    # numpy must go first
-    for module in ('numpy-1.5.1', 'biopython-1.56', 'cvxopt-1.1.3', 'cython-0.14.1', 'mlpy-2.2.2', 'pil-1.1.7'):
-        path = join(dirname(realpath(__file__)), 'contrib', module, __subpath)
-        if exists(path):
-            sys.path.insert(0, path)
-
 from Bio import AlignIO, SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord

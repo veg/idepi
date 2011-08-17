@@ -2,15 +2,6 @@
 
 import os, sqlite3, sys
 
-import platform
-if platform.system().lower() == 'darwin':
-    __subpath = os.path.join('python%d%d' % sys.version_info[:2], 'lib', 'python')
-    # numpy must go first 
-    for module in ('numpy-1.5.1', 'biopython-1.56'): 
-        path = os.path.join(os.path.dirname(os.path.realpath(__file__)), module, __subpath)
-        if os.path.exists(path):
-            sys.path.insert(0, path)
-
 from Bio import Entrez, SeqIO
 
 Entrez.email = 'nhepler@ucsd.edu'

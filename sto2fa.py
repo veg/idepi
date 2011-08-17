@@ -26,15 +26,6 @@ import os, sys
 
 from os.path import basename, dirname, exists, join, realpath
 
-import platform
-if platform.system().lower() == 'darwin':
-    __subpath = join('python%d%d' % sys.version_info[:2], 'lib', 'python')
-    # numpy must go first 
-    for module in ('biopython-1.56',):
-        path = join(dirname(realpath(__file__)), 'contrib', module, __subpath)
-        if exists(path):
-            sys.path.insert(0, path)
-
 from Bio import AlignIO
 
 
