@@ -2,11 +2,11 @@
 # -*- coding: utf-8 -*-
 
 #
-# regressor.py :: computes a regression model for an nAb in IDEPI's database, 
+# regressor.py :: computes a regression model for an nAb in IDEPI's database,
 # and provides cross-validation performance statistics and HXB2-relative
 # feature information for this model.
-# 
-# Copyright (C) 2011 N Lance Hepler <nlhepler@gmail.com> 
+#
+# Copyright (C) 2011 N Lance Hepler <nlhepler@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -44,7 +44,8 @@ from Bio.SeqRecord import SeqRecord
 
 from idepi import Alphabet, ClassExtractor, CrossValidator, NaiveFilter, PhyloFilter, Regressor, \
                   collect_AbRecords_from_db, generate_alignment, get_valid_antibodies_from_db, \
-                  get_valid_subtypes_from_db, id_to_float, is_HXB2, set_util_params
+                  get_valid_subtypes_from_db, id_to_float, is_HXB2, regressor_classes, \
+                  set_util_params
 
 __version__ = 0.5
 
@@ -175,9 +176,9 @@ def run_tests():
         fh.close()
 
         alignment = AlignIO.read(sto_filename, 'stockholm')
-    
+
         for OPTIONS.STANFEL in (True, False):
-    
+
             if OPTIONS.STANFEL:
                 OPTIONS.AMINO = False
                 _TEST_NAMES = _TEST_STANFEL_NAMES
@@ -198,31 +199,31 @@ def run_tests():
                 lambda x: False # TODO: add the appropriate filter function based on the args here
             )
             colnames, x = colfilter.filter(alignment)
-   
+
             # test the feature names portion
             try:
                 assert(len(colnames) == len(_TEST_NAMES))
             except AssertionError:
                 raise AssertionError('gen:   %s\ntruth: %s' % (colnames, _TEST_NAMES))
-    
+
             for name in _TEST_NAMES:
                 try:
                     assert(name in colnames)
                 except AssertionError:
                     raise AssertionError('ERROR: \'%s\' not found in %s' % (name, ', '.join(colnames)))
-            
+
             assert(np.all(_TEST_X == x))
- 
+
             # test mRMR and LSVM file generation
             yextractor = ClassExtractor(
                 id_to_float,
                 lambda row: is_HXB2(row) or False, # TODO: again filtration function
             )
             y = yextractor.extract(alignment)
-   
+
             assert(np.all(_TEST_Y == y))
 
-            # TODO: generate and test the regressor data generation    
+            # TODO: generate and test the regressor data generation
             # print y, "\n", x
 
     finally:
@@ -266,26 +267,12 @@ def main(argv = sys.argv):
 
     # validate the regression method
     cvopts = {}
-    if OPTIONS.REGRESSOR_METHOD == 'dantzig':
-        cvopts['regressorcls'] = Regressor.DANTZIG
-    elif OPTIONS.REGRESSOR_METHOD == 'doubledantzig':
-        cvopts['regressorcls'] = Regressor.DBLDANTZIG
-    elif OPTIONS.REGRESSOR_METHOD == 'lardantzig':
-        cvopts['regressorcls'] = Regressor.LARDANTZIG
-    elif OPTIONS.REGRESSOR_METHOD == 'lassodantzig':
-        cvopts['regressorcls'] = Regressor.LASSODANTZIG
-    elif OPTIONS.REGRESSOR_METHOD == 'linearsvr':
-        cvopts['regressorcls'] = Regressor.LINEARSVR
-    elif OPTIONS.REGRESSOR_METHOD == 'ridgedantzig':
-        cvopts['regressorcls'] = Regressor.RIDGEDANTZIG
-    elif OPTIONS.REGRESSOR_METHOD == 'ridgelar':
-        cvopts['regressorcls'] = Regressor.RIDGELAR
-    elif OPTIONS.REGRESSOR_METHOD == 'ridgelasso':
-        cvopts['regressorcls'] = Regressor.RIDGELASSO
+    if OPTIONS.REGRESSOR_METHOD in regressor_classes:
+        cvopts['regressorcls'] = regressor_classes[OPTIONS.REGRESSOR_METHOD]
     else:
         option_parser.error('%s not in the list of available regression methods: \n  %s' % (OPTIONS.REGRESSOR_METHOD,
-            '\n  '.join(['dantzig', 'doubledantzig', 'lardantzig', 'lassodantzig', 'linearsvr', 'ridgedantzig', 'ridgelar', 'ridgelasso'])))
-    
+            '\n  '.join(regressor_classes.keys())))
+
     if search(r'(?:lar|lasso)$', OPTIONS.REGRESSOR_METHOD):
         cvopts['m'] = OPTIONS.NUM_FEATURES
 
@@ -325,7 +312,7 @@ def main(argv = sys.argv):
 
     # fetch the alphabet, we'll probably need it later
     alph = Alphabet(mode=Alphabet.STANFEL if OPTIONS.STANFEL else Alphabet.DNA if OPTIONS.DNA else Alphabet.AMINO)
-    
+
     ab_basename = '%s_%s' % (antibody, 'dna' if OPTIONS.DNA else 'amino')
 
     # grab the relevant antibody from the SQLITE3 data
@@ -373,7 +360,7 @@ def main(argv = sys.argv):
         mode=CrossValidator.CONTINUOUS
     )
 
-    results = crossvalidator.crossvalidate(x, y, cv={}, extra=lambda x: { 'weights': x.classifier.weights() })
+    results = crossvalidator.crossvalidate(x, y, cv={}, extra=lambda x: { 'weights': x.weights() })
 
 #     mean_len = max([len('%.3f' % v.mu) for v in avg_stats.values()])
 #     std_len = max([len('%.3f' % v.sigma) for v in avg_stats.values()])
@@ -381,13 +368,13 @@ def main(argv = sys.argv):
 #     for k, v in sorted(avg_stats.items(), key = lambda x: x[0][0]):
 #         v_str = u'= %*.3f \xb1 %*.3f' % (mean_len, v.mu, std_len, v.sigma)
 #         print >> sys.stdout, u'  %s%s' % (k, v_str)
-# 
+#
 #     for k, v in avg_weights.items():
 #         if abs(v.mu) < 0.0001 and v.sigma == 0.:
 #             del avg_weights[k]
-# 
+#
 #     print >> sys.stdout, '\nSignificant positions (top %d):' % (len(avg_weights))
-# 
+#
 #     if len(avg_weights) > 0:
 #         name_len = max([len(k) for k in avg_weights.keys()])
 #         mean_len = max([len('% .1f' % v.mu) for v in avg_weights.values()])
@@ -395,7 +382,7 @@ def main(argv = sys.argv):
 #         N_len = max([len('%d' % len(v.values)) for v in avg_weights.values()])
 #         for k, v in sorted(avg_weights.items(), key = lambda x: int(sub(r'[a-zA-Z\[\]]+', '', x[0]))):
 #             print >> sys.stdout, u'  %-*s  % *.1f \xb1 %*.1f (N = %*d)' % (name_len, k, mean_len, v.mu, std_len, v.sigma, N_len, len(v.values))
-# 
+#
 #     print >> sys.stdout, '\n'
 
     # TODO: perform patch analysis

@@ -27,6 +27,8 @@ from itertools import chain
 
 import numpy as np
 
+from mlpy import ElasticNet, GradientDescent, Lar, Lasso, RidgeRegression
+
 from _dantzig import Dantzig
 from _doubledantzig import DoubleDantzig
 from _lardantzig import LarDantzig
@@ -38,20 +40,22 @@ from _ridgelasso import RidgeLasso
 from _ridgelar import RidgeLar
 
 
-__all__ = ['Regressor']
+__all__ = ['Regressor', 'regressor_classes']
 
 
 class Regressor(object):
     DANTZIG = Dantzig
     DBLDANTZIG = DoubleDantzig
+    ELASTICNET = ElasticNet
+    LAR = Lar
     LARDANTZIG = LarDantzig
+    LASSO = Lasso
     LASSODANTZIG = LassoDantzig
     LINEARSVR = LinearSvr
+    RIDGE = RidgeRegression
     RIDGEDANTZIG = RidgeDantzig
     RIDGELAR = RidgeLar
     RIDGELASSO = RidgeLasso
-
-    __ZERO = pow(10.0, -9.0) # numerically close enough to 0.0
 
     def __init__(self, regressorcls=RidgeLar, *args, **kwargs):
 
@@ -66,10 +70,14 @@ class Regressor(object):
 
     @staticmethod
     def __normalize(x, y):
+        ZERO = pow(10.0, -9.0) # numerically close enough to 0.0
+
         nperr = np.geterr()
         np.seterr(divide='ignore')
 
         x = Regressor.__addintercept(x)
+
+        y = y.astype(float)
 
         try:
 #           if self.__method not in ('gd',):
@@ -78,7 +86,7 @@ class Regressor(object):
             # normalize y and validate
             ybar = np.mean(y)
             y -= ybar
-            assert(np.abs(np.mean(y)) < Regressor.__ZERO)
+            assert(np.abs(np.mean(y)) < ZERO)
 
             # normalize x and validate
             xbar = np.zeros(ncol, dtype=float)
@@ -86,13 +94,13 @@ class Regressor(object):
             for j in xrange(1, ncol):
                 xbar[j] = np.mean(x[:, j])
                 x[:, j] -= xbar[j]
-                assert(np.abs(np.mean(x[:, j])) < Regressor.__ZERO)
+                assert(np.abs(np.mean(x[:, j])) < ZERO)
 #               if self.__method not in ('ridge', 'gd'):
                 xvar[j] = np.sqrt(sum(pow(x[:, j], 2.0)))
                 if xvar[j] != 0.0:
                     x[:, j] /= xvar[j]
                     try:
-                        assert(np.abs(sum([pow(i, 2.0) for i in x[:, j]]) - 1.0) < Regressor.__ZERO)
+                        assert(np.abs(sum([pow(i, 2.0) for i in x[:, j]]) - 1.0) < ZERO)
                     except AssertionError, e:
                         print u'\u03c3: %.4g, \u03a3x\u00b2: %.4g' % (xvar[j], sum([pow(i, 2.0) for i in x[:, j]]))
         finally:
@@ -104,14 +112,15 @@ class Regressor(object):
     def __addintercept(x):
         nrow, ncol = x.shape
         ncol += 1
-        newx = np.array((nrow, ncol), dtype=x.dtype)
+        newx = np.empty((nrow, ncol), dtype=float)
+        newx[:, 0 ] = 1
         newx[:, 1:] = x
         return newx
 
     @staticmethod
     def __normalize_for_predict(x, xbar, xvar):
         nperr = np.seterr(divide='ignore')
-        
+
         x = Regressor.__addintercept(x)
 
         ncol = x.shape[1]
@@ -129,13 +138,11 @@ class Regressor(object):
 
         return x
 
-    @property
     def intercept(self):
         if not self.__learned:
             raise RuntimeError('No regression model computed')
         return self.__regressor.beta()[0]
 
-    @property
     def weights(self):
         if not self.__learned:
             raise RuntimeError('No regression model computed')
@@ -143,7 +150,6 @@ class Regressor(object):
         # ignore the y-intercept
         return beta[1:]
 
-    @property
     def selected(self):
         if not self.__learned:
             raise RuntimeError('No regression model computed')
@@ -164,7 +170,7 @@ class Regressor(object):
 
 #     def test(self, data):
 #         nperr = np.seterr(divide='ignore')
-# 
+#
 #         if not self.__learned:
 #             Regressor.learn(self)
 #         x, y = Regressor.__smldata_to_xy(data)
@@ -179,9 +185,9 @@ class Regressor(object):
 #         mse = sse / (nless1 - p) # count the the full N
 #         rmse = np.sqrt(mse)
 #         rbar2 = 1.0 - (1.0 - r2) * nless1 / (nless1 - p)
-# 
+#
 #         np.seterr(**nperr)
-# 
+#
 #         return {
 #             u'R\u0304\u00b2   ': rbar2,
 #             u'R\u00b2   ': r2,
@@ -189,3 +195,18 @@ class Regressor(object):
 #             # u'MSE  ': mse,
 #             u'RMSE ': rmse,
 #         }
+
+regressor_classes = {
+    'dantzig': Regressor.DANTZIG,
+    'doubledantzig': Regressor.DBLDANTZIG,
+    'elasticnet': Regressor.ELASTICNET,
+    'lar': Regressor.LAR,
+    'lardantzig': Regressor.LARDANTZIG,
+    'lasso': Regressor.LASSO,
+    'lassodantzig': Regressor.LASSODANTZIG,
+    'linearsvr': Regressor.LINEARSVR,
+    'ridge': Regressor.RIDGE,
+    'ridgedantzig': Regressor.RIDGEDANTZIG,
+    'ridgelar': Regressor.RIDGELAR,
+    'ridgelasso': Regressor.RIDGELASSO
+}

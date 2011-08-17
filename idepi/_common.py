@@ -1,8 +1,9 @@
 
 from os import close, remove, rename
+from os.path import exists
 from tempfile import mkstemp
 
-from Bio import SeqIO
+from Bio import AlignIO, SeqIO
 
 from _hmmer import Hmmer
 from _simulation import Simulation
@@ -66,17 +67,17 @@ def generate_alignment_from_SeqRecords(seq_records, filename, opts):
         remove(hmm_filename)
 
 def generate_alignment(seqrecords, filename, opts):
-    if not exists(filename) and opts.SIM == Simulation.DUMB:
+    if hasattr(opts, 'SIM') and opts.SIM == Simulation.DUMB:
+        # we're assuming pre-aligned because they're all generated from the same refseq
+        fh = open(filename, 'w')
+        SeqIO.write(seqrecords, fh, 'stockholm')
+        fh.close()
+    elif not exists(filename):
         generate_alignment_from_SeqRecords(
             seqrecords,
             opts,
             filename
         )
-    elif opts.SIM == Simulation.DUMB:
-        # we're assuming pre-aligned because they're all generated from the same refseq
-        fh = open(filename, 'w')
-        SeqIO.write(seqrecords, fh, 'stockholm')
-        fh.close()
 
     with open(filename) as fh:
         alignment = AlignIO.read(fh, 'stockholm')

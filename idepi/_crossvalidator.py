@@ -117,10 +117,10 @@ class CrossValidator(object):
             # do this after both learning and prediction just in case either performs some necessary computation
             if extra is not None:
                 if isinstance(extra, str):
-                    xtra.append(getattr(classifier, extra)())
+                    xtra.append(apply(getattr(classifier, extra),))
                 elif isinstance(extra, FunctionType):
-                    xtra.append(extra(classifier))
-                
+                    xtra.append(apply(extra, (classifier,)))
+
             weights = None
             if self.mode == CrossValidator.CONTINUOUS:
                 try:
