@@ -5,7 +5,7 @@
 # and utilities to help identify neutralizing antibody epitopes via machine
 # learning.
 #
-# Copyright (C) 2011 N Lance Hepler <nlhepler@gmail.com> 
+# Copyright (C) 2011 N Lance Hepler <nlhepler@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -44,7 +44,7 @@ __COLORS = {
 # LYS,ARG blue
     'K': 'rgb(20,90,255)',
     'R': 'rgb(20,90,255)',
-# SER,THR orange 
+# SER,THR orange
     'S': 'rgb(250,150,0)',
     'T': 'rgb(250,150,0)',
 # PHE,TYR mid blue
@@ -141,7 +141,7 @@ class Logo(object):
                 if m:
                     assert(m.group(1) in ret)
                     ret[m.group(1)].append((m.group(2), sum([i for i in stats if i > 0]), sum([i for i in stats if i < 0])))
-        self.seq = ret 
+        self.seq = ret
         return ret
 
     def draw_column(self, x_off, idx):
@@ -167,7 +167,7 @@ class Logo(object):
             l = pil.Image.new('RGBA', (width, height))
             d = pil.ImageDraw.Draw(l)
             d.setfont(self.font)
-            d.text((0, 0), letter, fill=__COLORS[letter]) 
+            d.text((0, 0), letter, fill=__COLORS[letter])
             height = floor(2. * height * val / self.folds)
             l.resize((width, height), pil.Image.ANTIALIAS)
             self.image.paste(l, (x_off, y_off))
@@ -200,5 +200,5 @@ class Logo(object):
         self.font = font
         indices = sorted(Logo.sequence(self).items(), key=AlphIndex)
         for i in xrange(len(indices)):
-            Logo.draw_column(self, char_width * i + self.margin, indices[i]) 
+            Logo.draw_column(self, char_width * i + self.margin, indices[i])
         self.image.save(filename)

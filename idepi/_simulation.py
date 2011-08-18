@@ -55,8 +55,8 @@ class Simulation(object):
     TARGET = 1
     EPITOPE = 2
     DUMB = 3
-    
-    VALUES = (0, 1, 2, 3) 
+
+    VALUES = (0, 1, 2, 3)
 
 
 class BaseSimulation(Simulation):
@@ -72,14 +72,14 @@ class BaseSimulation(Simulation):
 
         if not seq_table.loaded:
             seq_table.fill_columns()
-    
+
         alphdict, alphnames = alphabet.dict(), alphabet.names()
         alphabet_len = len(set(alphdict.values()))
         positions = {}
-    
+
         if size > 0.2 * seq_table.num_columns:
             raise RuntimeError('we do not suggest or support simulated epitopes larger than 20% of your alignment length')
-    
+
         # generate a approximately uniformly random epitope from the available nucleotides at each position (ensure that existing sequences match the epitope)
         while len(positions) < size:
             # only grab as many new positions as we need (size - len(positions))
@@ -105,12 +105,12 @@ class BaseSimulation(Simulation):
                     # if cdf > r_:
                         # positions[i] = j[0]
                         # break
-    
+
         # this formula should generate the correct position names for the epitope
         position_names = [column_names[k * alphabet_len + alphnames.index(v)] for k, v in positions.items()]
-    
+
         epi_def = SimulatedEpitope(positions, position_names, alphabet, kernel_func)
-   
+
         assign_class_by_percentile(seq_table, epi_def, percentile)
 
         return epi_def
@@ -121,17 +121,17 @@ class BaseSimulation(Simulation):
 
 class DumbSimulation(BaseSimulation):
 
-    def __init__(self, mode, runs, refseq): 
+    def __init__(self, mode, runs, refseq):
         self.__refseq = refseq
         super(DumbSimulation, self).__init__(mode, runs)
 
-    def generate_sequences(self, N, idfmt, noise, mutation_rate, alphabet):  
-        return DumbRandomSequences(self.__refseq, N=N, idfmt=idfmt, noise=noise, rate=mutation_rate, alphabet=alphabet) 
+    def generate_sequences(self, N, idfmt, noise, mutation_rate, alphabet):
+        return DumbRandomSequences(self.__refseq, N=N, idfmt=idfmt, noise=noise, rate=mutation_rate, alphabet=alphabet)
 
 
 class MarkovSimulation(BaseSimulation):
 
-    def __init__(self, mode, runs, refmsa): 
+    def __init__(self, mode, runs, refmsa):
         self.__refmsa = refmsa
         super(MarkovSimulation, self).__init__(mode, runs)
 

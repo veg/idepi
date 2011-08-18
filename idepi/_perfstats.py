@@ -123,8 +123,8 @@ class PerfStats(object):
 
     def get(self, stat):
         if self.mode == PerfStats.CONTINUOUS:
-            if stat == PerfStats.RMSD:
-                return self.rmsd
+            if stat == PerfStats.RMSE:
+                return self.rmse
             else:
                 pass
         else: # PerfStats.DISCRETE

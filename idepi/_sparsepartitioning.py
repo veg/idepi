@@ -5,7 +5,7 @@
 # and utilities to help identify neutralizing antibody epitopes via machine
 # learning.
 #
-# Copyright (C) 2011 N Lance Hepler <nlhepler@gmail.com> 
+# Copyright (C) 2011 N Lance Hepler <nlhepler@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -34,7 +34,7 @@ from types import IntType, FloatType
 from _smldata import SmlData
 
 
-__all__ = ['SpDeterministicFeature', 'SpDeterministicModel', 'SpMcmcFeature', 'SpMcmcPair', 'SpMcmcModel', 'SparsePartitioning'] 
+__all__ = ['SpDeterministicFeature', 'SpDeterministicModel', 'SpMcmcFeature', 'SpMcmcPair', 'SpMcmcModel', 'SparsePartitioning']
 
 
 class SpDeterministicFeature(object):
@@ -136,7 +136,7 @@ class SparsePartitioning(object):
         'spshared.txt',
         'spsize.txt'
     )
-    
+
     __POSITIVE_INTEGER = lambda x: type(x) is IntType and x > 0
     __POSITIVE_FLOAT = lambda x: type(x) in (IntType, FloatType) and x > 0.
 
@@ -322,7 +322,7 @@ class SparsePartitioning(object):
                 # use a -1 to 0-index things
                 predidxs = [int(p) - 1 for p in predidxs]
                 features = [SpDeterministicFeature(i, self.feature_names[i]) for i in predidxs]
-                lastmodel = SpDeterministicModel(response, features) 
+                lastmodel = SpDeterministicModel(response, features)
             fh.close()
             fh = open(join(self.dirname, 'detsteps.txt'))
             for line in fh:
@@ -356,6 +356,6 @@ class SparsePartitioning(object):
                 pairs.append(SpMcmcPair([features[idx1-1], features[idx2-1]], post, response))
             fh.close()
             finalmodel = SpMcmcModel(sorted(features, key=lambda x: x.post, reverse=True),
-                                     sorted(pairs, key=lambda x: x.post, reverse=True)) 
+                                     sorted(pairs, key=lambda x: x.post, reverse=True))
         self.model = finalmodel
         return self.model

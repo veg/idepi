@@ -5,7 +5,7 @@
 # and utilities to help identify neutralizing antibody epitopes via machine
 # learning.
 #
-# Copyright (C) 2011 N Lance Hepler <nlhepler@gmail.com> 
+# Copyright (C) 2011 N Lance Hepler <nlhepler@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -39,7 +39,7 @@ from Bio.SeqRecord import SeqRecord
 from Bio.Alphabet import generic_protein
 
 
-__all__ = ['DumbRandomSequences', 'MarkovRandomSequences'] 
+__all__ = ['DumbRandomSequences', 'MarkovRandomSequences']
 
 __NAME = None
 __GAP_CHARS = ('.', '_', '-', '=', 'x', 'X')
@@ -124,17 +124,17 @@ def seqrecords_to_alignment(seqrecords):
 
 
 def DumbRandomSequences(base_seq, N=1, consensus=False, gaps=False, opts={}, idfmt='', noise=0., rate=0., alphabet=None):
-    
+
     if len(opts) == 0:
         opts['N'] = (IntType, N)
         opts['c'] = consensus
         opts['g'] = gaps
-    
+
     if alphabet is not None:
         alphabet = [a for a in alphabet if a not in ('X', '-')]
 
     seqrecords = []
-        
+
     for n in xrange(opts['N'][1]):
         seq = [i for i in base_seq]
         if rate > 0.:
@@ -144,8 +144,8 @@ def DumbRandomSequences(base_seq, N=1, consensus=False, gaps=False, opts={}, idf
                     while c == seq[p]:
                         c = alphabet[randint(0, len(alphabet) - 1)]
                     seq[p] = c
-        seq_str = ''.join(seq) 
-        
+        seq_str = ''.join(seq)
+
         # hopefully we won't need this, like, at all
         if opts['g']:
             trim_chars = (' ')
@@ -256,7 +256,7 @@ def MarkovRandomSequences(file, N=1, consensus=False, gaps=False, opts={}, idfmt
         # seq_str = '\n'.join(['%s' % ''.join(seq[i:i+80]) for i in xrange(len(seq), 80)])
         seq_id = idfmt % ('sample-%i' % (n + 1), gauss(0, noise))
         seqrecords.append(SeqRecord(Seq(seq_str, generic_protein), id=seq_id, name=seq_id))
-   
+
     alignment = seqrecords_to_alignment(seqrecords)
 
     return alignment

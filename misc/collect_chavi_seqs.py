@@ -135,7 +135,7 @@ for record in records:
             pass
     if start == -1 or end == -1:
         print record
-        sys.exit(-1) 
+        sys.exit(-1)
     seq = record['GBSeq_sequence'].upper()[start:end]
     if id in accessions:
         subtype = accessions[id][1]

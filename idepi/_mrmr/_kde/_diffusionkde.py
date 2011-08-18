@@ -174,7 +174,7 @@ class DiffusionKde(object):
 
         self.__bandwidth = bandwidth
         self.__mesh = mesh
-        self.__pdf = density / cdf[-1] 
+        self.__pdf = density / cdf[-1]
         self.__cdf = cdf / cdf[-1]
         self.__bandwidth_cdf = bandwidth_cdf
         self.__dx = dx

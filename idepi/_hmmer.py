@@ -5,7 +5,7 @@
 # and utilities to help identify neutralizing antibody epitopes via machine
 # learning.
 #
-# Copyright (C) 2011 N Lance Hepler <nlhepler@gmail.com> 
+# Copyright (C) 2011 N Lance Hepler <nlhepler@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -40,7 +40,7 @@ class Hmmer(object):
     def __init__(self, alignbin='hmmalign', buildbin='hmmbuild'):
         self.__alignbin = alignbin
         self.__buildbin = buildbin
-       
+
         for bin in (self.__alignbin, self.__buildbin):
             ex = False
             if exists(self.__alignbin):
@@ -53,7 +53,7 @@ class Hmmer(object):
                 raise StandardError('Executable %s not found.' % bin)
 
     def align(self, hmmfile, seqfile, output=None, allcol=False, mapali=None, trim=False, alphabet=None, informat=None, outformat=None):
-    
+
         if alphabet is None:
             alphabet = Hmmer.AMINO
         if informat is None:
@@ -104,7 +104,7 @@ class Hmmer(object):
 
         if proc.returncode is not 0:
             return RuntimeError(err)
-            
+
         if output is None:
             return out
 

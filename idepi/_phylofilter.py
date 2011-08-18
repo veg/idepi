@@ -106,7 +106,7 @@ class PhyloFilter(BaseFilter):
         data = tmp[:, idxs]
 
 #         data = np.zeros((mat.mRows, ncol - len(ignore_idxs)), dtype=float)
-# 
+#
 #         j = 0
 #         for i in xrange(ncol):
 #             if i in ignore_idxs:
@@ -135,7 +135,7 @@ class PhyloFilter(BaseFilter):
 #         if not self.__run:
 #             raise RuntimeError('No phylofiltering model computed')
 #         return self.__data
-# 
+#
 #     @property
 #     def colnames(self):
 #         if not self.__run:

@@ -5,7 +5,7 @@
 # and utilities to help identify neutralizing antibody epitopes via machine
 # learning.
 #
-# Copyright (C) 2011 N Lance Hepler <nlhepler@gmail.com> 
+# Copyright (C) 2011 N Lance Hepler <nlhepler@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -53,7 +53,7 @@ class GridSearcher(CrossValidator):
     def gridsearch(self, x, y, cv={}, extra=None):
         if extra is not None:
             if not isinstance(extra, str) and not isinstance(extra, FunctionType):
-                raise ValueError('the `extra\' argument takes either a string or a function.') 
+                raise ValueError('the `extra\' argument takes either a string or a function.')
 
         ret = { 'stats': PerfStats() }
 
@@ -81,11 +81,11 @@ class GridSearcher(CrossValidator):
                     r = GridSearcher.crossvalidate(self, x, y, cv=cv)
                     if r['stats'].get(self.optstat) > ret['stats'].get(self.optstat):
                         ret = r
-                        bestparams = deepcopy(cv) 
+                        bestparams = deepcopy(cv)
             kwargs = deepcopy(self.cv)
             for k, v in bestparams.items():
                 kwargs[k] = v
-            ret['kwargs'] = kwargs 
+            ret['kwargs'] = kwargs
         else:
             raise ValueError('We only support up to a 2D grid search at this time')
 
@@ -99,7 +99,7 @@ class GridSearcher(CrossValidator):
     def learn(self, x, y):
         gsret = GridSearcher.gridsearch(self, x, y)
 
-        # print 'gridsearch stats:', gsret['stats'] 
+        # print 'gridsearch stats:', gsret['stats']
         # print 'optimum parameters:', gsret['kwargs']
 
         self.classifier = self.classifiercls(**gsret['kwargs'])

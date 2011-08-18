@@ -12,7 +12,7 @@ class SimulatedEpitope(object):
     def __init__(self, positions, position_names, alphabet, kernel_func=None):
         self.positions = positions
         self.names = position_names
-        self.alphabet = alphabet 
+        self.alphabet = alphabet
         # default to a uniform linear kernel
         if kernel_func is None:
             self.kernel_func = lambda x, n: clamp(1. * x / len(positions) + n)

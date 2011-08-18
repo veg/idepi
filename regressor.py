@@ -45,7 +45,7 @@ from Bio.SeqRecord import SeqRecord
 from idepi import Alphabet, ClassExtractor, CrossValidator, NaiveFilter, PhyloFilter, Regressor, \
                   collect_AbRecords_from_db, cv_results_to_output, generate_alignment, \
                   get_valid_antibodies_from_db, get_valid_subtypes_from_db, id_to_float, is_HXB2, \
-                  regressor_classes, set_util_params
+                  regressor_classes, pretty_fmt_results, set_util_params
 
 __version__ = 0.5
 
@@ -372,7 +372,7 @@ def main(argv = sys.argv):
 
     ret = cv_results_to_output(results, colnames)
 
-    print ret
+    print pretty_fmt_results(ret)
 
 #     mean_len = max([len('%.3f' % v.mu) for v in avg_stats.values()])
 #     std_len = max([len('%.3f' % v.sigma) for v in avg_stats.values()])

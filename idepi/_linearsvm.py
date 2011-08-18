@@ -5,7 +5,7 @@
 # and utilities to help identify neutralizing antibody epitopes via machine
 # learning.
 #
-# Copyright (C) 2011 N Lance Hepler <nlhepler@gmail.com> 
+# Copyright (C) 2011 N Lance Hepler <nlhepler@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -55,7 +55,7 @@ class LinearSvm(object):
         self.__computed = True
         if ret is not None:
             return ret
-   
+
     def predict(self, x):
         return self.__lsvm.pred(x.astype(float))
 
@@ -112,7 +112,7 @@ class LinearSvmModel(object):
             except ValueError:
                 print >> stderr, 'ERROR: broken SVM model, skipping line \'%s\'' % line
                 with open(self.__modelfile) as fh:
-                    print >> stderr, fh.read() 
+                    print >> stderr, fh.read()
                 raise ValueError
 
             if mode == 'SV':

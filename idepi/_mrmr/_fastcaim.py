@@ -158,17 +158,17 @@ class FastCaim(object):
                 newx[:, i] += (x[:, i] > b[j])
 
 #         pool = mp.Pool(mp.cpu_count())
-# 
+#
 #         res = []
-# 
+#
 #         # I don't usher everything around in result objects because
 #         # these columns are accessed independently of one another ... I hope
 #         for i in xrange(newx.shape[1]):
 #             res.append(pool.apply_async(_discretize, (x[:, i], self.__boundaries[i])))
-# 
+#
 #         pool.close()
 #         pool.join()
-# 
+#
 #         for i in xrange(newx.shape[1]):
 #             newx[:, i] = res[i].get()
 

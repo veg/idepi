@@ -1,10 +1,12 @@
 
 from math import copysign, sqrt
+from operator import itemgetter
 from os import close, remove, rename
 from os.path import exists
 from re import sub
-from sys import stderr
+from sys import stderr, stdout
 from tempfile import mkstemp
+from unicodedata import combining
 
 from Bio import AlignIO, SeqIO
 
@@ -16,7 +18,10 @@ from _simulation import Simulation
 __all__ = [
     'cv_results_to_output',
     'generate_alignment_from_SeqRecords',
-    'generate_alignment'
+    'generate_alignment',
+    'pretty_fmt_results',
+    'pretty_fmt_stats',
+    'pretty_fmt_weights'
 ]
 
 
@@ -122,3 +127,51 @@ def cv_results_to_output(results, colnames):
 
     return ret
 
+def pretty_fmt_stats(stats, ident=0):
+    prefix = u' ' * 2 * ident
+
+    buf = prefix
+
+    buf += '"statistics": {\n'
+
+    stat_prefixes = {}
+    for k in stats.keys():
+        stat_prefixes[k] = sum([1 for c in k if combining(c) == 0])
+
+    stat_len = max(stat_prefixes.values())
+    mean_len = max([len('%.6f' % v['mean']) for v in stats.values()])
+    std_len = max([len('%.6f' % v['std']) for v in stats.values()])
+    fmt = u'{ "mean": %%%d.6f, "std": %%%d.6f }' % (mean_len, std_len)
+    output = [prefix + u'  %s%s %s' % (
+        u'"%s":' % k,
+        u' ' * (stat_len - stat_prefixes[k]),
+        fmt % (v['mean'], v['std'])
+    ) for k, v in sorted(stats.items(), key=itemgetter(0))]
+
+    return buf + ',\n'.join(output) + '\n' + prefix + '}'
+
+def pretty_fmt_weights(weights, ident=0):
+    prefix = u' ' * 2 * ident
+
+    buf = prefix + '"weights": [\n'
+
+    if len(weights) > 0:
+        name_len = max([len(v['position']) for v in weights]) + 3
+        mean_len = max([len('% .6f' % v['value']['mean']) for v in weights])
+        std_len = max([len('%.6f' % v['value']['std']) for v in weights])
+        N_len = max([len('%d' % v['value']['N']) for v in weights])
+        fmt = u'{ "mean": %%%d.6f, "std": %%%d.6f, "N": %%%dd }' % (mean_len, std_len, N_len)
+        output = [prefix + u'  { "position": %-*s "value": %s }' % (
+            name_len, u'"%s",' % v['position'],
+            fmt % (
+                v['value']['mean'],
+                v['value']['std'],
+                v['value']['N']
+            ),
+        ) for v in sorted(weights, key=lambda x: int(sub(r'[a-zA-Z\[\]]+', '', x['position'])))]
+
+    return buf + ',\n'.join(output) + '\n' + prefix + ']'
+
+def pretty_fmt_results(ret):
+    return '{\n' + pretty_fmt_stats(ret['statistics'], 1) + \
+           ',\n' + pretty_fmt_weights(ret['weights'], 1) + '\n}'

@@ -4,19 +4,19 @@
 # cross-validation, grid-search, and maximum-relevance/mRMR feature selection)
 # and utilities to help identify neutralizing antibody epitopes via machine
 # learning.
-# 
-# Copyright (C) 2011 N Lance Hepler <nlhepler@gmail.com> 
-# 
+#
+# Copyright (C) 2011 N Lance Hepler <nlhepler@gmail.com>
+#
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License along
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
@@ -56,16 +56,16 @@ class Dantzig(object):
 
     @classmethod
     def __linearoptim(cls, x, y, sigma):
-        # save default numpy errors 
+        # save default numpy errors
         nperr = np.geterr()
-        
+
         np.seterr(divide='ignore')
 
         # silence the LP solvers
         co_solvers.options['show_progress'] = False
         co_solvers.options['LPX_K_MSGLEV'] = 0
         co_solvers.options['MOSEK'] = {'mosek.iparam.log': 0}
-        
+
         # the following options are for GLPK and are taken from http://www.maximal-usa.com/solvers/glpk.html
         # they should enhance performance for our large problems
         co_solvers.options['LPX_K_DUAL'] = 1 # use the dual simplex method with glpk because we likely have large problems
@@ -107,7 +107,7 @@ class Dantzig(object):
         np.seterr(**nperr)
 
         # reset to defaults
-        co_solvers.options.clear()   
+        co_solvers.options.clear()
 
         return sol[:ncol] - sol[-ncol:]
 
@@ -166,7 +166,7 @@ class Dantzig(object):
         self.__L = l
         self.__beta = beta_new
         self.__selected = [i for i in xrange(ncol) if (self.__beta[i] != 0.0)]
-        
+
         np.seterr(**nperr)
 
     def beta(self):

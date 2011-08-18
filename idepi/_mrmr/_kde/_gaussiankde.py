@@ -66,7 +66,7 @@ def main():
 #     d1 = np.random.randn(100) + 5
 #     d2 = np.random.randn(100) * 2 + 35
 #     d3 = np.random.randn(100) + 55
-# 
+#
 #     data = np.concatenate((d1, d2, d3))
 
     d_3 = data[3]

@@ -45,7 +45,7 @@ from idepi import Alphabet, ClassExtractor, DiscreteMrmr, DumbSimulation, FastCa
                   NaiveFilter, NormalValue, PerfStats, PhyloFilter, SelectingNestedCrossValidator, SeqTable, \
                   Simulation, collect_AbRecords_from_db, cv_results_to_output, generate_alignment, \
                   generate_feature_names, get_valid_antibodies_from_db, get_valid_subtypes_from_db, id_to_float, \
-                  is_HXB2, set_util_params
+                  is_HXB2, pretty_fmt_results, set_util_params
 
 __version__ = 0.5
 
@@ -494,12 +494,12 @@ def main(argv = sys.argv):
     for target in OPTIONS.TARGETS:
         results = None
 
-        if sim is not None:
+        if sim is None:
             yextractor = ClassExtractor(
                 id_to_float,
                 lambda row: is_HXB2(row) or False, # TODO: again filtration function
                 lambda x: x < OPTIONS.IC50LT if target == 'lt' else x > OPTIONS.IC50GT
-            ) 
+            )
             y = yextractor.extract(alignment)
 
         # simulations, ho!
@@ -581,37 +581,7 @@ def main(argv = sys.argv):
 
         ret = cv_results_to_output(results, colnames)
 
-        print >> sys.stdout, '{\n  "statistics": {'#  % OPTIONS.CV_FOLDS
-
-        stat_len = max([len(k) for k in ret['statistics'].keys()]) + 3
-        mean_len = max([len('%.6f' % v['mean']) for v in ret['statistics'].values()])
-        std_len = max([len('%.6f' % v['std']) for v in ret['statistics'].values()])
-        fmt = u'{ "mean": %%%d.6f, "std": %%%d.6f }' % (mean_len, std_len)
-        output = [u'    %-*s %s' % (
-            stat_len, '"%s":' % k,
-            fmt % (v['mean'], v['std'])
-        ) for k, v in sorted(ret['statistics'].items(), key=itemgetter(0))]
-        print >> sys.stdout, ',\n'.join(output)
-
-        print >> sys.stdout, '  },\n  "weights": ['
-
-        if len(ret['weights']) > 0:
-            name_len = max([len(v['position']) for v in ret['weights']]) + 3
-            mean_len = max([len('% .6f' % v['value']['mean']) for v in ret['weights']])
-            std_len = max([len('%.6f' % v['value']['std']) for v in ret['weights']])
-            N_len = max([len('%d' % v['value']['N']) for v in ret['weights']])
-            fmt = u'{ "mean": %%%d.6f, "std": %%%d.6f, "N": %%%dd }' % (mean_len, std_len, N_len)
-            output = [u'    { "position": %-*s "value": %s }' % (
-                name_len, u'"%s",' % v['position'],
-                fmt % (
-                    v['value']['mean'],
-                    v['value']['std'],
-                    v['value']['N']
-                ),
-            ) for v in sorted(ret['weights'], key=lambda x: int(sub(r'[a-zA-Z\[\]]+', '', x['position'])))]
-            print >> sys.stdout, ',\n'.join(output)
-
-        print >> sys.stdout, '  ]\n}'
+        print pretty_fmt_results(ret)
 
     return 0
 

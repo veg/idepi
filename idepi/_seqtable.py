@@ -113,7 +113,7 @@ class SeqTable(object):
         if self.__mask is None or len(self.__mask) == 0:
             # this is tricky, so try to follow: keep everything not in skip indices, but add back in the refseqs
             return [self.__alignment[i] for i in self.__keep] + [self.__alignment[i] for i in sorted(self.__ref_id)]
-            # this one is even trickier: keep everything that isn't in the current mask or skip indices, but add back in the refseqs 
+            # this one is even trickier: keep everything that isn't in the current mask or skip indices, but add back in the refseqs
         return [self.__alignment[i] for i in self.__keep if self.__rowlabels[i] not in self.__mask] + \
                [self.__alignment[i] for i in sorted(self.__ref_id)]
 
