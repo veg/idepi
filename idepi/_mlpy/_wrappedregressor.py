@@ -44,8 +44,8 @@ class WrappedRegressor(object):
                     k = k[:-1]
                 kwargs1[k] = v
 
-        self.__first = selectorcls(**kwargs0)
-        self.__second = regressorcls(**kwargs1)
+        self.__selector = selectorcls(**kwargs0)
+        self.__regressor = regressorcls(**kwargs1)
         self.__beta0 = None
         self.__beta = None
         self.__idxs = None
@@ -63,23 +63,23 @@ class WrappedRegressor(object):
         if x.shape[0] != y.shape[0]:
             raise ValueError("x and y are not aligned")
 
-        self.__first.learn(x, y)
-        self.__beta0 = self.__first.beta()
+        self.__selector.learn(x, y)
+        self.__beta0 = self.__selector.beta()
 
-        self.__idxs = []
-        for i in xrange(len(self.__beta0)):
+        self.__idxs = [0]
+        for i in xrange(1, len(self.__beta0)):
             if self.__beta0[i] != 0.0:
                 self.__idxs.append(i)
         x = x[:, self.__idxs]
 
-        self.__second.learn(x, y)
+        self.__regressor.learn(x, y)
 
         # reconstruct the full beta
-        beta = np.zeros(len(self.__beta0))
-        beta_ = self.__second.beta()
-        for i in xrange(len(self.__idxs)):
-            beta[self.__idxs[i]] = beta_[i]
-        self.__beta = beta
+#         beta = np.zeros(len(self.__beta0))
+#         beta_ = self.__regressor.beta()
+#         for i in xrange(len(self.__idxs)):
+#             beta[self.__idxs[i]] = beta_[i]
+        self.__beta = self.__regressor.beta()
 
     def beta0(self):
         return np.copy(self.__beta0)
@@ -89,13 +89,13 @@ class WrappedRegressor(object):
 
     def pred(self, x):
         x = x[:, self.__idxs]
-        return self.__second.pred(x)
+        return self.__regressor.pred(x)
 
     def selected(self):
-        return self.__second.selected()
+        return np.copy(self.__idxs)
 
     def steps(self):
-        if 'steps' in dir(self.__second):
-            return self.__second.steps()
-        warn('%s has no method `steps()\'' % self.__second.__class__.__name__)
+        if 'steps' in dir(self.__regressor):
+            return self.__regressor.steps()
+        warn('%s has no method `steps()\'' % self.__regressor.__class__.__name__)
         return None

@@ -41,7 +41,7 @@ class PerfStats(object):
     SPECIFICITY, TNR    = 4, 4
     FSCORE              = 5
     MINSTAT             = 6
-    
+
     RBARSQUARED         = 7
     RSQUARED            = 8
     RMSE                = 9
@@ -49,7 +49,7 @@ class PerfStats(object):
     def __init__(self, mode=None):
         if mode is None:
             mode = PerfStats.DISCRETE
-        
+
         if mode not in (PerfStats.CONTINUOUS, PerfStats.DISCRETE):
             raise RuntimeError('PerfStat mode must be one of either PerfStats.CONTINUOUS or PerfStats.DISCRETE')
 
@@ -178,5 +178,11 @@ class PerfStats(object):
 
         return tp, tn, fp, fn
 
+    def __repr__(self):
+        return repr(PerfStats.todict(self))
+
     def __str__(self):
         return str(PerfStats.todict(self))
+
+    def __unicode__(self):
+        return unicode(PerfStats.todict(self))

@@ -43,8 +43,9 @@ from Bio.SeqRecord import SeqRecord
 
 from idepi import Alphabet, ClassExtractor, DiscreteMrmr, DumbSimulation, FastCaimMrmr, LinearSvm, MarkovSimulation, \
                   NaiveFilter, NormalValue, PerfStats, PhyloFilter, SelectingNestedCrossValidator, SeqTable, \
-                  Simulation, collect_AbRecords_from_db, generate_alignment, generate_feature_names, \
-                  get_valid_antibodies_from_db, get_valid_subtypes_from_db, id_to_float, is_HXB2, set_util_params
+                  Simulation, collect_AbRecords_from_db, cv_results_to_output, generate_alignment, \
+                  generate_feature_names, get_valid_antibodies_from_db, get_valid_subtypes_from_db, id_to_float, \
+                  is_HXB2, set_util_params
 
 __version__ = 0.5
 
@@ -578,34 +579,7 @@ def main(argv = sys.argv):
 #         else:
 #             fmt = ('%d-run ' % OPTIONS.SIM_RUNS, OPTIONS.CV_FOLDS, ' per run')
 
-        statsdict = results['stats'].todict()
-
-        featureweights = {}
-        for i in xrange(len(results['extra'])):
-            assert(len(results['extra'][i]['features']) >= len(results['extra'][i]['weights']))
-            for j in xrange(len(results['extra'][i]['features'])):
-                v = results['extra'][i]['weights'][j] if j < len(results['extra'][i]['weights']) else 0.
-                k = results['extra'][i]['features'][j]
-                if k not in featureweights:
-                    featureweights[k] = []
-                featureweights[k].append(int(copysign(1, v)))
-
-        weightsdict = {}
-        for idx, weights in featureweights.items():
-            val = NormalValue(int, weights)
-            weightsdict[colnames[idx]] = val
-
-        # remove minstat 'cause we don't want it here..
-        if 'Minstat' in statsdict:
-            del statsdict['Minstat']
-
-        ret = {}
-
-        ret['statistics'] = dict([(k.lower(), { 'mean': v.mu, 'std': sqrt(v.sigma) }) for k, v in statsdict.items()])
-        ret['weights'] = [{ 'position': k, 'value': { 'mean': v.mu, 'std': sqrt(v.sigma), 'N': len(v) } } for k, v in sorted(
-            weightsdict.items(),
-            key=lambda x: int(sub(r'[a-zA-Z\[\]]+', '', x[0]))
-        )]
+        ret = cv_results_to_output(results, colnames)
 
         print >> sys.stdout, '{\n  "statistics": {'#  % OPTIONS.CV_FOLDS
 

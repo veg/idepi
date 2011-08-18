@@ -57,10 +57,13 @@ class Regressor(object):
     RIDGELAR = RidgeLar
     RIDGELASSO = RidgeLasso
 
-    def __init__(self, regressorcls=RidgeLar, *args, **kwargs):
+    def __init__(self, regressorcls=RidgeLar, logspace=False, *args, **kwargs):
 
         self.__regressor = regressorcls(*args, **kwargs)
         self.__learned = False
+        self.__logspace = logspace
+
+        assert(np.log(np.exp(1)) == 1.)
 
         # define the normalization constants
         # define these here to make pylint be quiet
@@ -77,7 +80,8 @@ class Regressor(object):
 
         x = Regressor.__addintercept(x)
 
-        y = y.astype(float)
+        # shouldn't be necessary
+        # y = y.astype(float)
 
         try:
 #           if self.__method not in ('gd',):
@@ -153,11 +157,16 @@ class Regressor(object):
     def selected(self):
         if not self.__learned:
             raise RuntimeError('No regression model computed')
-        selected = self.__regressor.selected()
         # -1 refers removes the y-intercept
+        selected = self.__regressor.selected()
         return np.array([s - 1 for s in selected])
 
     def learn(self, x, y):
+#         if np.any(y == 1.):
+#             print >> stderr, 'Cannot perform logspace conversion, divide by zeros will result. Falling back to non-logspace regression.'
+#             self.__logspace = False
+        if self.__logspace:
+            y = np.log(y)
         x, y, self.__xbar, self.__xvar, self.__ybar = Regressor.__normalize(x, y)
         self.__regressor.learn(x, y)
         self.__learned = True
@@ -166,7 +175,10 @@ class Regressor(object):
         if not self.__learned:
             raise RuntimeError('No regression model computed')
         x = Regressor.__normalize_for_predict(x, self.__xbar, self.__xvar)
-        return self.__regressor.pred(x)
+        y = self.__regressor.pred(x) + self.__ybar
+        if self.__logspace:
+            y = np.exp(y)
+        return y
 
 #     def test(self, data):
 #         nperr = np.seterr(divide='ignore')

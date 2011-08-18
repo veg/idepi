@@ -43,9 +43,9 @@ from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
 from idepi import Alphabet, ClassExtractor, CrossValidator, NaiveFilter, PhyloFilter, Regressor, \
-                  collect_AbRecords_from_db, generate_alignment, get_valid_antibodies_from_db, \
-                  get_valid_subtypes_from_db, id_to_float, is_HXB2, regressor_classes, \
-                  set_util_params
+                  collect_AbRecords_from_db, cv_results_to_output, generate_alignment, \
+                  get_valid_antibodies_from_db, get_valid_subtypes_from_db, id_to_float, is_HXB2, \
+                  regressor_classes, set_util_params
 
 __version__ = 0.5
 
@@ -130,11 +130,12 @@ def setup_option_parser():
     parser.add_option('--test',         action = 'store_true',                                                          dest = 'TEST')
     parser.add_option('--seed',                                                             type = 'int',               dest = 'RAND_SEED')
     parser.add_option('--phylofilt',    action = 'store_true',                                                          dest = 'PHYLOFILTER')
+    parser.add_option('--logspace',     action = 'store_true',                                                          dest = 'LOGSPACE')
 
     parser.set_defaults(HMMER_ALIGN_BIN    = join(_WORKING_DIR, 'contrib', 'hmmer-3.0', 'src', 'hmmalign'))
     parser.set_defaults(HMMER_BUILD_BIN    = join(_WORKING_DIR, 'contrib', 'hmmer-3.0', 'src', 'hmmbuild'))
     parser.set_defaults(HMMER_ITER         = 8)
-    parser.set_defaults(REGRESSOR_METHOD   = 'lar')
+    parser.set_defaults(REGRESSOR_METHOD   = 'ridgelar')
     parser.set_defaults(FILTER             = [])
     parser.set_defaults(NUM_FEATURES       = -1)
     parser.set_defaults(SUBTYPES           = [])
@@ -152,6 +153,7 @@ def setup_option_parser():
     parser.set_defaults(HXB2_IDS           = ['9629357', '9629363'])
     parser.set_defaults(RAND_SEED          = 42) # make the behavior deterministic for now
     parser.set_defaults(PHYLOFILTER        = False)
+    parser.set_defaults(LOGSPACE           = False)
 
     return parser
 
@@ -274,7 +276,13 @@ def main(argv = sys.argv):
             '\n  '.join(regressor_classes.keys())))
 
     if search(r'(?:lar|lasso)$', OPTIONS.REGRESSOR_METHOD):
+        if OPTIONS.NUM_FEATURES < 0:
+            OPTIONS.NUM_FEATURES = _DEFAULT_NUM_FEATURES
         cvopts['m'] = OPTIONS.NUM_FEATURES
+    elif OPTIONS.NUM_FEATURES > 0:
+        option_parser.error('--numfeats is a useless parameter for regression method `%s\'' % OPTIONS.REGRESSOR_METHOD)
+
+    cvopts['logspace'] = OPTIONS.LOGSPACE
 
     # validate the antibody argument, currently a hack exists to make PG9/PG16 work
     # TODO: Fix pg9/16 hax
@@ -360,7 +368,11 @@ def main(argv = sys.argv):
         mode=CrossValidator.CONTINUOUS
     )
 
-    results = crossvalidator.crossvalidate(x, y, cv={}, extra=lambda x: { 'weights': x.weights() })
+    results = crossvalidator.crossvalidate(x, y, cv={}, extra=lambda x: { 'features': x.selected(), 'weights': x.weights() })
+
+    ret = cv_results_to_output(results, colnames)
+
+    print ret
 
 #     mean_len = max([len('%.3f' % v.mu) for v in avg_stats.values()])
 #     std_len = max([len('%.3f' % v.sigma) for v in avg_stats.values()])
@@ -384,8 +396,6 @@ def main(argv = sys.argv):
 #             print >> sys.stdout, u'  %-*s  % *.1f \xb1 %*.1f (N = %*d)' % (name_len, k, mean_len, v.mu, std_len, v.sigma, N_len, len(v.values))
 #
 #     print >> sys.stdout, '\n'
-
-    # TODO: perform patch analysis
 
     return 0
 
