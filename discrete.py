@@ -186,7 +186,7 @@ def setup_option_parser():
     parser.set_defaults(STANFEL            = False)
     parser.set_defaults(CV_FOLDS           = 5)
     parser.set_defaults(LOOCV              = False)
-    parser.set_defaults(TARGETS            = ['gt', 'lt'])
+    parser.set_defaults(TARGETS            = ['gt'])
     parser.set_defaults(MAX_CONSERVATION   = 1. ) # 93.)
     parser.set_defaults(MAX_GAP_RATIO      = 0.1 ) # 93.)
     parser.set_defaults(MIN_CONSERVATION   = 1. ) # 33.)
