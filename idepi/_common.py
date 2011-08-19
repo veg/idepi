@@ -119,7 +119,7 @@ def cv_results_to_output(results, colnames):
 
     ret = {}
 
-    ret['statistics'] = dict([(k.lower(), { 'mean': v.mu, 'std': sqrt(v.sigma) }) for k, v in statsdict.items()])
+    ret['statistics'] = dict([(k, { 'mean': v.mu, 'std': sqrt(v.sigma) }) for k, v in statsdict.items()])
     ret['weights'] = [{ 'position': k, 'value': { 'mean': v.mu, 'std': sqrt(v.sigma), 'N': len(v) } } for k, v in sorted(
         weightsdict.items(),
         key=lambda x: int(sub(r'[a-zA-Z\[\]]+', '', x[0]))
