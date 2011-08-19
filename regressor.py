@@ -125,7 +125,7 @@ def setup_option_parser():
     parser.add_option('--maxgap',                                                           type = 'float',             dest = 'MAX_GAP_RATIO')
     parser.add_option('--mincon',                                                           type = 'float',             dest = 'MIN_CONSERVATION')
     parser.add_option('--neuts',                                                            type = 'string',            dest = 'NEUT_SQLITE3_DB')
-    parser.add_option('--hxb2',                                                             type = 'string',            dest = 'HXB2_FASTA')
+    parser.add_option('--hxb2',                                                             type = 'string',            dest = 'REFSEQ_FASTA')
     parser.add_option('--ids',          action = 'callback',    callback = optparse_csv,    type = 'string',            dest = 'HXB2_IDS')
     parser.add_option('--test',         action = 'store_true',                                                          dest = 'TEST')
     parser.add_option('--seed',                                                             type = 'int',               dest = 'RAND_SEED')
@@ -149,7 +149,7 @@ def setup_option_parser():
     parser.set_defaults(MAX_GAP_RATIO      = 0.1 ) # 93.)
     parser.set_defaults(MIN_CONSERVATION   = 1. ) # 33.)
     parser.set_defaults(NEUT_SQLITE3_DB    = join(_WORKING_DIR, 'res', 'allneuts.sqlite3'))
-    parser.set_defaults(HXB2_FASTA         = _HXB2_AMINO_FASTA)
+    parser.set_defaults(REFSEQ_FASTA         = _HXB2_AMINO_FASTA)
     parser.set_defaults(HXB2_IDS           = ['9629357', '9629363'])
     parser.set_defaults(RAND_SEED          = 42) # make the behavior deterministic for now
     parser.set_defaults(PHYLOFILTER        = False)
@@ -236,8 +236,8 @@ def run_tests():
 
 def fix_hxb2_fasta():
     '''If DNA mode was selected but the AMINO reference sequence is still in place, fix it'''
-    if OPTIONS.DNA == True and OPTIONS.HXB2_FASTA == _HXB2_AMINO_FASTA:
-        OPTIONS.HXB2_FASTA = _HXB2_DNA_FASTA
+    if OPTIONS.DNA == True and OPTIONS.REFSEQ_FASTA == _HXB2_AMINO_FASTA:
+        OPTIONS.REFSEQ_FASTA = _HXB2_DNA_FASTA
 
 
 def main(argv = sys.argv):
