@@ -4,6 +4,7 @@ from operator import itemgetter
 from os import close, remove, rename
 from os.path import exists
 from re import sub
+from shutil import copyfile
 from sys import stderr, stdout
 from tempfile import mkstemp
 from unicodedata import combining
@@ -70,9 +71,8 @@ def generate_alignment_from_SeqRecords(seq_records, filename, opts):
     finally:
         # cleanup these files
         if finished:
-            rename(sto_filename, filename)
-        else:
-            remove(sto_filename)
+            copyfile(sto_filename, filename)
+        remove(sto_filename)
         remove(ab_fasta_filename)
         remove(hmm_filename)
 
