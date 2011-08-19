@@ -85,8 +85,8 @@ def generate_alignment(seqrecords, filename, opts):
     elif not exists(filename):
         generate_alignment_from_SeqRecords(
             seqrecords,
-            opts,
-            filename
+            filename,
+            opts
         )
 
     with open(filename) as fh:
