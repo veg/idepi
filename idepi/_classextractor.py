@@ -12,11 +12,11 @@ class ClassExtractor(object):
         self.__efn = extract_func
         self.__sfn = skip_func
 
-    def extract(self, alignment):
-        return ClassExtractor.__extract(alignment, self.__efn, self.__sfn, self.__dfn)
+    def extract(self, alignment, count=None):
+        return ClassExtractor.__extract(alignment, count, self.__efn, self.__sfn, self.__dfn)
 
     @staticmethod
-    def __extract(alignment, extract, skip, discretize):
+    def __extract(alignment, count, extract, skip, discretize):
         if discretize is None:
             dtype = float
             discretize = lambda x: x
@@ -27,17 +27,23 @@ class ClassExtractor(object):
         if skip is None:
             skip = lambda _: False
         else:
-            for row in alignment:
-                if apply(skip, (row.id,)):
+            for i, row in enumerate(alignment):
+                if apply(skip, (row.id,)) or i > count:
                     skipped += 1
 
         i = 0
         y = zeros((len(alignment) - skipped,), dtype=dtype)
 
-        for row in alignment:
+        for j, row in enumerate(alignment):
             if apply(skip, (row.id,)):
-                continue
+                pass
             else:
                 y[i] = apply(discretize, (apply(extract, (row.id,)),))
                 i += 1
+            if j > count:
+                break
+
+        # this should be true
+        assert(j) == len(y)
+
         return y

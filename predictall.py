@@ -109,64 +109,62 @@ def setup_option_parser():
 
     parser = OptionParser(usage = '%prog [options] ANTIBODY')
 
-    #                 option             action = 'store'      callback                  type           nargs=1  dest
-    parser.add_option('--hmmalign',                                                      type='string',          dest='HMMER_ALIGN_BIN')
-    parser.add_option('--hmmbuild',                                                      type='string',          dest='HMMER_BUILD_BIN')
-    parser.add_option('--hmmiter',                                                       type='int',             dest='HMMER_ITER')
-    parser.add_option('--mrmr',          action='store_false',                                                   dest='MAXREL')
-    parser.add_option('--mrmrprog',                                                      type='string',          dest='MRMR_BIN')
-    parser.add_option('--mrmrmethod',                                                    type='string',          dest='MRMR_METHOD')
-    parser.add_option('--maxrel',        action='store_true',                                                    dest='MAXREL')
-    parser.add_option('--normalizemrmr', action='store_true',                                                    dest='MRMR_NORMALIZE')
-    parser.add_option('--filter',        action='callback',    callback=optparse_csv,    type='string',          dest='FILTER')
-    parser.add_option('--numfeats',                                                      type='int',             dest='NUM_FEATURES')
-    parser.add_option('--subtypes',      action='callback',    callback=optparse_csv,    type='string',          dest='SUBTYPES')
-    parser.add_option('--svmtrain',                                                      type='string',          dest='SVM_TRAIN_BIN')
-    parser.add_option('--svmpredict',                                                    type='string',          dest='SVM_PREDICT_BIN')
-    parser.add_option('--svmargs',       action='callback',    callback=optparse_extend, type='string', nargs=2, dest='SVM_ARGS')
-    parser.add_option('--nested',        action='store_true',                                                    dest='NESTED')
-    parser.add_option('--log2c',         action='callback',    callback=optparse_csv,    type='string',          dest='LOG2C')
-    parser.add_option('--weighting',     action='store_true',                                                    dest='WEIGHTING')
-    parser.add_option('--accuracy',      action='store_true',                                                    dest='ACCURACY')
-    parser.add_option('--ppv',           action='store_true',                                                    dest='PPV')
-    parser.add_option('--precision',     action='store_true',                                                    dest='PPV')
-    parser.add_option('--npv'     ,      action='store_true',                                                    dest='NPV')
-    parser.add_option('--sensitivity',   action='store_true',                                                    dest='SENSITIVITY')
-    parser.add_option('--recall',        action='store_true',                                                    dest='SENSITIVITY')
-    parser.add_option('--specificity',   action='store_true',                                                    dest='SPECIFICITY')
-    parser.add_option('--tnr',           action='store_true',                                                    dest='SPECIFICITY')
-    parser.add_option('--fscore',        action='store_true',                                                    dest='FSCORE')
-    parser.add_option('--amino',         action='store_true',                                                    dest='AMINO')
-    parser.add_option('--dna',           action='store_true',                                                    dest='DNA')
-    parser.add_option('--stanfel',       action='store_true',                                                    dest='STANFEL')
-    parser.add_option('--cv',                                                            type='int',             dest='CV_FOLDS')
-    parser.add_option('--loocv',         action='store_true',                                                    dest='LOOCV')
-    parser.add_option('--targets',       action='callback',    callback=optparse_csv,    type='string',          dest='TARGETS')
-    parser.add_option('--maxcon',                                                        type='float',           dest='MAX_CONSERVATION')
-    parser.add_option('--maxgap',                                                        type='float',           dest='MAX_GAP_RATIO')
-    parser.add_option('--mincon',                                                        type='float',           dest='MIN_CONSERVATION')
-    parser.add_option('--ic50gt',                                                        type='float',           dest='IC50GT')
-    parser.add_option('--ic50lt',                                                        type='float',           dest='IC50LT')
-    parser.add_option('--neuts',                                                         type='string',          dest='NEUT_SQLITE3_DB')
-    parser.add_option('--refseq',                                                        type='string',          dest='REFSEQ_FASTA')
-    parser.add_option('--ids',           action='callback',    callback=optparse_csv,    type='string',          dest='HXB2_IDS')
-    parser.add_option('--test',          action='store_true',                                                    dest='TEST')
-    parser.add_option('--sim',                                                           type='string',          dest='SIM')
-    parser.add_option('--simruns',                                                       type='int',             dest='SIM_RUNS')
-    parser.add_option('--simepisize',                                                    type='int',             dest='SIM_EPI_SIZE')
-    parser.add_option('--simepimutrate',                                                 type='float',           dest='SIM_EPI_MUT_RATE')
-    parser.add_option('--simepiseqnum',                                                  type='int',             dest='SIM_EPI_N')
-    parser.add_option('--simepinoise',                                                   type='float',           dest='SIM_EPI_NOISE')
-    parser.add_option('--simepiperc',                                                    type='float',           dest='SIM_EPI_PERCENTILE')
-    parser.add_option('--seed',                                                          type='int',             dest='RAND_SEED')
-    parser.add_option('--phylofilt',     action='store_true',                                                    dest='PHYLOFILTER')
+    #                 option            action = 'store'        callback                    type             nargs = 1  dest
+    parser.add_option('--hmmalign',                                                         type = 'string',            dest = 'HMMER_ALIGN_BIN')
+    parser.add_option('--hmmbuild',                                                         type = 'string',            dest = 'HMMER_BUILD_BIN')
+    parser.add_option('--hmmiter',                                                          type = 'int',               dest = 'HMMER_ITER')
+    parser.add_option('--mrmr',         action = 'store_false',                                                         dest = 'MAXREL')
+    parser.add_option('--mrmrprog',                                                         type = 'string',            dest = 'MRMR_BIN')
+    parser.add_option('--mrmrmethod',                                                       type = 'string',            dest = 'MRMR_METHOD')
+    parser.add_option('--maxrel',       action = 'store_true',                                                          dest = 'MAXREL')
+    parser.add_option('--filter',       action = 'callback',    callback = optparse_csv,    type = 'string',            dest = 'FILTER')
+    parser.add_option('--numfeats',                                                         type = 'int',               dest = 'NUM_FEATURES')
+    parser.add_option('--subtypes',     action = 'callback',    callback = optparse_csv,    type = 'string',            dest = 'SUBTYPES')
+    parser.add_option('--svmtrain',                                                         type = 'string',            dest = 'SVM_TRAIN_BIN')
+    parser.add_option('--svmpredict',                                                       type = 'string',            dest = 'SVM_PREDICT_BIN')
+    parser.add_option('--svmargs',      action = 'callback',    callback = optparse_extend, type = 'string', nargs = 2, dest = 'SVM_ARGS')
+    parser.add_option('--nested',       action = 'store_true',                                                          dest = 'NESTED')
+    parser.add_option('--log2c',        action = 'callback',    callback = optparse_csv,    type = 'string',            dest = 'LOG2C')
+    parser.add_option('--weighting',    action = 'store_true',                                                          dest = 'WEIGHTING')
+    parser.add_option('--accuracy',     action = 'store_true',                                                          dest = 'ACCURACY')
+    parser.add_option('--ppv',          action = 'store_true',                                                          dest = 'PPV')
+    parser.add_option('--precision',    action = 'store_true',                                                          dest = 'PPV')
+    parser.add_option('--npv'     ,     action = 'store_true',                                                          dest = 'NPV')
+    parser.add_option('--sensitivity',  action = 'store_true',                                                          dest = 'SENSITIVITY')
+    parser.add_option('--recall',       action = 'store_true',                                                          dest = 'SENSITIVITY')
+    parser.add_option('--specificity',  action = 'store_true',                                                          dest = 'SPECIFICITY')
+    parser.add_option('--tnr',          action = 'store_true',                                                          dest = 'SPECIFICITY')
+    parser.add_option('--fscore',       action = 'store_true',                                                          dest = 'FSCORE')
+    parser.add_option('--amino',        action = 'store_true',                                                          dest = 'AMINO')
+    parser.add_option('--dna',          action = 'store_true',                                                          dest = 'DNA')
+    parser.add_option('--stanfel',      action = 'store_true',                                                          dest = 'STANFEL')
+    parser.add_option('--cv',                                                               type = 'int',               dest = 'CV_FOLDS')
+    parser.add_option('--loocv',        action = 'store_true',                                                          dest = 'LOOCV')
+    parser.add_option('--targets',      action = 'callback',    callback = optparse_csv,    type = 'string',            dest = 'TARGETS')
+    parser.add_option('--maxcon',                                                           type = 'float',             dest = 'MAX_CONSERVATION')
+    parser.add_option('--maxgap',                                                           type = 'float',             dest = 'MAX_GAP_RATIO')
+    parser.add_option('--mincon',                                                           type = 'float',             dest = 'MIN_CONSERVATION')
+    parser.add_option('--ic50gt',                                                           type = 'float',             dest = 'IC50GT')
+    parser.add_option('--ic50lt',                                                           type = 'float',             dest = 'IC50LT')
+    parser.add_option('--neuts',                                                            type = 'string',            dest = 'NEUT_SQLITE3_DB')
+    parser.add_option('--refseq',                                                           type = 'string',            dest = 'REFSEQ_FASTA')
+    parser.add_option('--ids',          action = 'callback',    callback = optparse_csv,    type = 'string',            dest = 'HXB2_IDS')
+    parser.add_option('--test',         action = 'store_true',                                                          dest = 'TEST')
+    parser.add_option('--sim',                                                              type = 'string',            dest = 'SIM')
+    parser.add_option('--simruns',                                                          type = 'int',               dest = 'SIM_RUNS')
+    parser.add_option('--simepisize',                                                       type = 'int',               dest = 'SIM_EPI_SIZE')
+    parser.add_option('--simepimutrate',                                                    type = 'float',             dest = 'SIM_EPI_MUT_RATE')
+    parser.add_option('--simepiseqnum',                                                     type = 'int',               dest = 'SIM_EPI_N')
+    parser.add_option('--simepinoise',                                                      type = 'float',             dest = 'SIM_EPI_NOISE')
+    parser.add_option('--simepiperc',                                                       type = 'float',             dest = 'SIM_EPI_PERCENTILE')
+    parser.add_option('--seed',                                                             type = 'int',               dest = 'RAND_SEED')
+    parser.add_option('--phylofilt',    action = 'store_true',                                                          dest = 'PHYLOFILTER')
 
     parser.set_defaults(HMMER_ALIGN_BIN    = join(_WORKING_DIR, 'contrib', 'hmmer-3.0', 'src', 'hmmalign'))
     parser.set_defaults(HMMER_BUILD_BIN    = join(_WORKING_DIR, 'contrib', 'hmmer-3.0', 'src', 'hmmbuild'))
     parser.set_defaults(HMMER_ITER         = 8)
     parser.set_defaults(MRMR_BIN           = join(_WORKING_DIR, 'contrib', 'mrmr_c_src', 'mrmr'))
     parser.set_defaults(MRMR_METHOD        = 'MID')
-    parser.set_defaults(MRMR_NORMALIZE     = False)
     parser.set_defaults(MAXREL             = False)
     parser.set_defaults(FILTER             = [])
     parser.set_defaults(NUM_FEATURES       = -1)
@@ -282,9 +280,6 @@ def run_tests():
 
                 assert(np.all(_TEST_Y == y))
 
-                if OPTIONS.MRMR_NORMALIZE:
-                    DiscreteMrmr._NORMALIZED = True
-
                 # generate and test the mRMR portion
                 mrmr = DiscreteMrmr(
                     num_features=OPTIONS.NUM_FEATURES,
@@ -329,23 +324,11 @@ def main(argv = sys.argv):
         run_tests()
         return 0
 
-    if OPTIONS.SIM != '':
-        if OPTIONS.SIM == 'randdumbepi':
-            OPTIONS.SIM = Simulation.DUMB
-        elif OPTIONS.SIM == 'randepi':
-            OPTIONS.SIM == Simulation.EPITOPE
-        elif OPTIONS.SIM == 'randseq':
-            OPTIONS.SIM == Simulation.SEQUENCE
-        elif OPTIONS.SIM == 'randtarget':
-            OPTIONS.SIM == Simulation.TARGET
-        else:
-            option_parser.error('option --sim takes one of %s' % ', '.join(Simulation.VALUES))
-
     if OPTIONS.RAND_SEED is not None:
         seed(OPTIONS.RAND_SEED)
 
     if len(args) != 2:
-        option_parser.error('ANTIBODY is a required argument')
+        option_parser.error('FASTAFILE is a required argument')
 
     if not set(OPTIONS.TARGETS).issubset(set(['lt', 'gt'])):
         option_parser.error('option --targets takes either or both: lt gt')
@@ -362,12 +345,9 @@ def main(argv = sys.argv):
     if sum([1 for v in (OPTIONS.ACCURACY, OPTIONS.PPV, OPTIONS.NPV, OPTIONS.SENSITIVITY, OPTIONS.SPECIFICITY, OPTIONS.FSCORE) if v]) > 1:
         option_parser.error('options --accuracy, --ppv/--precision, --npv, --sensitivity/--recall, --specificity/--tnr, --fscore are mutually exclusive')
 
-    try:
-        if len(OPTIONS.LOG2C) != 3 or float(OPTIONS.LOG2C[2]) <= 0.:
-            raise ValueError
-        OPTIONS.LOG2C = [int(OPTIONS.LOG2C[0]), int(OPTIONS.LOG2C[1]), float(OPTIONS.LOG2C[2])]
-    except ValueError, e:
-        option_parser.error('option --log2c takes an argument of the form C_BEGIN,C_END,C_STEP where C_STEP must be > 0')
+    if len(OPTIONS.LOG2C) != 3:
+        option_parser.error('option --log2c takes an argument of the form C_BEGIN,C_END,C_STEP')
+    OPTIONS.LOG2C = [int(OPTIONS.LOG2C[0]), int(OPTIONS.LOG2C[1]), float(OPTIONS.LOG2C[2])]
 
     # validate the antibody argument, currently a hack exists to make PG9/PG16 work
     # TODO: Fix pg9/16 hax
@@ -384,21 +364,6 @@ def main(argv = sys.argv):
     for subtype in OPTIONS.SUBTYPES:
         if subtype not in valid_subtypes:
             option_parser.error('%s not in the list of permitted subtypes: \n  %s' % (subtype, '\n  '.join([st.strip() for st in valid_subtypes])))
-
-    if OPTIONS.SIM in (Simulation.EPITOPE, Simulation.SEQUENCE) and OPTIONS.DNA:
-        option_parser.error('randseq simulation target not compatible with DNA mode')
-
-    if OPTIONS.SIM_EPI_MUT_RATE < 0. or OPTIONS.SIM_EPI_MUT_RATE > 1.:
-        option_parser.error('--simepimutrate must be between 0.0 and 1.0')
-
-    if abs(OPTIONS.SIM_EPI_NOISE) > 1.:
-        option_parser.error('--simepinoise shouldn\'t really ever be greater than 1.0')
-
-    if OPTIONS.SIM_EPI_N is not None and OPTIONS.SIM_EPI_N < 1:
-        option_parser.error('--simepiseqnum must be greater than 0')
-
-    if OPTIONS.SIM_EPI_PERCENTILE < 0. or OPTIONS.SIM_EPI_PERCENTILE > 1.:
-        option_parser.error('--simepiperc must be betweeen 0.0 and 1.0')
 
     if len(OPTIONS.FILTER) != 0:
         if OPTIONS.NUM_FEATURES > len(OPTIONS.FILTER):
@@ -534,9 +499,6 @@ def main(argv = sys.argv):
                 C_begin, C_end = int(recip * C_begin), int(recip * C_end)
                 C_step = 1
             C_range = [pow(2., float(C) / recip) for C in xrange(C_begin, C_end + 1, C_step)]
-
-            if OPTIONS.MRMR_NORMALIZE:
-                DiscreteMrmr._NORMALIZED = True
 
             crossvalidator = SelectingNestedCrossValidator(
                 classifiercls=LinearSvm,

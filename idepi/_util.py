@@ -354,12 +354,15 @@ def collect_AbRecords_from_db(dbpath, antibody):
     ''', (antibody,))
 
     # make sure the records are unique
-    ab_records = list()
+    ab_records = []
     for row in curr:
-        ab_record = AbRecord(*row)
-        if ab_record.id in [abr.id for abr in ab_records]:
-            ab_record.id += '-1'
-        ab_records.append(ab_record)
+        try:
+            ab_record = AbRecord(*row)
+            if ab_record.id in [abr.id for abr in ab_records]:
+                ab_record.id += '-1'
+            ab_records.append(ab_record)
+        except ValueError:
+            continue
 
     conn.close()
 
@@ -466,10 +469,10 @@ def compute_relevant_features_and_names(seq_table, alph, names, limits={ 'max': 
     columns = range(0, seq_table.num_columns)
     alphabet, alphabet_names = alph.todict(), alph.names()
     alphabet_len = len(set(alphabet.values()))
-    delete_cols = list()
+    delete_cols = []
 
-    max_counts = list()
-    min_counts = list()
+    max_counts = []
+    min_counts = []
 
     # remove overly-conserved or overly-random columns
     for i in sorted(seq_table.columns.keys()):
