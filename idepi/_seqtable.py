@@ -69,25 +69,27 @@ class SeqTable(object):
     @staticmethod
     def __fill_data(alignment, alphabet, data, keep_idxs, skip_idxs):
         _, ncol, _ = data.shape
-        for i in xrange(len(alignment)):
+        off = 0
+        for i, row in enumerate(alignment):
             if i in keep_idxs or i in skip_idxs:
+                off += 1
                 continue
-            row = alignment[i].seq
+            seq = str(row.seq)
             for j in xrange(ncol):
-                v = row[j]
-                data[i, j, alphabet[v]] = True
+                v = seq[j]
+                data[i - off, j, alphabet[v]] = True
 
     def __filter(self, func):
         idxs = set()
         if func is not None:
             if type(func) is ListType:
                 for f in func:
-                    for i in xrange(len(self.__alignment)):
-                        if apply(f, (self.__alignment[i].id,)):
+                    for i, row in enumerate(self.__alignment):
+                        if apply(f, (row.id,)):
                             idxs.add(i)
             else:
-                for i in xrange(len(self.__alignment)):
-                    if apply(func, (self.__alignment[i].id,)):
+                for i, row in enumerate(self.__alignment):
+                    if apply(func, (row.id,)):
                         idxs.add(i)
         return idxs
 

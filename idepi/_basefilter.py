@@ -14,7 +14,7 @@ class BaseFilter(object):
         raise RuntimeError('You cannot use BaseFilter directly. Use one of its subclasses NaiveFilter or PhyloFilter.')
 
     @staticmethod
-    def _colnames(alignment, alphabet, ref_id_func, ignore_idxs=set()):
+    def _colnames(alignment, alphabet, ref_id_func, ignore_idxs):
         ref = None
         for r in alignment:
             if apply(ref_id_func, (r.id,)):

@@ -1,4 +1,6 @@
 
+from sys import maxint
+
 from numpy import zeros
 
 
@@ -17,13 +19,16 @@ class ClassExtractor(object):
 
     @staticmethod
     def __extract(alignment, count, extract, skip, discretize):
+        if count is None:
+            count = maxint
+
+        skipped = 0
         if discretize is None:
             dtype = float
             discretize = lambda x: x
         else:
             dtype = bool
 
-        skipped = 0
         if skip is None:
             skip = lambda _: False
         else:
@@ -34,16 +39,14 @@ class ClassExtractor(object):
         i = 0
         y = zeros((len(alignment) - skipped,), dtype=dtype)
 
-        for j, row in enumerate(alignment):
+        off = 0
+        for i, row in enumerate(alignment):
             if apply(skip, (row.id,)):
+                off += 1
                 pass
             else:
-                y[i] = apply(discretize, (apply(extract, (row.id,)),))
-                i += 1
-            if j > count:
+                y[i - off] = apply(discretize, (apply(extract, (row.id,)),))
+            if i > count:
                 break
-
-        # this should be true
-        assert(j) == len(y)
 
         return y

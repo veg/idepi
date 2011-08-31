@@ -104,8 +104,9 @@ def is_HXB2(id):
         if gid in __HXB2_IDS:
             return True
     except IndexError, e:
-        print >> stderr, "ERROR: malformed ID: %s" % id
-        raise e
+        pass
+        # we don't care about this, do we?
+        # print >> stderr, "ERROR: malformed ID: %s" % id
     return False
 
 

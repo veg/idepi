@@ -1,15 +1,20 @@
 
+import re
+
 from math import copysign, sqrt
 from operator import itemgetter
 from os import close, remove, rename
 from os.path import exists
-from re import sub
 from shutil import copyfile
 from sys import stderr, stdout
 from tempfile import mkstemp
 from unicodedata import combining
 
-from Bio import AlignIO, SeqIO
+from Bio import SeqIO
+from Bio.Align import MultipleSeqAlignment
+from Bio.Alphabet import Gapped, generic_nucleotide, generic_protein
+from Bio.Seq import Seq
+from Bio.SeqRecord import SeqRecord
 
 from _hmmer import Hmmer
 from _normalvalue import NormalValue
@@ -18,6 +23,7 @@ from _simulation import Simulation
 
 __all__ = [
     'cv_results_to_output',
+    'crude_sto_read',
     'generate_alignment_from_SeqRecords',
     'generate_alignment',
     'pretty_fmt_results',
@@ -26,7 +32,22 @@ __all__ = [
 ]
 
 
-def generate_alignment_from_SeqRecords(seq_records, filename, opts):
+def crude_sto_read(filename, dna=False):
+    with open(filename) as fh:
+        notrel = re.compile(r'^(?:#|#=|//)')
+        alndict = dict([line.strip().split() for line in fh if not notrel.match(line.strip()) and line.strip() != ''])
+    trim = re.compile(r'[^-A-Z]')
+    alph = Gapped(generic_nucleotide if dna else generic_protein)
+    alignment = MultipleSeqAlignment([
+        SeqRecord(
+            Seq(trim.sub('', seq), alph),
+            acc
+        ) for acc, seq in alndict.items()
+    ])
+    return alignment
+
+
+def generate_alignment_from_SeqRecords(seq_records, my_basename, opts):
     fd, ab_fasta_filename = mkstemp(); close(fd)
     fd, hmm_filename = mkstemp(); close(fd)
     fd, sto_filename = mkstemp(); close(fd)
@@ -65,32 +86,38 @@ def generate_alignment_from_SeqRecords(seq_records, filename, opts):
             hmmer.align(hmm_filename, ab_fasta_filename, output=sto_filename, alphabet=Hmmer.DNA if opts.DNA else Hmmer.AMINO, outformat=Hmmer.PFAM)
 
         # rename the final alignment to its destination
-        print >> stderr, 'done, output moved to: %s' % filename
         finished = True
 
     finally:
         # cleanup these files
         if finished:
-            copyfile(sto_filename, filename)
+            copyfile(sto_filename, my_basename + '.sto')
+            copyfile(hmm_filename, my_basename + '.hmm')
+            print >> stderr, 'done, output moved to: %s' % my_basename + '.sto'
         remove(sto_filename)
         remove(ab_fasta_filename)
         remove(hmm_filename)
 
-def generate_alignment(seqrecords, filename, opts):
+def generate_alignment(seqrecords, my_basename, opts):
+    sto_filename = my_basename + '.sto'
+    hmm_filename = my_basename + '.hmm'
+
     if hasattr(opts, 'SIM') and opts.SIM == Simulation.DUMB:
         # we're assuming pre-aligned because they're all generated from the same refseq
-        fh = open(filename, 'w')
-        SeqIO.write(seqrecords, fh, 'stockholm')
-        fh.close()
-    elif not exists(filename):
+        with open(hmm_filename, 'w') as fh:
+            SeqIO.write(seqrecords, fh, 'stockholm')
+    elif not exists(sto_filename):
         generate_alignment_from_SeqRecords(
             seqrecords,
-            filename,
+            my_basename,
             opts
         )
 
-    with open(filename) as fh:
-        alignment = AlignIO.read(fh, 'stockholm')
+    if not exists(hmm_filename):
+        hmmer = Hmmer(opts.HMMER_ALIGN_BIN, opts.HMMER_BUILD_BIN)
+        hmmer.build(hmm_filename, sto_filename)
+
+    alignment = crude_sto_read(sto_filename, opts.DNA)
 
     return alignment
 
@@ -122,7 +149,7 @@ def cv_results_to_output(results, colnames):
     ret['statistics'] = dict([(k, { 'mean': v.mu, 'std': sqrt(v.sigma) }) for k, v in statsdict.items()])
     ret['weights'] = [{ 'position': k, 'value': { 'mean': v.mu, 'std': sqrt(v.sigma), 'N': len(v) } } for k, v in sorted(
         weightsdict.items(),
-        key=lambda x: int(sub(r'[a-zA-Z\[\]]+', '', x[0]))
+        key=lambda x: int(re.sub(r'[a-zA-Z\[\]]+', '', x[0]))
     )]
 
     return ret
@@ -168,7 +195,7 @@ def pretty_fmt_weights(weights, ident=0):
                 v['value']['std'],
                 v['value']['N']
             ),
-        ) for v in sorted(weights, key=lambda x: int(sub(r'[a-zA-Z\[\]]+', '', x['position'])))]
+        ) for v in sorted(weights, key=lambda x: int(re.sub(r'[a-zA-Z\[\]]+', '', x['position'])))]
 
     return buf + ',\n'.join(output) + '\n' + prefix + ']'
 

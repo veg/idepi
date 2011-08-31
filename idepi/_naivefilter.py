@@ -37,6 +37,7 @@ class NaiveFilter(BaseFilter):
         self.__maxgap = maxgap
         self.__rfn = ref_id_func
         self.__sfn = skip_func
+        self.__ignore_idxs = None
 #         self.__run, self.__data, self.__colnames = False, None, None
 
     @staticmethod
@@ -62,6 +63,14 @@ class NaiveFilter(BaseFilter):
             else:
                 ignore_idxs.update([idx + j for j in xrange(stride) if col[j] == 0.])
 
+        colnames = BaseFilter._colnames(alignment, alphabet, ref_id_func, ignore_idxs)
+        data = NaiveFilter._filter(seqtable, ignore_idxs)
+
+        return colnames, data, ignore_idxs
+
+    @staticmethod
+    def _filter(seqtable, ignore_idxs):
+        stride = len(seqtable.cols[0])
         ncol = seqtable.ncol * stride - len(ignore_idxs)
         data = np.zeros((seqtable.nrow, ncol), dtype=bool)
 
@@ -74,15 +83,22 @@ class NaiveFilter(BaseFilter):
                 data[:, k] = seqtable.data[:, i, j]
                 k += 1
 
-        colnames = BaseFilter._colnames(alignment, alphabet, ref_id_func, ignore_idxs)
+        return data
 
-        return colnames, data
-
-    def filter(self, alignment):
-        return NaiveFilter.__compute(
+    def learn(self, alignment):
+        colnames, data, self.__ignore_idxs = NaiveFilter.__compute(
             alignment, self.__alph, self.__mincons, self.__maxcons, self.__maxgap,
             self.__rfn, self.__sfn
         )
+        return colnames, data
+
+    def filter(self, alignment):
+        if not self.__ignore_idxs:
+            raise RuntimeError('No NaiveFilter model computed')
+
+        seqtable = SeqTable(alignment, self.__alph, self.__rfn, self.__sfn)
+        assert(len(self.__alph) == len(seqtable.cols[0]))
+        return NaiveFilter._filter(seqtable, self.__ignore_idxs)
 
 #     @property
 #     def data(self):

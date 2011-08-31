@@ -200,7 +200,7 @@ def run_tests():
                 is_HXB2,
                 lambda x: False # TODO: add the appropriate filter function based on the args here
             )
-            colnames, x = colfilter.filter(alignment)
+            colnames, x = colfilter.learn(alignment)
 
             # test the feature names portion
             try:
@@ -327,11 +327,11 @@ def main(argv = sys.argv):
     # format as SeqRecord so we can output as FASTA
     abrecords = collect_AbRecords_from_db(OPTIONS.NEUT_SQLITE3_DB, antibody)
 
-    alignment_filename = '%s_%s_%s.sto' % (ab_basename, splitext(basename(OPTIONS.NEUT_SQLITE3_DB))[0], __version__)
+    alignment_basename = '%s_%s_%s' % (ab_basename, splitext(basename(OPTIONS.NEUT_SQLITE3_DB))[0], __version__)
 
     # generate an alignment using HMMER if it doesn't already exist
     seqrecords = [r.to_SeqRecord(dna=True if OPTIONS.DNA else False) for r in abrecords]
-    alignment = generate_alignment(seqrecords, alignment_filename, OPTIONS)
+    alignment = generate_alignment(seqrecords, alignment_basename, OPTIONS)
     colfilter = None
     if OPTIONS.PHYLOFILTER:
         colfilter = PhyloFilter(
@@ -340,7 +340,6 @@ def main(argv = sys.argv):
             is_HXB2,
             lambda x: False # TODO: add the appropriate filter function based on the args here
         )
-        colnames, x = colfilter.filter(alignment)
         # TODO: I don't think we need to binarize the colnames here, though we can if we want.
         # I need to think more about how to properly handle this case.
 #             colnames = binarize(x, colnames, dox=False)
@@ -353,7 +352,8 @@ def main(argv = sys.argv):
             is_HXB2,
             lambda x: False # TODO: add the appropriate filter function based on the args here
         )
-        colnames, x = colfilter.filter(alignment)
+
+    colnames, x = colfilter.learn(alignment)
 
     yextractor = ClassExtractor(
         id_to_float,

@@ -125,7 +125,11 @@ class PhyloFilter(BaseFilter):
         # return ids, mat, order, colnames
         return colnames, data
 
-    def filter(self, alignment):
+    @staticmethod
+    def filter(alignment):
+        raise RuntimeError('PhyloFilter does not yet support the learn() and filter() model of its NaiveFilter brother')
+
+    def learn(self, alignment):
         return PhyloFilter.__compute(
             alignment, self.__alph, self.__batchfile, self.__inputfile, self.__rfn, self.__sfn
         )
