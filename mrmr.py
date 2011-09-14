@@ -63,7 +63,7 @@ def main(argv, ui=None):
                 continue
             elif opt is '-':
                 if argv[i][2:] == 'gpl':
-                    print gplv2
+                    print 'Go look up the GNU GPLv2 on gnu.org'
                     return 0
             return usage()
         else:

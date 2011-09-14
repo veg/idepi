@@ -32,7 +32,20 @@ __all__ = [
 ]
 
 
-def crude_sto_read(filename, dna=False):
+def refseq_off(alndict, ref_id_func):
+    trim = re.compile(r'^[^-A-Z]+')
+    refseq = None
+    for acc in alndict.keys():
+        if apply(ref_id_func, (acc,)):
+            refseq = alndict[acc]
+            break
+    if refseq is None:
+        raise RuntimeError('Unable to find the reference sequence to compute an offset!')
+    newseq = trim.sub('', refseq)
+    return len(refseq) - len(newseq)
+
+
+def crude_sto_read(filename, ref_id_func=None, dna=False):
     with open(filename) as fh:
         notrel = re.compile(r'^(?:#|#=|//)')
         alndict = dict([line.strip().split() for line in fh if not notrel.match(line.strip()) and line.strip() != ''])
@@ -44,7 +57,8 @@ def crude_sto_read(filename, dna=False):
             acc
         ) for acc, seq in alndict.items()
     ])
-    return alignment
+    refseq_off = None if ref_id_func is None else refseq_off(alndict, ref_id_func)
+    return alignment, refseq_off
 
 
 def generate_alignment_from_SeqRecords(seq_records, my_basename, opts):
@@ -98,7 +112,7 @@ def generate_alignment_from_SeqRecords(seq_records, my_basename, opts):
         remove(ab_fasta_filename)
         remove(hmm_filename)
 
-def generate_alignment(seqrecords, my_basename, opts):
+def generate_alignment(seqrecords, my_basename, ref_id_func, opts):
     sto_filename = my_basename + '.sto'
     hmm_filename = my_basename + '.hmm'
 
@@ -117,9 +131,8 @@ def generate_alignment(seqrecords, my_basename, opts):
         hmmer = Hmmer(opts.HMMER_ALIGN_BIN, opts.HMMER_BUILD_BIN)
         hmmer.build(hmm_filename, sto_filename)
 
-    alignment = crude_sto_read(sto_filename, opts.DNA)
+    return crude_sto_read(sto_filename, ref_id_func, opts.DNA)
 
-    return alignment
 
 def cv_results_to_output(results, colnames):
 
@@ -154,6 +167,7 @@ def cv_results_to_output(results, colnames):
 
     return ret
 
+
 def pretty_fmt_stats(stats, ident=0):
     prefix = u' ' * 2 * ident
 
@@ -177,6 +191,7 @@ def pretty_fmt_stats(stats, ident=0):
 
     return buf + ',\n'.join(output) + '\n' + prefix + '}'
 
+
 def pretty_fmt_weights(weights, ident=0):
     prefix = u' ' * 2 * ident
 
@@ -198,6 +213,7 @@ def pretty_fmt_weights(weights, ident=0):
         ) for v in sorted(weights, key=lambda x: int(re.sub(r'[a-zA-Z\[\]]+', '', x['position'])))]
 
     return buf + ',\n'.join(output) + '\n' + prefix + ']'
+
 
 def pretty_fmt_results(ret):
     return '{\n' + pretty_fmt_stats(ret['statistics'], 1) + \

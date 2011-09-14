@@ -24,9 +24,9 @@ class SimulatedEpitope(object):
         total = 0
         # sanitize the sequence, so that it fits in our alphabet
         seq = sanitize_seq(seq, self.alphabet)
-        alphdict = alphabet.todict()
+        alphdict = self.alphabet.todict()
         for k, v in self.positions.items():
-            if self.alphdict[seq[k]] == self.alphdict[v]:
+            if alphdict[seq[k]] == alphdict[v]:
                 total += 1
         # this thing should now produce 50/50 splits no matter what
         # if the positions are more mutated than the base rate, then 25 (resistant)

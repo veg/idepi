@@ -200,7 +200,7 @@ def run_tests():
                 is_HXB2,
                 lambda x: False # TODO: add the appropriate filter function based on the args here
             )
-            colnames, x = colfilter.learn(alignment)
+            colnames, x = colfilter.learn(alignment, 0)
 
             # test the feature names portion
             try:
@@ -331,7 +331,7 @@ def main(argv = sys.argv):
 
     # generate an alignment using HMMER if it doesn't already exist
     seqrecords = [r.to_SeqRecord(dna=True if OPTIONS.DNA else False) for r in abrecords]
-    alignment = generate_alignment(seqrecords, alignment_basename, OPTIONS)
+    alignment, refseq_off = generate_alignment(seqrecords, alignment_basename, is_HXB2, OPTIONS)
     colfilter = None
     if OPTIONS.PHYLOFILTER:
         colfilter = PhyloFilter(
@@ -353,7 +353,7 @@ def main(argv = sys.argv):
             lambda x: False # TODO: add the appropriate filter function based on the args here
         )
 
-    colnames, x = colfilter.learn(alignment)
+    colnames, x = colfilter.learn(alignment, refseq_off)
 
     yextractor = ClassExtractor(
         id_to_float,

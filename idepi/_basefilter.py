@@ -14,7 +14,7 @@ class BaseFilter(object):
         raise RuntimeError('You cannot use BaseFilter directly. Use one of its subclasses NaiveFilter or PhyloFilter.')
 
     @staticmethod
-    def _colnames(alignment, alphabet, ref_id_func, ignore_idxs):
+    def _colnames(alignment, alphabet, ref_id_func, refseq_off, ignore_idxs):
         ref = None
         for r in alignment:
             if apply(ref_id_func, (r.id,)):
@@ -24,7 +24,7 @@ class BaseFilter(object):
             raise RuntimeError('No reference sequence found, aborting')
 
         colnames = []
-        c, col, ins = 0, 0, 0
+        c, col, ins = refseq_off, 0, 0
         for p in ref:
             if p not in Alphabet.SPACE:
                 c += 1
