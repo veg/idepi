@@ -25,6 +25,11 @@
 
 import sqlite3, sys
 
+try:
+    from cStringIO import StringIO
+except ImportError, e:
+    from StringIO import StringIO
+
 from codecs import getwriter
 from json import dumps as json_dumps
 from math import ceil, copysign, log10, sqrt
@@ -154,6 +159,7 @@ def setup_option_parser():
     parser.add_option('--test',          action='store_true',                                                    dest='TEST')
     parser.add_option('--seed',                                                          type='int',             dest='RAND_SEED')
     parser.add_option('--phylofilt',     action='store_true',                                                    dest='PHYLOFILTER')
+    parser.add_option('-o', '--output',                                                  type='string',          dest='OUTPUT')
 
     parser.set_defaults(HMMER_ALIGN_BIN    = join(_WORKING_DIR, 'contrib', 'hmmer-3.0', 'src', 'hmmalign'))
     parser.set_defaults(HMMER_BUILD_BIN    = join(_WORKING_DIR, 'contrib', 'hmmer-3.0', 'src', 'hmmbuild'))
@@ -193,6 +199,7 @@ def setup_option_parser():
     parser.set_defaults(HXB2_IDS           = ['9629357', '9629363'])
     parser.set_defaults(RAND_SEED          = 42) # magic number for determinism
     parser.set_defaults(PHYLOFILTER        = False)
+    parser.set_defaults(OUTPUT             = None)
 
     return parser
 
@@ -407,6 +414,8 @@ def main(argv = sys.argv):
         )
     fasta_aln = crude_sto_read(fasta_stofile, OPTIONS.DNA)
 
+    assert(alignment.get_alignment_length() == fasta_aln.get_alignment_length())
+
     colfilter = None
     if OPTIONS.PHYLOFILTER:
         raise RuntimeError('We do not yet support phylofiltering in prediction')
@@ -502,12 +511,27 @@ def main(argv = sys.argv):
                 'fraction+': np.mean(yp)
             }
         }
-        print json_dumps(meta, indent=4) + ','
-        print '{\n    "predictions": ['
+
+        output = StringIO()
+
+        print >> output, '''{
+    "meta": {
+        "antibody":  "%s",
+        "fraction+": %g,
+        "target":    { "operator": "%s", "threshold": %g }
+    },''' % (antibody, np.mean(yp), target, OPTIONS.IC50GT if target == 'gt' else OPTIONS.IC50LT)
+
+        print >> output, '    "predictions": {'
         rowlen = max([len(row.id) + 3 for row in fasta_aln])
         for i, row in enumerate(fasta_aln):
-            print '        %-*s %d' % (rowlen, '"%s":' % row.id, yp[i]) + (',' if i+1 < len(fasta_aln) else '') # +1 to prevent trailing commas
-        print '    ]\n}'
+            print >> output, '        %-*s %d' % (rowlen, '"%s":' % row.id, yp[i]) + (',' if i+1 < len(fasta_aln) else '') # +1 to prevent trailing commas
+        print >> output, '    }\n}'
+
+        if OPTIONS.OUTPUT is None:
+            print output.getvalue()
+        else:
+            with open(OPTIONS.OUTPUT, 'w') as fh:
+                print >> fh, output.getvalue()
 
     return 0
 
