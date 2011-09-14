@@ -57,8 +57,8 @@ def crude_sto_read(filename, ref_id_func=None, dna=False):
             acc
         ) for acc, seq in alndict.items()
     ])
-    refseq_off = None if ref_id_func is None else refseq_off(alndict, ref_id_func)
-    return alignment, refseq_off
+    off = None if ref_id_func is None else refseq_off(alndict, ref_id_func)
+    return alignment, off
 
 
 def generate_alignment_from_SeqRecords(seq_records, my_basename, opts):
