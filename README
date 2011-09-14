@@ -1,0 +1,11 @@
+IDentify EPItopes
+
+Something will go here someday.
+
+In the meantime, please note that idepi depends on a number of sometimes-obscure packages:
+
+- biopython
+- CVXOPT
+- MLPy
+  - Cython
+- numpy
