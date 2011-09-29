@@ -34,7 +34,7 @@ __all__ = [
 
 
 def refseq_off(alndict, ref_id_func):
-    trim = re.compile(r'^[^-A-Z]+')
+    trim = re.compile(r'^[a-z]+') # if the front of the reference doesn't match, count it
     refseq = None
     for acc in alndict.keys():
         if apply(ref_id_func, (acc,)):
@@ -42,8 +42,8 @@ def refseq_off(alndict, ref_id_func):
             break
     if refseq is None:
         raise RuntimeError('Unable to find the reference sequence to compute an offset!')
-    newseq = trim.sub('', refseq)
-    return len(refseq) - len(newseq)
+    _, off = trim.subn('', refseq)
+    return off
 
 
 def crude_sto_read(filename, ref_id_func=None, dna=False):
