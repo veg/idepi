@@ -34,7 +34,9 @@ __all__ = [
 
 
 def refseq_off(alndict, ref_id_func):
-    trim = re.compile(r'^[a-z]+') # if the front of the reference doesn't match, count it
+    untrimmed = re.compile(r'[A-Z]')
+    trimmed = re.compile(r'[a-z]')
+    space = re.compile(r'[.-]')
     refseq = None
     for acc in alndict.keys():
         if apply(ref_id_func, (acc,)):
@@ -42,7 +44,16 @@ def refseq_off(alndict, ref_id_func):
             break
     if refseq is None:
         raise RuntimeError('Unable to find the reference sequence to compute an offset!')
-    _, off = trim.subn('', refseq)
+    off = 0
+    for i in xrange(len(refseq)):
+        if untrimmed.match(refseq[i]):
+            break
+        elif trimmed.match(refseq[i]):
+            off += 1
+        elif space.match(refseq[i]):
+            continue
+        else:
+            raise ValueError('Unknown character encountered while parsing alignment')
     return off
 
 
