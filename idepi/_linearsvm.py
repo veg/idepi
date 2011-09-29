@@ -86,9 +86,18 @@ class LinearSvmModel(object):
         self.type = None
         fh = open(self.__modelfile, 'rU')
         mode = None
+        rev = 1
         f = 0 # for LIBLINEAR models
         for line in fh:
             line = line.strip().upper()
+
+            # if the labels are reversed, that means that libsvm switched the labelling internally, fix this
+            if line[:5] == 'LABEL':
+                arr = [float(v) for v in line[6:].split()]
+                assert(len(arr) == 2)
+                # if label 0 1 then things are backwards, so flip them
+                if arr[0] < arr[1]:
+                    rev = -1
 
             if line[:11] == 'KERNEL_TYPE':
                 assert(line.split(' ', 1)[1] == 'LINEAR')
@@ -108,7 +117,7 @@ class LinearSvmModel(object):
 
             vals = line.split()
             try:
-                weight = float(vals[0])
+                weight = float(vals[0]) * rev
             except ValueError:
                 print >> stderr, 'ERROR: broken SVM model, skipping line \'%s\'' % line
                 with open(self.__modelfile) as fh:

@@ -23,6 +23,7 @@ from _simulation import Simulation
 
 __all__ = [
     'cv_results_to_output',
+    'make_output_meta',
     'crude_sto_read',
     'generate_alignment_from_SeqRecords',
     'generate_alignment',
@@ -134,7 +135,7 @@ def generate_alignment(seqrecords, my_basename, ref_id_func, opts):
     return crude_sto_read(sto_filename, ref_id_func, opts.DNA)
 
 
-def cv_results_to_output(results, colnames):
+def cv_results_to_output(results, colnames, meta=None):
 
     statsdict = results['stats'].todict()
 
@@ -159,6 +160,9 @@ def cv_results_to_output(results, colnames):
 
     ret = {}
 
+    if meta is not None:
+        ret['meta'] = meta
+
     ret['statistics'] = dict([(k, { 'mean': v.mu, 'std': sqrt(v.sigma) }) for k, v in statsdict.items()])
     ret['weights'] = [{ 'position': k, 'value': { 'mean': v.mu, 'std': sqrt(v.sigma), 'N': len(v) } } for k, v in sorted(
         weightsdict.items(),
@@ -166,6 +170,16 @@ def cv_results_to_output(results, colnames):
     )]
 
     return ret
+
+
+def make_output_meta(opts, N, target, antibody):
+    return {
+        'sequences': N,
+        'features': opts.NUM_FEATURES,
+        'discriminator': target,
+        'antibody': antibody,
+        'folds': opts.CV_FOLDS
+    }
 
 
 def pretty_fmt_stats(stats, ident=0):
@@ -215,6 +229,24 @@ def pretty_fmt_weights(weights, ident=0):
     return buf + ',\n'.join(output) + '\n' + prefix + ']'
 
 
-def pretty_fmt_results(ret):
-    return '{\n' + pretty_fmt_stats(ret['statistics'], 1) + \
-           ',\n' + pretty_fmt_weights(ret['weights'], 1) + '\n}'
+def pretty_fmt_meta(meta, ident=0):
+    prefix = u' ' * 2 * ident
+
+    buf = prefix + '"meta": {\n'
+
+    name_len = max([len(k) for k in meta.keys()]) + 3
+    output = [prefix + u'  %-*s %s' % (
+        name_len,
+        u'"%s":' % k,
+        '"%s"' % v if type(v) is str else ' %s' % str(v)
+    ) for k, v in sorted(meta.items(), key=itemgetter(0))]
+
+    return buf + ',\n'.join(output) + '\n' + prefix + '}'
+
+
+def pretty_fmt_results(results):
+    ret = '{\n'
+    ret += pretty_fmt_meta(results['meta'], 1) + ',\n' if 'meta' in results else ''
+    ret += pretty_fmt_stats(results['statistics'], 1) + ',\n'
+    ret += pretty_fmt_weights(results['weights'], 1) + '\n}'
+    return ret

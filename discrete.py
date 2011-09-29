@@ -45,7 +45,7 @@ from idepi import Alphabet, ClassExtractor, DiscreteMrmr, DumbSimulation, FastCa
                   NaiveFilter, NormalValue, PerfStats, PhyloFilter, SelectingNestedCrossValidator, SeqTable, \
                   Simulation, collect_AbRecords_from_db, cv_results_to_output, generate_alignment, \
                   generate_feature_names, get_valid_antibodies_from_db, get_valid_subtypes_from_db, id_to_float, \
-                  is_HXB2, pretty_fmt_results, set_util_params
+                  is_HXB2, make_output_meta, pretty_fmt_results, set_util_params
 
 __version__ = 0.5
 
@@ -565,7 +565,10 @@ def main(argv = sys.argv):
 #         else:
 #             fmt = ('%d-run ' % OPTIONS.SIM_RUNS, OPTIONS.CV_FOLDS, ' per run')
 
-        ret = cv_results_to_output(results, colnames)
+        # the alignment reflects the number of sequences either naturally,
+        # or through SIM_EPI_N, which reflects the natural number anyway.
+        meta = make_output_meta(OPTIONS, len(alignment), target, antibody)
+        ret = cv_results_to_output(results, colnames, meta)
 
         print pretty_fmt_results(ret)
 
