@@ -1,7 +1,7 @@
 
 import json
 from math import floor
-from os import close, remove
+from os import close, getpid, remove
 from os.path import dirname, exists, join, realpath
 from tempfile import mkstemp
 
@@ -84,7 +84,9 @@ class PhyloFilter(BaseFilter):
 #         ids = [_ids.MatrixCell(0, i) for i in xrange(_ids.mCols)]
 
         ncol = nsites * len(alphabet)
-        tmp = np.zeros((nspecies, ncol), dtype=float, order='F') # use column-wise order in memory
+        # we start with a probability of one (site is NOT due to ancestry)
+        # and subtract out the probability that the site IS due to ancestry
+        tmp = np.ones((nspecies, ncol), dtype=float, order='F') # use column-wise order in memory
 
         # cache the result for each stride's indexing into the alphabet
         alphidx = [alphabet[order[i]] for i in xrange(len(order))]
@@ -97,7 +99,10 @@ class PhyloFilter(BaseFilter):
                     # the self.__alph stride (len(self.__alph)), and then finally adding
                     # the alphabet-specific index (alphidx[r])
                     l = (j * len(alphabet)) + alphidx[k]
-                    tmp[i, l] += mat.MatrixCell(i, j*nchars + k)
+                    # subtract out probability site IS due to shared ancestry 
+                    tmp[i, l] -= mat.MatrixCell(i, j*nchars + k)
+
+        # np.save('phylofilt.%d' % getpid(), tmp)
 
         colsum = np.sum(tmp, axis=0)
         idxs = [i for i in xrange(ncol) if colsum[i] != 0.]
