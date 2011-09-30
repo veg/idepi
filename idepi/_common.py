@@ -177,10 +177,11 @@ def cv_results_to_output(results, colnames, meta=None):
 
 
 def make_output_meta(opts, N, target, antibody):
+    cutoff = opts.IC50LT if target == 'lt' else opts.IC50GT
     return {
         'sequences': N,
         'features': opts.NUM_FEATURES,
-        'discriminator': target,
+        'discriminator': { 'orientation': target, 'cutoff': cutoff },
         'antibody': antibody,
         'folds': opts.CV_FOLDS
     }
@@ -242,7 +243,14 @@ def pretty_fmt_meta(meta, ident=0):
     output = [prefix + u'  %-*s %s' % (
         name_len,
         u'"%s":' % k,
-        '"%s"' % v if type(v) is str else ' %s' % str(v)
+        '"%s"' % v if type(v) is str else \
+        '{ %s }' % ', '.join(
+            ['"%s": %s' % (
+                k,
+                '%s' % v if type(v) in (int, float) else '"%s"' % v
+            ) for k, v in v.items()]
+        ) if type(v) is dict else \
+        ' %s' % str(v)
     ) for k, v in sorted(meta.items(), key=itemgetter(0))]
 
     return buf + ',\n'.join(output) + '\n' + prefix + '}'
