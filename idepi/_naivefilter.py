@@ -42,7 +42,7 @@ class NaiveFilter(BaseFilter):
 
     @staticmethod
     def __compute(alignment, alphabet, mincons, maxcons, maxgap,
-                  ref_id_func, refseq_off, skip_func):
+                  ref_id_func, refseq_offs, skip_func):
 
         seqtable = SeqTable(alignment, alphabet, ref_id_func, skip_func)
 
@@ -63,7 +63,7 @@ class NaiveFilter(BaseFilter):
             else:
                 ignore_idxs.update([idx + j for j in xrange(stride) if col[j] == 0.])
 
-        colnames = BaseFilter._colnames(alignment, alphabet, ref_id_func, refseq_off, ignore_idxs)
+        colnames = BaseFilter._colnames(alignment, alphabet, ref_id_func, refseq_offs, ignore_idxs)
         data = NaiveFilter._filter(seqtable, ignore_idxs)
 
         return colnames, data, ignore_idxs
@@ -85,10 +85,10 @@ class NaiveFilter(BaseFilter):
 
         return data
 
-    def learn(self, alignment, refseq_off):
+    def learn(self, alignment, refseq_offs):
         colnames, data, self.__ignore_idxs = NaiveFilter.__compute(
             alignment, self.__alph, self.__mincons, self.__maxcons,
-            self.__maxgap, self.__rfn, refseq_off, self.__sfn
+            self.__maxgap, self.__rfn, refseq_offs, self.__sfn
         )
         return colnames, data
 

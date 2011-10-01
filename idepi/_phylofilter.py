@@ -48,7 +48,7 @@ class PhyloFilter(BaseFilter):
                 remove(file)
 
     @staticmethod
-    def __compute(alignment, alphabet, batchfile, inputfile, ref_id_func, refseq_off, skip_func, hyphy=None):
+    def __compute(alignment, alphabet, batchfile, inputfile, ref_id_func, refseq_offs, skip_func, hyphy=None):
         if hyphy is None:
             hyphy = HyPhy()
 
@@ -122,7 +122,7 @@ class PhyloFilter(BaseFilter):
         if refseq is not None:
             alignment.append(refseq)
 
-        colnames = BaseFilter._colnames(alignment, alphabet, ref_id_func, refseq_off, ignore_idxs)
+        colnames = BaseFilter._colnames(alignment, alphabet, ref_id_func, refseq_offs, ignore_idxs)
 
         # make sure that the columns do line up
         assert(len(colnames) == data.shape[1])
@@ -134,9 +134,9 @@ class PhyloFilter(BaseFilter):
     def filter(alignment):
         raise RuntimeError('PhyloFilter does not yet support the learn() and filter() model of its NaiveFilter brother')
 
-    def learn(self, alignment, refseq_off):
+    def learn(self, alignment, refseq_offs):
         return PhyloFilter.__compute(
-            alignment, self.__alph, self.__batchfile, self.__inputfile, self.__rfn, refseq_off, self.__sfn
+            alignment, self.__alph, self.__batchfile, self.__inputfile, self.__rfn, refseq_offs, self.__sfn
         )
 
 #     @property

@@ -33,9 +33,11 @@ __all__ = [
 ]
 
 
+# refseq_offs has for keys 0-indexed positions into the trimmed refseq
+# and for values the number of trimmed positions occuring immediately
+# before the key-index. This so the colfilter can properly name the
+# positions according to the full reference sequence 
 def refseq_off(alndict, ref_id_func):
-    trim = re.compile(r'^[^A-Z]+')
-    isseq = re.compile(r'[a-z]')
     refseq = None
     for acc in alndict.keys():
         if apply(ref_id_func, (acc,)):
@@ -44,10 +46,19 @@ def refseq_off(alndict, ref_id_func):
     if refseq is None:
         raise RuntimeError('Unable to find the reference sequence to compute an offset!')
     off = 0
-    m = trim.match(refseq)
-    if m:
-        off = len(isseq.findall(m.group(0)))
-    return off
+    offs = {}
+    i = 0
+    for pos in refseq:
+        if 'a' < pos and pos < 'z':
+            off += 1
+        elif 'A' < pos and pos < 'Z':
+            if off > 0:
+                offs[i] = off
+                off = 0
+            i += 1
+        else:
+            continue
+    return offs
 
 
 def crude_sto_read(filename, ref_id_func=None, dna=False):
