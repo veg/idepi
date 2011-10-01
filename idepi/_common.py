@@ -255,7 +255,7 @@ def pretty_fmt_meta(meta, ident=0):
         name_len,
         u'"%s":' % k,
         '"%s"' % v if type(v) is str else \
-        '{ %s }' % ', '.join(
+        ' { %s }' % ', '.join(
             ['"%s": %s' % (
                 k,
                 '%s' % v if type(v) in (int, float) else '"%s"' % v
