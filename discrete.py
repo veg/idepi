@@ -42,10 +42,12 @@ from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
 from idepi import Alphabet, ClassExtractor, DiscreteMrmr, DumbSimulation, FastCaimMrmr, LinearSvm, MarkovSimulation, \
-                  NaiveFilter, NormalValue, PerfStats, PhyloFilter, SelectingNestedCrossValidator, SeqTable, \
-                  Simulation, collect_AbRecords_from_db, cv_results_to_output, generate_alignment, \
-                  generate_feature_names, get_valid_antibodies_from_db, get_valid_subtypes_from_db, id_to_float, \
-                  is_HXB2, make_output_meta, pretty_fmt_results, set_util_params
+                  NaiveFilter, PhyloFilter, SeqTable, Simulation, collect_AbRecords_from_db, cv_results_to_output, \
+                  extract_feature_weights, generate_alignment, generate_feature_names, get_valid_antibodies_from_db, \
+                  get_valid_subtypes_from_db, id_to_float, is_HXB2, make_output_meta, pretty_fmt_results, \
+                  set_util_params
+
+from pyxval import CrossValidator, DiscretePerfStats, SelectingNestedCrossValidator
 
 __version__ = 0.5
 
@@ -255,7 +257,7 @@ def run_tests():
                 is_HXB2,
                 lambda x: False # TODO: add the appropriate filter function based on the args here
             )
-            colnames, x = colfilter.learn(alignment, 0)
+            colnames, x = colfilter.learn(alignment, {})
 
             # test the feature names portion
             try:
@@ -513,19 +515,19 @@ def main(argv = sys.argv):
                     print >> sys.stdout, '********************* SIMULATED EPITOPE DESCRIPTION (%d) *********************\n' % OPTIONS.SIM_EPI_SIZE
                     print >> sys.stdout, '%s\n' % str(epi_def)
 
-            optstat = PerfStats.MINSTAT
+            optstat = DiscretePerfStats.MINSTAT
             if OPTIONS.ACCURACY:
-                optstat = PerfStats.ACCURACY
+                optstat = DiscretePerfStats.ACCURACY
             elif OPTIONS.PPV:
-                optstat = PerfStats.PPV
+                optstat = DiscretePerfStats.PPV
             elif OPTIONS.NPV:
-                optstat = PerfStats.NPV
+                optstat = DiscretePerfStats.NPV
             elif OPTIONS.SENSITIVITY:
-                optstat = PerfStats.SENSITIVITY
+                optstat = DiscretePerfStats.SENSITIVITY
             elif OPTIONS.SPECIFICITY:
-                optstat = PerfStats.SPECIFICITY
+                optstat = DiscretePerfStats.SPECIFICITY
             elif OPTIONS.FSCORE:
-                optstat = PerfStats.FSCORE
+                optstat = DiscretePerfStats.FSCORE
 
             C_begin, C_end, C_step = OPTIONS.LOG2C
             recip = 1
@@ -539,22 +541,29 @@ def main(argv = sys.argv):
                 DiscreteMrmr._NORMALIZED = True
 
             crossvalidator = SelectingNestedCrossValidator(
-                classifiercls=LinearSvm,
-                selectorcls=FastCaimMrmr if OPTIONS.PHYLOFILTER else DiscreteMrmr,
+                classifier_cls=LinearSvm,
+                selector_cls=FastCaimMrmr if OPTIONS.PHYLOFILTER else DiscreteMrmr,
                 folds=OPTIONS.CV_FOLDS,
-                cv={},
-                mode=SelectingNestedCrossValidator.DISCRETE,
-                optstat=optstat,
-                gs={ 'C': C_range },
-                fs={
+                gridsearch_kwargs={ 'C': C_range },
+                classifier_kwargs={},
+                selector_kwargs={
                     'num_features': OPTIONS.NUM_FEATURES,
                     'method': DiscreteMrmr.MAXREL if OPTIONS.MAXREL else \
                               DiscreteMrmr.MID if OPTIONS.MRMR_METHOD == 'MID' else \
                               DiscreteMrmr.MIQ
-                }
+                },
+                validator_cls=CrossValidator,
+                validator_kwargs={
+                    'folds': OPTIONS.CV_FOLDS-1,
+                    'scorer_cls': DiscretePerfStats,
+                    'scorer_kwargs': { 'optstat': optstat }
+                },
+                scorer_cls=DiscretePerfStats,
+                scorer_kwargs={ 'optstat': optstat },
+                weights_func='weights' # we MUST specify this or it will be set to lambda: None
             )
 
-            results = crossvalidator.crossvalidate(x, y, cv={}, extra=lambda x: { 'features': x.features(), 'weights': x.classifier.weights() })
+            results = crossvalidator.crossvalidate(x, y, classifier_kwargs={}, extra=extract_feature_weights)
 
         # print stats and results:
 #         print >> sys.stdout, '********************* REPORT FOR ANTIBODY %s IC50 %s *********************' % \

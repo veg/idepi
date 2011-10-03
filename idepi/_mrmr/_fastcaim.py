@@ -121,7 +121,11 @@ class FastCaim(object):
         self.__x = np.array(x.T, dtype=float, copy=True)
         self.__y = np.array(y, dtype=np.int32, copy=True).reshape(nrow)
 
-        pool = mp.Pool(mp.cpu_count())
+        if mp.current_process().daemon:
+            from _fakepool import FakePool
+            pool = FakePool()
+        else:
+            pool = mp.Pool(mp.cpu_count())
 
         res = []
 

@@ -29,7 +29,8 @@ __all__ = [
     'generate_alignment',
     'pretty_fmt_results',
     'pretty_fmt_stats',
-    'pretty_fmt_weights'
+    'pretty_fmt_weights',
+    'extract_feature_weights'
 ]
 
 
@@ -152,18 +153,19 @@ def generate_alignment(seqrecords, my_basename, ref_id_func, opts):
 
 def cv_results_to_output(results, colnames, meta=None):
 
-    statsdict = results['stats'].todict()
+    statsdict = results.stats.todict()
 
     # remove minstat 'cause we don't want it here..
     if 'Minstat' in statsdict:
         del statsdict['Minstat']
 
     featureweights = {}
-    for i in xrange(len(results['extra'])):
-        assert(len(results['extra'][i]['features']) >= len(results['extra'][i]['weights']))
-        for j in xrange(len(results['extra'][i]['features'])):
-            v = results['extra'][i]['weights'][j] if j < len(results['extra'][i]['weights']) else 0.
-            k = results['extra'][i]['features'][j]
+
+    for i in xrange(len(results.extra)):
+        assert(len(results.extra[i]['features']) >= len(results.extra[i]['weights']))
+        for j in xrange(len(results.extra[i]['features'])):
+            v = results.extra[i]['weights'][j] if j < len(results.extra[i]['weights']) else 0.
+            k = results.extra[i]['features'][j]
             if k not in featureweights:
                 featureweights[k] = []
             featureweights[k].append(int(copysign(1, v)))
@@ -273,3 +275,9 @@ def pretty_fmt_results(results):
     ret += pretty_fmt_stats(results['statistics'], 1) + ',\n'
     ret += pretty_fmt_weights(results['weights'], 1) + '\n}'
     return ret
+
+def extract_feature_weights(instance):
+    return {
+        'features': instance.features(),
+        'weights': instance.classifier.weights()
+    }
