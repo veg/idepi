@@ -122,6 +122,7 @@ def setup_option_parser():
     parser.add_option('--normalizemrmr', action='store_true',                                                    dest='MRMR_NORMALIZE')
     parser.add_option('--filter',        action='callback',    callback=optparse_csv,    type='string',          dest='FILTER')
     parser.add_option('--numfeats',                                                      type='int',             dest='NUM_FEATURES')
+    parser.add_option('--forward',       action='store_true',                                                    dest='FORWARD_SELECT')
     parser.add_option('--subtypes',      action='callback',    callback=optparse_csv,    type='string',          dest='SUBTYPES')
     parser.add_option('--svmtrain',                                                      type='string',          dest='SVM_TRAIN_BIN')
     parser.add_option('--svmpredict',                                                    type='string',          dest='SVM_PREDICT_BIN')
@@ -172,6 +173,7 @@ def setup_option_parser():
     parser.set_defaults(MAXREL             = False)
     parser.set_defaults(FILTER             = [])
     parser.set_defaults(NUM_FEATURES       = -1)
+    parser.set_defaults(FORWARD_SELECT     = False)
     parser.set_defaults(SUBTYPES           = [])
     parser.set_defaults(SVM_TRAIN_BIN      = join(_WORKING_DIR, 'contrib', 'libsvm-3.0', 'svm-train'))
     parser.set_defaults(SVM_PREDICT_BIN    = join(_WORKING_DIR, 'contrib', 'libsvm-3.0', 'svm-predict'))
@@ -477,106 +479,107 @@ def main(argv = sys.argv):
 
     # compute features
     for target in OPTIONS.TARGETS:
+
+        forward_initval = 1 if OPTIONS.FORWARD_SELECT else OPTIONS.NUM_FEATURES
+        forward_select = None
         results = None
+        for num_features in xrange(forward_initval, OPTIONS.NUM_FEATURES + 1):
 
-        if sim is None:
-            yextractor = ClassExtractor(
-                id_to_float,
-                lambda row: is_HXB2(row) or False, # TODO: again filtration function
-                lambda x: x < OPTIONS.IC50LT if target == 'lt' else x > OPTIONS.IC50GT
-            )
-            y = yextractor.extract(alignment)
+            if sim is None:
+                yextractor = ClassExtractor(
+                    id_to_float,
+                    lambda row: is_HXB2(row) or False, # TODO: again filtration function
+                    lambda x: x < OPTIONS.IC50LT if target == 'lt' else x > OPTIONS.IC50GT
+                )
+                y = yextractor.extract(alignment)
 
-        # simulations, ho!
-        for i in xrange(sim.runs if sim is not None else 1):
+            # simulations, ho!
+            for i in xrange(sim.runs if sim is not None else 1):
 
-            # here is where the sequences must be generated for the random sequence and random epitope simulations
-            if sim is not None:
-                alignment = sim.generate_sequences(
-                    N=OPTIONS.SIM_EPI_N,
-                    idfmt='%s|||',
-                    noise=OPTIONS.SIM_EPI_NOISE,
-                    mutation_rate=OPTIONS.SIM_EPI_MUT_RATE,
-                    alphabet=alph
+                # here is where the sequences must be generated for the random sequence and random epitope simulations
+                if sim is not None:
+                    alignment = sim.generate_sequences(
+                        N=OPTIONS.SIM_EPI_N,
+                        idfmt='%s|||',
+                        noise=OPTIONS.SIM_EPI_NOISE,
+                        mutation_rate=OPTIONS.SIM_EPI_MUT_RATE,
+                        alphabet=alph
+                    )
+
+                    colnames, x = colfilter.learn(alignment, {}) # XXX: refseq_offs needed here?
+
+                    # simulates the epitope and assigns the appropriate class
+                    epi_def = sim.simulate_epitope(
+                        alignment,
+                        alph,
+                        colnames,
+                        OPTIONS.SIM_EPI_SIZE,
+                        OPTIONS.SIM_EPI_PERCENTILE,
+                    )
+
+                    if epi_def is not None:
+                        print >> sys.stdout, '********************* SIMULATED EPITOPE DESCRIPTION (%d) *********************\n' % OPTIONS.SIM_EPI_SIZE
+                        print >> sys.stdout, '%s\n' % str(epi_def)
+
+                optstat = DiscretePerfStats.MINSTAT
+                if OPTIONS.ACCURACY:
+                    optstat = DiscretePerfStats.ACCURACY
+                elif OPTIONS.PPV:
+                    optstat = DiscretePerfStats.PPV
+                elif OPTIONS.NPV:
+                    optstat = DiscretePerfStats.NPV
+                elif OPTIONS.SENSITIVITY:
+                    optstat = DiscretePerfStats.SENSITIVITY
+                elif OPTIONS.SPECIFICITY:
+                    optstat = DiscretePerfStats.SPECIFICITY
+                elif OPTIONS.FSCORE:
+                    optstat = DiscretePerfStats.FSCORE
+
+                C_begin, C_end, C_step = OPTIONS.LOG2C
+                recip = 1
+                if isinstance(C_step, float):
+                    recip = 1. / C_step
+                    C_begin, C_end = int(recip * C_begin), int(recip * C_end)
+                    C_step = 1
+                C_range = [pow(2., float(C) / recip) for C in xrange(C_begin, C_end + 1, C_step)]
+
+                if OPTIONS.MRMR_NORMALIZE:
+                    DiscreteMrmr._NORMALIZED = True
+
+                crossvalidator = SelectingNestedCrossValidator(
+                    classifier_cls=LinearSvm,
+                    selector_cls=FastCaimMrmr if OPTIONS.PHYLOFILTER else DiscreteMrmr,
+                    folds=OPTIONS.CV_FOLDS,
+                    gridsearch_kwargs={ 'C': C_range },
+                    classifier_kwargs={},
+                    selector_kwargs={
+                        'num_features': num_features,
+                        'method': DiscreteMrmr.MAXREL if OPTIONS.MAXREL else \
+                                  DiscreteMrmr.MID if OPTIONS.MRMR_METHOD == 'MID' else \
+                                  DiscreteMrmr.MIQ
+                    },
+                    validator_cls=CrossValidator,
+                    validator_kwargs={
+                        'folds': OPTIONS.CV_FOLDS-1,
+                        'scorer_cls': DiscretePerfStats,
+                        'scorer_kwargs': { 'optstat': optstat }
+                    },
+                    scorer_cls=DiscretePerfStats,
+                    scorer_kwargs={ 'optstat': optstat },
+                    weights_func='weights' # we MUST specify this or it will be set to lambda: None
                 )
 
-                colnames, x = colfilter.learn(alignment, {}) # XXX: refseq_offs needed here?
+                new_results = crossvalidator.crossvalidate(x, y, classifier_kwargs={}, extra=extract_feature_weights)
 
-                # simulates the epitope and assigns the appropriate class
-                epi_def = sim.simulate_epitope(
-                    alignment,
-                    alph,
-                    colnames,
-                    OPTIONS.SIM_EPI_SIZE,
-                    OPTIONS.SIM_EPI_PERCENTILE,
-                )
+                if results is not None and new_results.stats.get() <= results.stats.get():
+                    break
 
-                if epi_def is not None:
-                    print >> sys.stdout, '********************* SIMULATED EPITOPE DESCRIPTION (%d) *********************\n' % OPTIONS.SIM_EPI_SIZE
-                    print >> sys.stdout, '%s\n' % str(epi_def)
-
-            optstat = DiscretePerfStats.MINSTAT
-            if OPTIONS.ACCURACY:
-                optstat = DiscretePerfStats.ACCURACY
-            elif OPTIONS.PPV:
-                optstat = DiscretePerfStats.PPV
-            elif OPTIONS.NPV:
-                optstat = DiscretePerfStats.NPV
-            elif OPTIONS.SENSITIVITY:
-                optstat = DiscretePerfStats.SENSITIVITY
-            elif OPTIONS.SPECIFICITY:
-                optstat = DiscretePerfStats.SPECIFICITY
-            elif OPTIONS.FSCORE:
-                optstat = DiscretePerfStats.FSCORE
-
-            C_begin, C_end, C_step = OPTIONS.LOG2C
-            recip = 1
-            if isinstance(C_step, float):
-                recip = 1. / C_step
-                C_begin, C_end = int(recip * C_begin), int(recip * C_end)
-                C_step = 1
-            C_range = [pow(2., float(C) / recip) for C in xrange(C_begin, C_end + 1, C_step)]
-
-            if OPTIONS.MRMR_NORMALIZE:
-                DiscreteMrmr._NORMALIZED = True
-
-            crossvalidator = SelectingNestedCrossValidator(
-                classifier_cls=LinearSvm,
-                selector_cls=FastCaimMrmr if OPTIONS.PHYLOFILTER else DiscreteMrmr,
-                folds=OPTIONS.CV_FOLDS,
-                gridsearch_kwargs={ 'C': C_range },
-                classifier_kwargs={},
-                selector_kwargs={
-                    'num_features': OPTIONS.NUM_FEATURES,
-                    'method': DiscreteMrmr.MAXREL if OPTIONS.MAXREL else \
-                              DiscreteMrmr.MID if OPTIONS.MRMR_METHOD == 'MID' else \
-                              DiscreteMrmr.MIQ
-                },
-                validator_cls=CrossValidator,
-                validator_kwargs={
-                    'folds': OPTIONS.CV_FOLDS-1,
-                    'scorer_cls': DiscretePerfStats,
-                    'scorer_kwargs': { 'optstat': optstat }
-                },
-                scorer_cls=DiscretePerfStats,
-                scorer_kwargs={ 'optstat': optstat },
-                weights_func='weights' # we MUST specify this or it will be set to lambda: None
-            )
-
-            results = crossvalidator.crossvalidate(x, y, classifier_kwargs={}, extra=extract_feature_weights)
-
-        # print stats and results:
-#         print >> sys.stdout, '********************* REPORT FOR ANTIBODY %s IC50 %s *********************' % \
-#           (antibody, '< %d' % OPTIONS.IC50LT if target == 'lt' else '> %d' % OPTIONS.IC50GT)
-#
-#         if OPTIONS.SIM not in (Simulation.EPITOPE, Simulation.SEQUENCE, Simulation.TARGET):
-#             fmt = ('', OPTIONS.CV_FOLDS, '')
-#         else:
-#             fmt = ('%d-run ' % OPTIONS.SIM_RUNS, OPTIONS.CV_FOLDS, ' per run')
+                results = new_results
+                forward_select = num_features
 
         # the alignment reflects the number of sequences either naturally,
         # or through SIM_EPI_N, which reflects the natural number anyway.
-        meta = make_output_meta(OPTIONS, len(alignment), target, antibody)
+        meta = make_output_meta(OPTIONS, len(alignment), target, antibody, forward_select)
         ret = cv_results_to_output(results, colnames, meta)
 
         print pretty_fmt_results(ret)

@@ -189,11 +189,11 @@ def cv_results_to_output(results, colnames, meta=None):
     return ret
 
 
-def make_output_meta(opts, N, target, antibody):
+def make_output_meta(opts, N, target, antibody, forward_select=None):
     cutoff = opts.IC50LT if target == 'lt' else opts.IC50GT
     return {
         'sequences': N,
-        'features': opts.NUM_FEATURES,
+        'features': opts.NUM_FEATURES if forward_select is None else forward_select,
         'discriminator': { 'orientation': target, 'cutoff': cutoff },
         'antibody': antibody,
         'folds': opts.CV_FOLDS
