@@ -84,9 +84,7 @@ class PhyloFilter(BaseFilter):
 #         ids = [_ids.MatrixCell(0, i) for i in xrange(_ids.mCols)]
 
         ncol = nsites * len(alphabet)
-        # we start with a probability of one (site is NOT due to ancestry)
-        # and subtract out the probability that the site IS due to ancestry
-        tmp = np.ones((nspecies, ncol), dtype=float, order='F') # use column-wise order in memory
+        tmp = np.zeros((nspecies, ncol), dtype=float, order='F') # use column-wise order in memory
 
         # cache the result for each stride's indexing into the alphabet
         alphidx = [alphabet[order[i]] for i in xrange(len(order))]
@@ -100,7 +98,7 @@ class PhyloFilter(BaseFilter):
                     # the alphabet-specific index (alphidx[r])
                     l = (j * len(alphabet)) + alphidx[k]
                     # subtract out probability site IS due to shared ancestry 
-                    tmp[i, l] -= mat.MatrixCell(i, j*nchars + k)
+                    tmp[i, l] = mat.MatrixCell(i, j*nchars + k)
 
         # np.save('phylofilt.%d' % getpid(), tmp)
 

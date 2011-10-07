@@ -29,7 +29,7 @@ import os, sys, time
 import multiprocessing as mp
 import numpy as np
 
-from idepi import DiscreteMrmr, FastCaim, UiThread, GaussianKde, MixedMrmr
+from idepi import DiscreteMrmr, FastCaim, UiThread, GaussianKde, MixedMrmr, PhyloMrmr
 
 
 THRESHOLD = 0.8
@@ -42,6 +42,7 @@ def __usage():
 
 def main(argv, ui=None):
 
+    normalized = False
     klass = None
     num_features = 10
 
@@ -59,6 +60,14 @@ def main(argv, ui=None):
                 continue
             elif opt is 'c':
                 klass = MixedMrmr
+                i += 1
+                continue
+            elif opt is 'p':
+                klass = PhyloMrmr
+                i += 1
+                continue
+            elif opt is 'N':
+                normalized = True
                 i += 1
                 continue
             elif opt is '-':
@@ -81,23 +90,28 @@ def main(argv, ui=None):
     fh.close()
 
     names = lines[0].split(',')[1:]
-    arr = [[int(x) for x in l.split(',')] for l in lines[1:] if l != '']
-    m = np.array(arr, dtype=bool)
+    arr = [[float(x) for x in l.split(',')] for l in lines[1:] if l != '']
+    m = np.array(arr, dtype=float)
 
-    targets = m[:, 0]
-    vars = m[:, 1:]
+    targets = m[:, 0].astype(bool)
+    variables = m[:, 1:]
 
-    nrow, ncol = vars.shape
+    nrow, ncol = variables.shape
 
     if klass == MixedMrmr:
-        # vars = vars[:, :NUM_COLS]
+        # variables = variables[:, :NUM_COLS]
         fc = FastCaim()
         print 'starting discretization'
         b = time.time()
-        fc.learn(vars, targets)
-        vars = fc.discretize(vars)
-        print 'done discretizing %i columns, took' % vars.shape[1], time.time() - b, 'seconds'
+        fc.learn(variables, targets)
+        variables = fc.discretize(variables)
+        print 'done discretizing %i columns, took' % variables.shape[1], time.time() - b, 'seconds'
         klass = DiscreteMrmr
+
+    if normalized:
+        klass._NORMALIZED = True
+    else:
+        klass._NORMALIZED = False
 
     selector = klass()
 
@@ -105,9 +119,9 @@ def main(argv, ui=None):
     b = time.time()
 
     # hax to get at 'private' method
-    maxrel, mrmr = selector._mrmr_selection(num_features, klass.MID, vars, targets, threshold=THRESHOLD, ui=ui)
+    maxrel, mrmr = selector._mrmr_selection(num_features, klass.MID, variables, targets, threshold=THRESHOLD, ui=ui)
 
-    print 'done feature selection across %i columns, took' % vars.shape[1], time.time() - b, 'seconds'
+    print 'done feature selection across %i columns, took' % variables.shape[1], time.time() - b, 'seconds'
 
     print 'I(X, Y) / H(X, Y)'
     for idx, value in maxrel:
