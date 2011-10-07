@@ -56,7 +56,7 @@ GetString (_AncestralNodeNames, _marginalAncestorsFilter, -1);
 _idx_3 = 0;
 _characterDimension = Columns (_AncestralFilterChars);
 
-output = {_marginalAncestorsFilter.species,_marginalAncestorsFilter.sites*_characterDimension};
+_output = {_marginalAncestorsFilter.species,_marginalAncestorsFilter.sites*_characterDimension};
 
 for (_idx_1 = 0; _idx_1 < _marginalAncestorsFilter.species; _idx_1 += 1)
 {
@@ -71,7 +71,7 @@ for (_idx_1 = 0; _idx_1 < _marginalAncestorsFilter.species; _idx_1 += 1)
 
                for (_idx_3 = 0;  _idx_3 < _characterDimension; _idx_3 += 1)
                {
-                       output[_idx_1][_idx_2 * _characterDimension + _idx_3] = _charProbs[_idx_3];
+                       _output[_idx_1][_idx_2 * _characterDimension + _idx_3] = _charProbs[_idx_3];
                }
        }
 

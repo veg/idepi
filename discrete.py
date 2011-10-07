@@ -41,8 +41,8 @@ from Bio import AlignIO, SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
-from idepi import Alphabet, ClassExtractor, DiscreteMrmr, DumbSimulation, FastCaimMrmr, LinearSvm, MarkovSimulation, \
-                  NaiveFilter, PhyloFilter, SeqTable, Simulation, collect_AbRecords_from_db, cv_results_to_output, \
+from idepi import Alphabet, ClassExtractor, DiscreteMrmr, DumbSimulation, LinearSvm, MarkovSimulation, NaiveFilter, \
+                  PhyloFilter, PhyloMrmr, SeqTable, Simulation, collect_AbRecords_from_db, cv_results_to_output, \
                   extract_feature_weights, generate_alignment, generate_feature_names, get_valid_antibodies_from_db, \
                   get_valid_subtypes_from_db, id_to_float, is_HXB2, make_output_meta, pretty_fmt_results, \
                   set_util_params
@@ -548,7 +548,7 @@ def main(argv = sys.argv):
 
                 crossvalidator = SelectingNestedCrossValidator(
                     classifier_cls=LinearSvm,
-                    selector_cls=FastCaimMrmr if OPTIONS.PHYLOFILTER else DiscreteMrmr,
+                    selector_cls=PhyloMrmr if OPTIONS.PHYLOFILTER else DiscreteMrmr,
                     folds=OPTIONS.CV_FOLDS,
                     gridsearch_kwargs={ 'C': C_range },
                     classifier_kwargs={},

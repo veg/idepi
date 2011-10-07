@@ -134,7 +134,7 @@ class PhyloMrmr(BaseMrmr):
     @staticmethod
     def _prepare(x, y, ui=None):
 
-        if x.dtype != float and np.all(0. <= a) and np.all(x <= 1.):
+        if x.dtype != float and np.all(0. <= x) and np.all(x <= 1.):
             raise ValueError('X must have real values of type `float\' that are probabilities in [0., 1.]')
 
         if (y.dtype != int and y.dtype != bool) or not set(y).issubset(set((-1, 0, 1))):

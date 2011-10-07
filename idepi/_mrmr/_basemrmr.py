@@ -118,14 +118,14 @@ class BaseMrmr(object):
             ui.progress.value = 0
             ui.start()
 
-        vars, targets, joint = cls._prepare(x, y, ui)
+        variables, targets, joint = cls._prepare(x, y, ui)
 
-        MI_t, H_t = cls._compute_mi(vars, targets, ui)
+        MI_t, H_t = cls._compute_mi(variables, targets, ui)
 
 #         MI_v, H_v = np.zeros((ncol, ncol), dtype=float), np.zeros((ncol, ncol), dtype=float)
 #
 #         for i in xrange(ncol):
-#             MI_v[i, :], H_v[i, :] = compute_mi(nrow, vars, vars[:, i], ui.progress if ui else None)
+#             MI_v[i, :], H_v[i, :] = compute_mi(nrow, variables, variables[:, i], ui.progress if ui else None)
 
 #         d_t = np.subtract(H_t, MI_t)
 #         D_t = np.divide(d_t, H_t)
@@ -160,7 +160,7 @@ class BaseMrmr(object):
         mi_vars, h_vars = {}, {}
         s_vars = {} if cls._NORMALIZED else mi_vars
 
-        mi_vars[idx], h_vars[idx] = cls._compute_mi(vars, vars[:, idx], ui)
+        mi_vars[idx], h_vars[idx] = cls._compute_mi(variables, variables[:, idx], ui)
         if cls._NORMALIZED:
             s_vars[idx] = np.divide(mi_vars[idx], h_vars[idx])
 
@@ -188,7 +188,7 @@ class BaseMrmr(object):
                     ) \
                     for idx, maxrel in mi_vals[1:] if idx not in mask_idxs
                 ], key=itemgetter(2), reverse=True)[0]
-            mi_vars[idx], h_vars[idx] = cls._compute_mi(vars, vars[:, idx], ui)
+            mi_vars[idx], h_vars[idx] = cls._compute_mi(variables, variables[:, idx], ui)
             if cls._NORMALIZED:
                 s_vars[idx] = np.divide(mi_vars[idx], h_vars[idx])
 
