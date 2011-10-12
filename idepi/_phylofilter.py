@@ -72,19 +72,23 @@ class PhyloFilter(BaseFilter):
 
         order = HyPhy.retrieve(hyphy, 'order', HyPhy.STRING).strip(',').split(',')
 #         _ids = HyPhy.retrieve(hyphy, 'ids', HyPhy.MATRIX)
-        mat = HyPhy.retrieve(hyphy, 'output', HyPhy.MATRIX)
+        msm = HyPhy.retrieve(hyphy, 'marginalSupportMatrix', HyPhy.MATRIX)
+        bim = HyPhy.retrieve(hyphy, 'binaryIdentitiesMatrix', HyPhy.MATRIX)
         nspecies = int(HyPhy.retrieve(hyphy, 'numSpecies', HyPhy.NUMBER))
         nsites = int(HyPhy.retrieve(hyphy, 'numSites', HyPhy.NUMBER))
         nchars = int(HyPhy.retrieve(hyphy, 'numChars', HyPhy.NUMBER))
 
         assert(len(order) == nchars)
-        assert(mat.mCols == (nsites * nchars))
-        assert(mat.mRows == nspecies)
+        assert(msm.mCols == (nsites * nchars))
+        assert(msm.mRows == nspecies)
+        assert(bim.mCols == (nsites * nchars))
+        assert(bim.mRows == nspecies)
 #         assert(_ids.mRows == 0)
 #         ids = [_ids.MatrixCell(0, i) for i in xrange(_ids.mCols)]
 
         ncol = nsites * len(alphabet)
-        tmp = np.zeros((nspecies, ncol), dtype=float, order='F') # use column-wise order in memory
+        custom_type = np.dtype([('b', bool), ('p', float)]) # 'b' for binary identity, 'p' for probability | phylogeny
+        tmp = np.zeros((nspecies, ncol), dtype=custom_type) #, order='F') # use column-wise order in memory
 
         # cache the result for each stride's indexing into the alphabet
         alphidx = [alphabet[order[i]] for i in xrange(len(order))]
@@ -97,16 +101,18 @@ class PhyloFilter(BaseFilter):
                     # the self.__alph stride (len(self.__alph)), and then finally adding
                     # the alphabet-specific index (alphidx[r])
                     l = (j * len(alphabet)) + alphidx[k]
-                    # subtract out probability site IS due to shared ancestry 
-                    tmp[i, l] = mat.MatrixCell(i, j*nchars + k)
+                    # 'b' for binary identity and 'p' for probability | phylogeny
+                    tmp[i, l] = (bim.MatrixCell(i, j*nchars + k), msm.MatrixCell(i, j*nchars + k))
 
         # np.save('phylofilt.%d' % getpid(), tmp)
 
-        colsum = np.sum(tmp, axis=0)
-        idxs = [i for i in xrange(ncol) if colsum[i] != 0.]
-        ignore_idxs = set([i for i in xrange(ncol) if colsum[i] == 0.])
+        colsum = np.sum(tmp[:, :]['b'], axis=0)
+        idxs = [i for i in xrange(ncol) if colsum[i] != 0]
+        ignore_idxs = set([i for i in xrange(ncol) if colsum[i] == 0])
 
         data = tmp[:, idxs]
+
+        np.savez('phylo.npz', {'data': data})
 
 #         data = np.zeros((mat.mRows, ncol - len(ignore_idxs)), dtype=float)
 #
@@ -121,6 +127,10 @@ class PhyloFilter(BaseFilter):
             alignment.append(refseq)
 
         colnames = BaseFilter._colnames(alignment, alphabet, ref_id_func, refseq_offs, ignore_idxs)
+
+        with open('phylo.json', 'w') as fh:
+            import json
+            json.dump(colnames, fh)
 
         # make sure that the columns do line up
         assert(len(colnames) == data.shape[1])

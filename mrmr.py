@@ -108,12 +108,15 @@ def main(argv, ui=None):
         print 'done discretizing %i columns, took' % variables.shape[1], time.time() - b, 'seconds'
         klass = DiscreteMrmr
 
+    if klass != PhyloMrmr:
+        variables = variables.astype(int)
+
     if normalized:
         klass._NORMALIZED = True
     else:
         klass._NORMALIZED = False
 
-    selector = klass()
+    selector = klass(num_features, klass.MID, THRESHOLD)
 
     print 'starting feature selection'
     b = time.time()
@@ -130,6 +133,10 @@ def main(argv, ui=None):
     print '\nI(X, Y) / H(X, Y) - I(X, X) / H(X, X) (related > %.3g)' % THRESHOLD
     for idx, value, related in mrmr:
         print '   %4d   % 5s   %6.4f   (%s)' % (idx + 1, names[idx], value, ', '.join([names[i] + ': %6.4f' % v for i, v in related]))
+
+    selector.select(variables, targets)
+
+    print selector.subset(variables)
 
     return 0
 

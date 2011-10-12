@@ -262,4 +262,6 @@ class BaseMrmr(object):
             raise StandardError('No mRMR model computed')
         if x.shape[1] != self.__colsize:
             raise ValueError('model, number of features: shape mismatch')
+        if hasattr(self, '_postprocess'):
+            return self._postprocess(x[:, BaseMrmr.features(self)])
         return x[:, BaseMrmr.features(self)]

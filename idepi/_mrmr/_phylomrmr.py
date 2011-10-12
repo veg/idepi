@@ -38,10 +38,20 @@ from _basemrmr import BaseMrmr
 __all__ = ['PhyloMrmr']
 
 
+def _inv_if_neg(v, b):
+    return v if b else 1. - v
+
+
 def _compute_mi_inner_log2(nrow, v, variables, targets_t, p=None):
     p_t = float(np.sum(targets_t)) / nrow # p(X == t)
-    p_v = np.sum((v - (variables > 0.)) if v == 1 else variables > 0., axis=0).astype(float) / nrow # p(Y == v)
-    p_tv = np.sum(np.multiply(targets_t, variables).astype(float), axis=0) / np.sum(targets_t) # p(X == t, Y == v)
+    p_v = np.sum(variables[:, :]['b'] == v, axis=0).astype(float) / nrow # p(Y == v)
+    p_tv = np.sum(
+            np.multiply(
+                # if v is False, then we are more interested in the support due to phylogeny
+                _inv_if_neg(variables[:, :]['p'], v),
+                np.multiply(variables[:, :]['b'] == v, targets_t)
+            ), # this should be a float variable due to 'p'
+            axis=0) / np.sum(variables[:, :]['b'] == v) # p(X == t, Y == v)
     mi = np.nan_to_num(np.multiply(p_tv, np.log2(p_tv / (p_t * p_v))))
     h = -np.nan_to_num(np.multiply(p_tv, np.log2(p_tv)))
 
@@ -55,8 +65,14 @@ def _compute_mi_inner_log2(nrow, v, variables, targets_t, p=None):
 
 def _compute_mi_inner_log10(nrow, v, variables, targets_t, p=None):
     p_t = float(np.sum(targets_t)) / nrow # p(X == t)
-    p_v = np.sum((v - variables if v > 0 else variables) > 0., axis=0).astype(float) / nrow # p(Y == v)
-    p_tv = np.sum(np.multiply(targets_t, variables), axis=0).astype(float) / nrow # p(X == t, Y == v)
+    p_v = np.sum(variables[:, :]['b'] == v, axis=0).astype(float) / nrow # p(Y == v)
+    p_tv = np.sum(
+            np.multiply(
+                # if v is False, then we are more interested in the support due to phylogeny
+                _inv_if_neg(variables[:, :]['p'], v),
+                np.multiply(variables[:, :]['b'] == v, targets_t)
+            ), # this should be a float variable due to 'p'
+            axis=0) / np.sum(variables[:, :]['b'] == v) # p(X == t, Y == v)
     mi = np.nan_to_num(np.multiply(p_tv, np.log10(p_tv / (p_t * p_v))))
     h = -np.nan_to_num(np.multiply(p_tv, np.log10(p_tv)))
 
@@ -85,10 +101,12 @@ class PhyloMrmr(BaseMrmr):
             workerfunc = _compute_mi_inner_log10
             logmod = np.log10(maxclasses)
 
-        vclasses = xrange(1) # vclasses never assesses the ! case in phylomrmr 
-        tclasses = set(targets > 0.)
+        vclasses = xrange(2) # vclasses never assesses the ! case in phylomrmr 
+        tclasses = xrange(2)
 
-        targets = np.atleast_2d(targets)
+        targets = np.atleast_2d(targets if targets.dtype in (bool, int) else \
+                                targets[:]['b'] if len(targets.shape) == 1 else \
+                                targets[:, :]['b'])
 
         # transpose if necessary (likely if coming from array)
         if targets.shape[0] == 1 and targets.shape[1] == variables.shape[0]:
@@ -110,7 +128,7 @@ class PhyloMrmr(BaseMrmr):
         for v in vclasses:
             for t in tclasses:
                 if t not in tcache:
-                    tcache[t] = t - (targets > 0.) if t else targets > 0.
+                    tcache[t] = targets == t
                 res[(t, v)] = pool.apply_async(workerfunc, (nrow, v, variables, tcache[t], progress))
 
         pool.close()
@@ -134,13 +152,15 @@ class PhyloMrmr(BaseMrmr):
     @staticmethod
     def _prepare(x, y, ui=None):
 
-        if x.dtype != float and np.all(0. <= x) and np.all(x <= 1.):
-            raise ValueError('X must have real values of type `float\' that are probabilities in [0., 1.]')
+        if x.dtype != np.dtype([('b', bool), ('p', float)]) and \
+           np.all(x[:, :]['p'] <= 1.) and \
+           np.all(x[:, :]['p'] >= 0.):
+            raise ValueError("X must have a complex dtype of [('b', bool), ('p', float)] with 0. <= 'p' <= 1.")
 
         if (y.dtype != int and y.dtype != bool) or not set(y).issubset(set((-1, 0, 1))):
             raise ValueError('Y must belong to discrete classes of type `int\' in (-1, 0, 1)')
 
-        vars = np.copy(x)
+        variables = np.copy(x)
         targets = np.copy(y)
 
         targets = targets > 0. # targets just became bool
@@ -148,4 +168,8 @@ class PhyloMrmr(BaseMrmr):
         if ui is not None:
             ui.complete.value *= 8
 
-        return vars, targets, None
+        return variables, targets, None
+
+    @staticmethod
+    def _postprocess(x):
+        return x[:, :]['b']

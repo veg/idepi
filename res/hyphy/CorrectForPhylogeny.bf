@@ -56,22 +56,24 @@ GetString (_AncestralNodeNames, _marginalAncestorsFilter, -1);
 _idx_3 = 0;
 _characterDimension = Columns (_AncestralFilterChars);
 
-_output = {_marginalAncestorsFilter.species,_marginalAncestorsFilter.sites*_characterDimension};
+_msm = {_marginalAncestorsFilter.species,_marginalAncestorsFilter.sites*_characterDimension};
+_bim = {_marginalAncestorsFilter.species,_marginalAncestorsFilter.sites*_characterDimension};
 
 for (_idx_1 = 0; _idx_1 < _marginalAncestorsFilter.species; _idx_1 += 1)
 {
        for (_idx_2 = 0; _idx_2 < _marginalAncestorsFilter.sites; _idx_2 += 1)
        {
                _patternIndex = _marginalFilterSiteToPatternMap[_idx_2];
+
                _charProbs = _marginalAncestors.marginal_support_matrix[{{_idx_1,_patternIndex*_characterDimension}}][{{_idx_1,(1+_patternIndex)*_characterDimension-1}}];
+               _charProbs = _charProbs["(1-_MATRIX_ELEMENT_VALUE_)"];
 
-               GetDataInfo (charsPresent, filteredData, _idx_1, _patternIndex);
-
-               _charProbs = (_charProbs["(1-_MATRIX_ELEMENT_VALUE_)"]) $ Transpose(charsPresent);
+               GetDataInfo (_charsPresent, filteredData, _idx_1, _patternIndex);
 
                for (_idx_3 = 0;  _idx_3 < _characterDimension; _idx_3 += 1)
                {
-                       _output[_idx_1][_idx_2 * _characterDimension + _idx_3] = _charProbs[_idx_3];
+                       _msm[_idx_1][_idx_2 * _characterDimension + _idx_3] = _charProbs[_idx_3];
+                       _bim[_idx_1][_idx_2 * _characterDimension + _idx_3] = _charsPresent[_idx_3];
                }
        }
 
@@ -87,9 +89,13 @@ function _THyPhyAskFor(key)
     {
         return "" + Join(",",_AncestralFilterChars);
     }
-    if (key == "output")
+    if (key == "marginalSupportMatrix")
     {
-        return _output;
+        return _msm;
+    }
+    if (key == "binaryIdentitiesMatrix")
+    {
+        return _bim;
     }
     if (key == "numSites")
     {

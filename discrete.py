@@ -451,12 +451,20 @@ def main(argv = sys.argv):
     alignment, refseq_offs = generate_alignment(seqrecords, alignment_basename, is_HXB2, OPTIONS)
     colfilter = None
     if OPTIONS.PHYLOFILTER:
-        colfilter = PhyloFilter(
-            alph,
-            _PHYLOFILTER_BATCHFILE,
-            is_HXB2,
-            lambda x: False
-        )
+        numpy_file = alignment_basename + '.npy'
+        colnames_file = alignment_basename + '.cols'
+        if exists(numpy_file) and exists(colnames_file):
+            x = np.load(numpy_file)
+            colnames = csv.reader(colnames_file).read()
+        else:
+            colfilter = PhyloFilter(
+                alph,
+                _PHYLOFILTER_BATCHFILE,
+                is_HXB2,
+                lambda x: False
+            )
+            colnames, x = colfilter.learn(alignment, refseq_offs)
+    #         np.save(numpy_file, x)
     else:
         colfilter = NaiveFilter(
             alph,
@@ -467,14 +475,14 @@ def main(argv = sys.argv):
             lambda x: False # TODO: add the appropriate filter function based on the args here
         )
 
-    if sim is None:
-        colnames, x = colfilter.learn(alignment, refseq_offs)
-        # TODO: I don't think we need to binarize the colnames here, though we can if we want.
-        # I need to think more about how to properly handle this case.
-#             colnames = binarize(x, colnames, dox=False)
-    else:
-        if OPTIONS.SIM_EPI_N is None:
-            OPTIONS.SIM_EPI_N = len(seqrecords)
+        if sim is None:
+            colnames, x = colfilter.learn(alignment, refseq_offs)
+            # TODO: I don't think we need to binarize the colnames here, though we can if we want.
+            # I need to think more about how to properly handle this case.
+        else:
+            if OPTIONS.SIM_EPI_N is None:
+                OPTIONS.SIM_EPI_N = len(seqrecords)
+
 
 
     # compute features
