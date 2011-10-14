@@ -53,20 +53,41 @@ DataSetFilter _marginalAncestorsFilter = CreateFilter (_marginalAncestors, 1);
 GetDataInfo (_marginalFilterSiteToPatternMap, filteredData);
 GetString (_AncestralNodeNames, _marginalAncestorsFilter, -1);
 
-_idx_3 = 0;
 _characterDimension = Columns (_AncestralFilterChars);
+
+_strLen = 0;
+for (_idx_1 = 0; _idx_1 < _marginalAncestorsFilter.species; _idx_1 += 1)
+{
+    // +22 for the ' <UNKNOWN DESCRIPTION>' that's appended stupidly by HyPhy
+    _accum = 1 + 22;
+    for (_idx_2 = 1; (1. + _idx_1) / _idx_2 > 1.; _idx_2 = _idx_2 * 10)
+    {
+        _accum += 1;
+    }
+    _strLen += _accum;
+}
+// -1 to remove space for the leading comma
+// is handled by the 0 above
 
 _msm = {_marginalAncestorsFilter.species,_marginalAncestorsFilter.sites*_characterDimension};
 _bim = {_marginalAncestorsFilter.species,_marginalAncestorsFilter.sites*_characterDimension};
+_ids = "";
+_ids * _strLen;
 
 for (_idx_1 = 0; _idx_1 < _marginalAncestorsFilter.species; _idx_1 += 1)
 {
+       if (_idx_1 > 0)
+       {
+            _ids * ",";
+       }
+       _ids * ("" + newNamesToOldNames[_AncestralNodeNames[_idx_1]]);
+
        for (_idx_2 = 0; _idx_2 < _marginalAncestorsFilter.sites; _idx_2 += 1)
        {
                _patternIndex = _marginalFilterSiteToPatternMap[_idx_2];
 
                _charProbs = _marginalAncestors.marginal_support_matrix[{{_idx_1,_patternIndex*_characterDimension}}][{{_idx_1,(1+_patternIndex)*_characterDimension-1}}];
-               _charProbs = _charProbs["(1-_MATRIX_ELEMENT_VALUE_)"];
+               // _charProbs = _charProbs["(1-_MATRIX_ELEMENT_VALUE_)"];
 
                GetDataInfo (_charsPresent, filteredData, _idx_1, _patternIndex);
 

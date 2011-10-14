@@ -37,12 +37,12 @@ class BaseFilter(object):
                 ins += 1
             if i in refseq_offs:
                 c += refseq_offs[i]
-            for i in xrange(len(alphabet)):
+            for j in xrange(len(alphabet)):
                 if col in ignore_idxs:
                     pass
                 else:
                     insert = base_26_to_alph(base_10_to_n(ins, BASE_ALPH))
-                    colnames.append('%s%d%s%s' % ('' if insert != '' else p.upper(), c, insert, alphabet[i]))
+                    colnames.append('%s%d%s%s' % ('' if insert != '' else p.upper(), c, insert, alphabet[j]))
                 col += 1
 
         return colnames

@@ -43,9 +43,9 @@ class PhyloFilter(BaseFilter):
 #         self.__run, self.__data, self.__colnames = False, None, None
 
     def __del__(self):
-        for file in (self.__inputfile,):
-            if file and exists(file):
-                remove(file)
+        for f in (self.__inputfile,):
+            if f and exists(f):
+                remove(f)
 
     @staticmethod
     def __compute(alignment, alphabet, batchfile, inputfile, ref_id_func, refseq_offs, skip_func, hyphy=None):
@@ -60,31 +60,43 @@ class PhyloFilter(BaseFilter):
             elif r:
                 raise RuntimeError('Reference sequence found twice!?!?!?!')
 
+        alignment_length = alignment.get_alignment_length()
+
         alignment = [row for row in alignment if \
-                     not apply(ref_id_func, (row.id,)) and \
-                     not apply(skip_func, (row.id,))
-                    ]
+                         not apply(ref_id_func, (row.id,)) and \
+                         not apply(skip_func, (row.id,))]
+
+        old_ids = [None] * len(alignment)
+        for i, row in enumerate(alignment):
+            old_ids[i] = row.id
+            row.id = '%d' % i
 
         with open(inputfile, 'w') as fh:
             SeqIO.write(alignment, fh, 'fasta')
 
+        # restore the old id names or barfage later
+        for i, row in enumerate(alignment):
+            row.id = old_ids[i]
+
         HyPhy.execute(hyphy, batchfile, (inputfile,))
 
-        order = HyPhy.retrieve(hyphy, 'order', HyPhy.STRING).strip(',').split(',')
-#         _ids = HyPhy.retrieve(hyphy, 'ids', HyPhy.MATRIX)
+        order = ''.join(HyPhy.retrieve(hyphy, 'order', HyPhy.STRING).strip(',').upper().split(','))
         msm = HyPhy.retrieve(hyphy, 'marginalSupportMatrix', HyPhy.MATRIX)
         bim = HyPhy.retrieve(hyphy, 'binaryIdentitiesMatrix', HyPhy.MATRIX)
+        ids = HyPhy.retrieve(hyphy, 'ids', HyPhy.STRING).strip(',').upper().split(',')
         nspecies = int(HyPhy.retrieve(hyphy, 'numSpecies', HyPhy.NUMBER))
         nsites = int(HyPhy.retrieve(hyphy, 'numSites', HyPhy.NUMBER))
         nchars = int(HyPhy.retrieve(hyphy, 'numChars', HyPhy.NUMBER))
 
+        # we need these to know how hyphy screwbar'd our sequence order
+        ids = [int(v.split()[0]) for v in ids]
+
+        assert(alignment_length == nsites)
         assert(len(order) == nchars)
         assert(msm.mCols == (nsites * nchars))
         assert(msm.mRows == nspecies)
         assert(bim.mCols == (nsites * nchars))
         assert(bim.mRows == nspecies)
-#         assert(_ids.mRows == 0)
-#         ids = [_ids.MatrixCell(0, i) for i in xrange(_ids.mCols)]
 
         ncol = nsites * len(alphabet)
         custom_type = np.dtype([('b', bool), ('p', float)]) # 'b' for binary identity, 'p' for probability | phylogeny
@@ -99,10 +111,11 @@ class PhyloFilter(BaseFilter):
                     # we map j from HyPhy column order into self.__alph column order
                     # by getting at the MSA column (j / len(order)), multiplying by
                     # the self.__alph stride (len(self.__alph)), and then finally adding
-                    # the alphabet-specific index (alphidx[r])
-                    l = (j * len(alphabet)) + alphidx[k]
+                    # the alphabet-specific index (alphidx[k])
+                    l = ids[i]
+                    m = (j * len(alphabet)) + alphidx[k]
                     # 'b' for binary identity and 'p' for probability | phylogeny
-                    tmp[i, l] = (bim.MatrixCell(i, j*nchars + k), msm.MatrixCell(i, j*nchars + k))
+                    tmp[l, m] = (bim.MatrixCell(i, j*nchars + k), msm.MatrixCell(i, j*nchars + k))
 
         # np.save('phylofilt.%d' % getpid(), tmp)
 
@@ -112,7 +125,7 @@ class PhyloFilter(BaseFilter):
 
         data = tmp[:, idxs]
 
-        np.savez('phylo.npz', {'data': data})
+        np.savez('phylo.x.npz', {'data': data})
 
 #         data = np.zeros((mat.mRows, ncol - len(ignore_idxs)), dtype=float)
 #
@@ -128,7 +141,7 @@ class PhyloFilter(BaseFilter):
 
         colnames = BaseFilter._colnames(alignment, alphabet, ref_id_func, refseq_offs, ignore_idxs)
 
-        with open('phylo.json', 'w') as fh:
+        with open('phylo.colnames.json', 'w') as fh:
             import json
             json.dump(colnames, fh)
 

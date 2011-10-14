@@ -38,8 +38,8 @@ from _basemrmr import BaseMrmr
 __all__ = ['PhyloMrmr']
 
 
-def _inv_if_neg(v, b):
-    return v if b else 1. - v
+def _inv_if(v, b):
+    return 1. - v if b else v
 
 
 def _compute_mi_inner_log2(nrow, v, variables, targets_t, p=None):
@@ -48,10 +48,10 @@ def _compute_mi_inner_log2(nrow, v, variables, targets_t, p=None):
     p_tv = np.sum(
             np.multiply(
                 # if v is False, then we are more interested in the support due to phylogeny
-                _inv_if_neg(variables[:, :]['p'], v),
-                np.multiply(variables[:, :]['b'] == v, targets_t)
+                _inv_if(variables[:, :]['p'], v),
+                targets_t,
             ), # this should be a float variable due to 'p'
-            axis=0) / np.sum(variables[:, :]['b'] == v) # p(X == t, Y == v)
+            axis=0) / (p_t * nrow)
     mi = np.nan_to_num(np.multiply(p_tv, np.log2(p_tv / (p_t * p_v))))
     h = -np.nan_to_num(np.multiply(p_tv, np.log2(p_tv)))
 
@@ -69,10 +69,10 @@ def _compute_mi_inner_log10(nrow, v, variables, targets_t, p=None):
     p_tv = np.sum(
             np.multiply(
                 # if v is False, then we are more interested in the support due to phylogeny
-                _inv_if_neg(variables[:, :]['p'], v),
-                np.multiply(variables[:, :]['b'] == v, targets_t)
+                _inv_if(variables[:, :]['p'], v),
+                targets_t,
             ), # this should be a float variable due to 'p'
-            axis=0) / np.sum(variables[:, :]['b'] == v) # p(X == t, Y == v)
+            axis=0) / (p_t * nrow)
     mi = np.nan_to_num(np.multiply(p_tv, np.log10(p_tv / (p_t * p_v))))
     h = -np.nan_to_num(np.multiply(p_tv, np.log10(p_tv)))
 

@@ -28,9 +28,6 @@ class Alphabet(object):
 
     def __init__(self, mode=None, chars=None):
 
-        def constant_factory(value):
-            return repeat(value).next
-
         if mode is None:
            mode = self.AMINO
 
@@ -53,7 +50,7 @@ class Alphabet(object):
         else:
             raise ValueError('mode must be one of Alphabet.AMINO, Alphabet.DNA, Alphabet.STANFEL, or Alphabet.CUSTOM')
 
-        self.__dict = defaultdict(constant_factory(d['X']))
+        self.__dict = defaultdict(repeat(d['X']).next)
         self.__dict.update(d)
         self.__list = l
 

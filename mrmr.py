@@ -40,6 +40,17 @@ def __usage():
     return -1
 
 
+def find_files(prefix):
+    if os.path.exists(prefix):
+        return (prefix,)
+    else:
+        suffixes = ('.colnames.json', '.x.npz', '.y.npz')
+        for suffix in suffixes:
+            if not os.path.exists(prefix + suffix):
+                return None
+        return tuple([prefix + suffix for suffix in suffixes])
+
+
 def main(argv, ui=None):
 
     normalized = False
@@ -82,19 +93,38 @@ def main(argv, ui=None):
     if klass is None:
         klass = DiscreteMrmr
 
-    if len(argv) != 1 or not os.path.exists(argv[0]):
+    files = find_files(argv[0])
+
+    if len(argv) != 1 or files is None:
         return usage()
 
-    fh = open(argv[0], 'r')
-    lines = [l.strip() for l in fh]
-    fh.close()
+    if len(files) == 1:
+        fh = open(argv[0], 'r')
+        lines = [l.strip() for l in fh]
+        fh.close()
 
-    names = lines[0].split(',')[1:]
-    arr = [[float(x) for x in l.split(',')] for l in lines[1:] if l != '']
-    m = np.array(arr, dtype=float)
+        names = lines[0].split(',')[1:]
+        arr = [[float(x) for x in l.split(',')] for l in lines[1:] if l != '']
+        m = np.array(arr, dtype=float)
 
-    targets = m[:, 0].astype(bool)
-    variables = m[:, 1:]
+        targets = m[:, 0].astype(bool)
+        variables = m[:, 1:]
+    elif len(files) == 3:
+        for suffix in ('.colnames.json', '.x.npz', '.y.npz'):
+            if not os.path.exists(argv[0] + suffix):
+                usage()
+        with open(argv[0] + '.colnames.json', 'r') as fh:
+            import json
+            names = json.load(fh)
+        variables = np.load(argv[0] + '.x.npz')['arr_0'].tolist()['data']
+        targets = np.load(argv[0] + '.y.npz')['arr_0'].tolist()['data'].astype(bool)
+    else:
+        usage()
+
+    if klass != PhyloMrmr and len(files) == 3:
+        variables = variables[:, :]['b']
+    elif klass != PhyloMrmr:
+        variables = variables.astype(int)
 
     nrow, ncol = variables.shape
 
@@ -107,9 +137,6 @@ def main(argv, ui=None):
         variables = fc.discretize(variables)
         print 'done discretizing %i columns, took' % variables.shape[1], time.time() - b, 'seconds'
         klass = DiscreteMrmr
-
-    if klass != PhyloMrmr:
-        variables = variables.astype(int)
 
     if normalized:
         klass._NORMALIZED = True
@@ -132,11 +159,10 @@ def main(argv, ui=None):
 
     print '\nI(X, Y) / H(X, Y) - I(X, X) / H(X, X) (related > %.3g)' % THRESHOLD
     for idx, value, related in mrmr:
-        print '   %4d   % 5s   %6.4f   (%s)' % (idx + 1, names[idx], value, ', '.join([names[i] + ': %6.4f' % v for i, v in related]))
+        print '   %4d   % 5s   %6.4f   (%s)' % (idx + 1, names[idx], value, '%d' % len(related))#', '.join([names[i] + ': %6.4f' % v for i, v in related]))
 
-    selector.select(variables, targets)
-
-    print selector.subset(variables)
+    # selector.select(variables, targets)
+    # print selector.subset(variables)
 
     return 0
 
