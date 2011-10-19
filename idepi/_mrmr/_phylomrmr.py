@@ -75,8 +75,8 @@ def _compute_mi_inner(nrow, v, variables, t, targets, log, p=None):
     h = -np.nan_to_num(p_tv * log(p_tv))
 
     # this should fix value errors 
-    mi *= (p_tv == 0.)
-    h *= (p_tv == 0.)
+    mi *= (p_tv != 0.)
+    h *= (p_tv != 0.)
 
     # print 'targets:', targets_t.T.astype(int), 'class:', v, 'p_t:', p_t, 'p_v:', p_v, 'p_tv:', p_tv, 'mi:', mi
 
