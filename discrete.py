@@ -34,6 +34,7 @@ from os.path import basename, dirname, exists, join, realpath, splitext
 from random import gauss, random, seed
 from re import sub, match
 from tempfile import mkstemp
+from types import StringTypes
 
 import numpy as np
 
@@ -163,6 +164,7 @@ def setup_option_parser():
     parser.add_option('--simepiperc',                                                    type='float',           dest='SIM_EPI_PERCENTILE')
     parser.add_option('--seed',                                                          type='int',             dest='RAND_SEED')
     parser.add_option('--phylofilt',     action='store_true',                                                    dest='PHYLOFILTER')
+    parser.add_option('--output',                                                        type='string',          dest='OUTPUT')
 
     parser.set_defaults(HMMER_ALIGN_BIN    = join(_WORKING_DIR, 'contrib', 'hmmer-3.0', 'src', 'hmmalign'))
     parser.set_defaults(HMMER_BUILD_BIN    = join(_WORKING_DIR, 'contrib', 'hmmer-3.0', 'src', 'hmmbuild'))
@@ -210,6 +212,7 @@ def setup_option_parser():
     parser.set_defaults(SIM_EPI_PERCENTILE = 0.5)
     parser.set_defaults(RAND_SEED          = 42) # magic number for determinism
     parser.set_defaults(PHYLOFILTER        = False)
+    parser.set_defaults(OUTPUT             = None)
 
     return parser
 
@@ -599,7 +602,11 @@ def main(argv = sys.argv):
         meta = make_output_meta(OPTIONS, len(alignment), target, antibody, forward_select)
         ret = cv_results_to_output(results, colnames, meta)
 
-        print pretty_fmt_results(ret)
+        if isinstance(OPTIONS.OUTPUT, StringTypes):
+            with open(OPTIONS.OUTPUT, 'w') as fh:
+                print >> fh, pretty_fmt_results(ret)
+        else:
+            print pretty_fmt_results(ret)
 
     return 0
 

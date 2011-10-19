@@ -44,13 +44,10 @@ def _inv_if(v, b):
 
 # _inv_if is required for the TRUE case to get at NOT PHYLOGENY
 # otherwise, it's just a passthrough for the FALSE case at PHYLOGENY
-def _compute_mi_inner_log2(nrow, v, variables, t, targets, p=None):
-    p_v = np.sum(
-            np.multiply(
-                variables[:, :]['b'] == v,
-                _inv_if(variables[:, :]['p'], v)
-            ),
-            axis=0).astype(float) / np.sum(_inv_if(variables[:, :]['p'], v))
+def _compute_mi_inner(nrow, v, variables, t, targets, log, p=None):
+    v_b = variables[:, :]['b'] == v
+    v_p = _inv_if(variables[:, :]['p'], v)
+    p_v = np.sum(np.multiply(v_b, v_p), axis=0).astype(float) / np.sum(v_p)
 
     p_t = None
     p_tv = None
@@ -61,61 +58,26 @@ def _compute_mi_inner_log2(nrow, v, variables, t, targets, p=None):
                 np.multiply(
                     np.multiply(
                         targets == t,
-                        variables[:, :]['b'] == v
+                        v_b
                     ),
-                    _inv_if(variables[:, :]['p'], v)
+                    v_p
                 ),
-                axis=0).astype(float) / np.sum(_inv_if(variables[:, :]['p'], v))
+                axis=0).astype(float) / np.sum(v_p)
     else:
-        p_t = np.sum(
-                np.multiply(
-                    targets[:, :]['b'] == t,
-                    _inv_if(targets[:, :]['p'], t)
-                ),
-                axis=0).astype(float) / np.sum(_inv_if(targets[:, :]['p'], t))
+        t_b = targets[:, :]['b'] == t
+        t_p = _inv_if(targets[:, :]['p'], t)
+
+        p_t = np.sum(np.multiply(t_b, t_p), axis=0).astype(float) / np.sum(t_p)
         p_tv = np.sum(
                 np.multiply(
-                    np.multiply(
-                        targets[:, :]['b'] == t,
-                        variables[:, :]['b'] == v
-                    ),
-                    np.multiply(
-                        _inv_if(targets[:, :]['p'], t),
-                        _inv_if(variables[:, :]['p'], v)
-                    )
-                ),
-                axis=0).astype(float) / \
-                np.sum(
-                    np.multiply(
-                        _inv_if(targets[:, :]['p'], t),
-                        _inv_if(variables[: ,:]['p'], v)
-                    )
-                )
+                    np.multiply(t_b, t_p),
+                    np.multiply(v_b, v_p)
+                ), axis=0).astype(float) / np.sum(np.multiply(t_p, v_p))
 
-    mi = np.nan_to_num(np.multiply(p_tv, np.log2(p_tv / (p_t * p_v))))
-    h = -np.nan_to_num(np.multiply(p_tv, np.log2(p_tv)))
+    mi = np.nan_to_num(np.multiply(p_tv, log(p_tv / (p_t * p_v))))
+    h = -np.nan_to_num(np.multiply(p_tv, log(p_tv)))
 
     # print 'targets:', targets_t.T.astype(int), 'class:', v, 'p_t:', p_t, 'p_v:', p_v, 'p_tv:', p_tv, 'mi:', mi
-
-    if p is not None:
-        p.value += 1
-
-    return mi, h
-
-
-def _compute_mi_inner_log10(nrow, v, variables, t, targets, p=None):
-    p_t = float(np.sum(targets_t)) / nrow # p(X == t)
-    p_v = np.sum(variables[:, :]['b'] == v, axis=0).astype(float) / nrow # p(Y == v)
-    p_tv = np.sum(
-            np.multiply(
-                # if v is False, then we are more interested in the support due to phylogeny
-                variables[:, :]['b'] == v,
-                # _inv_if(variables[:, :]['p'], v),
-                targets_t,
-            ), # this should be a float variable due to 'p'
-            axis=0).astype(float) / nrow
-    mi = np.nan_to_num(np.multiply(p_tv, np.log10(p_tv / (p_t * p_v))))
-    h = -np.nan_to_num(np.multiply(p_tv, np.log10(p_tv)))
 
     if p is not None:
         p.value += 1
@@ -136,11 +98,7 @@ class PhyloMrmr(BaseMrmr):
         logmod = None
         maxclasses = np.ones(variables.shape, dtype=int) + 1 # this is broken, methinx: np.maximum(np.max(variables, axis=0), np.max(targets)) + 1
 
-        if np.all(maxclasses == 2):
-            workerfunc = _compute_mi_inner_log2
-        else:
-            raise RuntimeError("We're not yet ready for non-binary classes...")
-            workerfunc = _compute_mi_inner_log10
+        if not np.all(maxclasses == 2):
             logmod = np.log10(maxclasses)
 
         vclasses = xrange(2) # vclasses never assesses the ! case in phylomrmr 
@@ -164,7 +122,17 @@ class PhyloMrmr(BaseMrmr):
 
         for v in vclasses:
             for t in tclasses:
-                res[(t, v)] = pool.apply_async(workerfunc, (nrow, v, variables, t, targets, progress))
+                res[(t, v)] = pool.apply_async(
+                        _compute_mi_inner, (
+                            nrow,
+                            v,
+                            variables,
+                            t,
+                            targets,
+                            np.log2 if logmod is None else np.log10,
+                            progress
+                        )
+                    )
 
         pool.close()
         pool.join()
