@@ -159,7 +159,7 @@ def main(argv, ui=None):
 
     print '\nI(X, Y) / H(X, Y) - I(X, X) / H(X, X) (related > %.3g)' % THRESHOLD
     for idx, value, related in mrmr:
-        print '   %4d   % 5s   %6.4f   (%s)' % (idx + 1, names[idx], value, ', '.join([names[i] + ': %6.4f' % v for i, v in related]))
+        print '   %4d   % 5s   %6.4f   (%s)' % (idx + 1, names[idx], value, '%d' % len(related)) #', '.join([names[i] + ': %6.4f' % v for i, v in related]))
 
     # selector.select(variables, targets)
     # print selector.subset(variables)

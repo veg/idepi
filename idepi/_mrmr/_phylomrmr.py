@@ -47,35 +47,24 @@ def _inv_if(v, b):
 def _compute_mi_inner(nrow, v, variables, t, targets, log, p=None):
     v_b = variables[:, :]['b'] == v
     v_p = _inv_if(variables[:, :]['p'], v)
-    p_v = np.sum(np.multiply(v_b, v_p), axis=0).astype(float) / np.sum(v_p)
 
+    p_v = np.sum(v_b * v_p, axis=0).astype(float) / nrow # np.sum(v_p, axis=0)
     p_t = None
     p_tv = None
 
     if targets.dtype in (bool, int):
-        p_t = float(np.sum(targets == t)) / nrow
-        p_tv = np.sum(
-                np.multiply(
-                    np.multiply(
-                        targets == t,
-                        v_b
-                    ),
-                    v_p
-                ),
-                axis=0).astype(float) / np.sum(v_p)
+        t_b = targets == t
+        p_t = float(np.sum(t_b)) / nrow
+        p_tv = np.sum(t_b * v_b * v_p, axis=0).astype(float) / nrow # np.sum(v_p, axis=0)
     else:
         t_b = targets[:, :]['b'] == t
         t_p = _inv_if(targets[:, :]['p'], t)
 
-        p_t = np.sum(np.multiply(t_b, t_p), axis=0).astype(float) / np.sum(t_p)
-        p_tv = np.sum(
-                np.multiply(
-                    np.multiply(t_b, t_p),
-                    np.multiply(v_b, v_p)
-                ), axis=0).astype(float) / np.sum(np.multiply(t_p, v_p))
+        p_t = np.sum(t_b * t_p, axis=0).astype(float) / nrow # np.sum(t_p, axis=0)
+        p_tv = np.sum(t_b * t_p * v_b * v_p, axis=0).astype(float) / nrow #  np.sum(t_p * v_p, axis=0)
 
-    mi = np.nan_to_num(np.multiply(p_tv, log(p_tv / (p_t * p_v))))
-    h = -np.nan_to_num(np.multiply(p_tv, log(p_tv)))
+    mi = np.nan_to_num(p_tv * log(p_tv / (p_t * p_v)))
+    h = -np.nan_to_num(p_tv * log(p_tv))
 
     # print 'targets:', targets_t.T.astype(int), 'class:', v, 'p_t:', p_t, 'p_v:', p_v, 'p_tv:', p_tv, 'mi:', mi
 
