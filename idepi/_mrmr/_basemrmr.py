@@ -98,6 +98,14 @@ class BaseMrmr(object):
         return mi[a, b] - BaseMrmr.__compute_apc(mi, a, b, mibar)
 
     @classmethod
+    def _compute_mi_inter(cls, variables, targets, ui=None):
+        return cls._compute_mi(variables, targets, ui)
+
+    @classmethod
+    def _compute_mi_intra(cls, variables, targets, ui=None):
+        return cls._compute_mi(variables, targets, ui)
+
+    @classmethod
     def _mrmr_selection(cls, num_features, method, x, y, threshold=None, ui=None):
         if method not in (BaseMrmr.MAXREL, BaseMrmr.MID, BaseMrmr.MIQ):
             raise ValueError('method must be one of BaseMrmr.MAXREL, BaseMrmr.MID, or BaseMrmr.MIQ')
@@ -160,7 +168,7 @@ class BaseMrmr(object):
         mi_vars, h_vars = {}, {}
         s_vars = {} if cls._NORMALIZED else mi_vars
 
-        mi_vars[idx], h_vars[idx] = cls._compute_mi(variables, variables[:, idx], ui)
+        mi_vars[idx], h_vars[idx] = cls._compute_mi_inter(variables, variables[:, idx], ui)
         if cls._NORMALIZED:
             s_vars[idx] = np.divide(mi_vars[idx], h_vars[idx])
 
@@ -188,7 +196,7 @@ class BaseMrmr(object):
                     ) \
                     for idx, maxrel in mi_vals[1:] if idx not in mask_idxs
                 ], key=itemgetter(2), reverse=True)[0]
-            mi_vars[idx], h_vars[idx] = cls._compute_mi(variables, variables[:, idx], ui)
+            mi_vars[idx], h_vars[idx] = cls._compute_mi_intra(variables, variables[:, idx], ui)
             if cls._NORMALIZED:
                 s_vars[idx] = np.divide(mi_vars[idx], h_vars[idx])
 

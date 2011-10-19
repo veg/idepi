@@ -42,16 +42,56 @@ def _inv_if(v, b):
     return 1. - v if b else v
 
 
-def _compute_mi_inner_log2(nrow, v, variables, targets_t, p=None):
-    p_t = float(np.sum(targets_t)) / nrow # p(X == t)
-    p_v = np.sum(variables[:, :]['b'] == v, axis=0).astype(float) / nrow # p(Y == v)
-    p_tv = np.sum(
+# _inv_if is required for the TRUE case to get at NOT PHYLOGENY
+# otherwise, it's just a passthrough for the FALSE case at PHYLOGENY
+def _compute_mi_inner_log2(nrow, v, variables, t, targets, p=None):
+    p_v = np.sum(
             np.multiply(
-                # if v is False, then we are more interested in the support due to phylogeny
-                _inv_if(variables[:, :]['p'], v),
-                targets_t,
-            ), # this should be a float variable due to 'p'
-            axis=0) / (p_t * nrow)
+                variables[:, :]['b'] == v,
+                _inv_if(variables[:, :]['p'], v)
+            ),
+            axis=0).astype(float) / np.sum(_inv_if(variables[:, :]['p'], v))
+
+    p_t = None
+    p_tv = None
+
+    if targets.dtype in (bool, int):
+        p_t = float(np.sum(targets == t)) / nrow
+        p_tv = np.sum(
+                np.multiply(
+                    np.multiply(
+                        targets == t,
+                        variables[:, :]['b'] == v
+                    ),
+                    _inv_if(variables[:, :]['p'], v)
+                ),
+                axis=0).astype(float) / np.sum(_inv_if(variables[:, :]['p'], v))
+    else:
+        p_t = np.sum(
+                np.multiply(
+                    targets[:, :]['b'] == t,
+                    _inv_if(targets[:, :]['p'], t)
+                ),
+                axis=0).astype(float) / np.sum(_inv_if(targets[:, :]['p'], t))
+        p_tv = np.sum(
+                np.multiply(
+                    np.multiply(
+                        targets[:, :]['b'] == t,
+                        variables[:, :]['b'] == v
+                    ),
+                    np.multiply(
+                        _inv_if(targets[:, :]['p'], t),
+                        _inv_if(variables[:, :]['p'], v)
+                    )
+                ),
+                axis=0).astype(float) / \
+                np.sum(
+                    np.multiply(
+                        _inv_if(targets[:, :]['p'], t),
+                        _inv_if(variables[: ,:]['p'], v)
+                    )
+                )
+
     mi = np.nan_to_num(np.multiply(p_tv, np.log2(p_tv / (p_t * p_v))))
     h = -np.nan_to_num(np.multiply(p_tv, np.log2(p_tv)))
 
@@ -63,16 +103,17 @@ def _compute_mi_inner_log2(nrow, v, variables, targets_t, p=None):
     return mi, h
 
 
-def _compute_mi_inner_log10(nrow, v, variables, targets_t, p=None):
+def _compute_mi_inner_log10(nrow, v, variables, t, targets, p=None):
     p_t = float(np.sum(targets_t)) / nrow # p(X == t)
     p_v = np.sum(variables[:, :]['b'] == v, axis=0).astype(float) / nrow # p(Y == v)
     p_tv = np.sum(
             np.multiply(
                 # if v is False, then we are more interested in the support due to phylogeny
-                _inv_if(variables[:, :]['p'], v),
+                variables[:, :]['b'] == v,
+                # _inv_if(variables[:, :]['p'], v),
                 targets_t,
             ), # this should be a float variable due to 'p'
-            axis=0) / (p_t * nrow)
+            axis=0).astype(float) / nrow
     mi = np.nan_to_num(np.multiply(p_tv, np.log10(p_tv / (p_t * p_v))))
     h = -np.nan_to_num(np.multiply(p_tv, np.log10(p_tv)))
 
@@ -98,24 +139,20 @@ class PhyloMrmr(BaseMrmr):
         if np.all(maxclasses == 2):
             workerfunc = _compute_mi_inner_log2
         else:
+            raise RuntimeError("We're not yet ready for non-binary classes...")
             workerfunc = _compute_mi_inner_log10
             logmod = np.log10(maxclasses)
 
         vclasses = xrange(2) # vclasses never assesses the ! case in phylomrmr 
         tclasses = xrange(2)
 
-        targets = np.atleast_2d(targets if targets.dtype in (bool, int) else \
-                                targets[:]['b'] if len(targets.shape) == 1 else \
-                                targets[:, :]['b'])
+        targets = np.atleast_2d(targets)
 
         # transpose if necessary (likely if coming from array)
         if targets.shape[0] == 1 and targets.shape[1] == variables.shape[0]:
             targets = targets.T
         elif targets.shape[1] != 1 or targets.shape[0] != variables.shape[0]:
             raise ValueError('`y\' should have as many entries as `x\' has rows.')
-
-        # initialized later
-        tcache = {}
 
         progress = None
         if ui:
@@ -127,9 +164,7 @@ class PhyloMrmr(BaseMrmr):
 
         for v in vclasses:
             for t in tclasses:
-                if t not in tcache:
-                    tcache[t] = targets == t
-                res[(t, v)] = pool.apply_async(workerfunc, (nrow, v, variables, tcache[t], progress))
+                res[(t, v)] = pool.apply_async(workerfunc, (nrow, v, variables, t, targets, progress))
 
         pool.close()
         pool.join()

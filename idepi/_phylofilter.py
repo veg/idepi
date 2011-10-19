@@ -119,9 +119,9 @@ class PhyloFilter(BaseFilter):
 
         # np.save('phylofilt.%d' % getpid(), tmp)
 
-        colsum = np.sum(tmp[:, :]['b'], axis=0)
-        idxs = [i for i in xrange(ncol) if colsum[i] != 0]
-        ignore_idxs = set([i for i in xrange(ncol) if colsum[i] == 0])
+        colsum = np.mean(tmp[:, :]['b'], axis=0)
+        idxs = [i for i in xrange(ncol) if colsum[i] not in (0., 1.)]
+        ignore_idxs = set([i for i in xrange(ncol) if colsum[i] in (0., 1.)])
 
         data = tmp[:, idxs]
 

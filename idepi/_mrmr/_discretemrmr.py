@@ -70,12 +70,12 @@ class DiscreteMrmr(BaseMrmr):
         super(DiscreteMrmr, self).__init__(*args, **kwargs)
 
     @classmethod
-    def _compute_mi(cls, vars, targets, ui=None):
+    def _compute_mi(cls, variables, targets, ui=None):
 
-        nrow, ncol = vars.shape
+        nrow, ncol = variables.shape
 
         logmod = None
-        maxclasses = np.ones(vars.shape, dtype=int) + 1 # this is broken, methinx: np.maximum(np.max(vars, axis=0), np.max(targets)) + 1
+        maxclasses = np.ones(variables.shape, dtype=int) + 1 # this is broken, methinx: np.maximum(np.max(variables, axis=0), np.max(targets)) + 1
 
         if np.all(maxclasses == 2):
             workerfunc = _compute_mi_inner_log2
@@ -83,15 +83,15 @@ class DiscreteMrmr(BaseMrmr):
             workerfunc = _compute_mi_inner_log10
             logmod = np.log10(maxclasses)
 
-        vclasses = np.max(vars) + 1
+        vclasses = np.max(variables) + 1
         tclasses = np.max(targets) + 1
 
         targets = np.atleast_2d(targets)
 
         # transpose if necessary (likely if coming from array)
-        if targets.shape[0] == 1 and targets.shape[1] == vars.shape[0]:
+        if targets.shape[0] == 1 and targets.shape[1] == variables.shape[0]:
             targets = targets.T
-        elif targets.shape[1] != 1 or targets.shape[0] != vars.shape[0]:
+        elif targets.shape[1] != 1 or targets.shape[0] != variables.shape[0]:
             raise ValueError('`y\' should have as many entries as `x\' has rows.')
 
         # initialized later
@@ -107,7 +107,7 @@ class DiscreteMrmr(BaseMrmr):
         pool = FakePool() # mp.Pool(mp.cpu_count())
 
         for v in xrange(vclasses):
-            vcache[v] = vars == v
+            vcache[v] = variables == v
             for t in xrange(tclasses):
                 if t not in tcache:
                     tcache[t] = targets == t

@@ -55,9 +55,11 @@ class NaiveFilter(BaseFilter):
             col = seqtable.cols[i]
             colsum = float(np.sum(col))
             idx = stride * i
+            # kill perfectly conserved or empty columns 
             if colsum == 0. or \
                float(min(col)) / colsum > mincons or \
                float(max(col)) / colsum > maxcons or \
+               float(max(col)) / colsum >= 100. or \
                float(col[alphabet['-']]) / colsum > maxgap:
                 ignore_idxs.update(xrange(idx, idx + stride))
             else:

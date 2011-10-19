@@ -412,6 +412,10 @@ def main(argv = sys.argv):
         if OPTIONS.NUM_FEATURES == -1:
             OPTIONS.NUM_FEATURES = _DEFAULT_NUM_FEATURES
 
+    if OPTIONS.MRMR_NORMALIZE and OPTIONS.PHYLOFILTER:
+        print >> sys.stderr, "mRMR normalization and phylofiltering are incompatible, disabling mRMR normalization"
+        OPTIONS.MRMR_NORMALIZE = False
+
     # destroy the parser because optparse docs recommend it
     option_parser.destroy()
 
@@ -482,8 +486,6 @@ def main(argv = sys.argv):
         else:
             if OPTIONS.SIM_EPI_N is None:
                 OPTIONS.SIM_EPI_N = len(seqrecords)
-
-
 
     # compute features
     for target in OPTIONS.TARGETS:
