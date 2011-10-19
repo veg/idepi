@@ -143,7 +143,8 @@ class LinearSvmModel(object):
                 f += 1
 
     def weights(self):
-        features = np.zeros((max(self.__feature_weights.keys()) + 1,), dtype=float)
+        numfeats = max(self.__feature_weights.keys()) + 1 if len(self.__feature_weights) else 0
+        features = np.zeros((numfeats,), dtype=float)
         for k, v in self.__feature_weights.items():
             features[k] += v
         return features
