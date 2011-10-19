@@ -506,12 +506,12 @@ def main(argv = sys.argv):
                 )
                 y = yextractor.extract(alignment)
 
-            if OPTIONS.PHYLOFILTER:
-                np.savez('phylo.y.npz', {'data': y})
-            else:
-                with open(antibody + '.mrmr', 'w') as fh:
-                    print >> fh, 'class,' + ','.join(colnames)
-                    print >> fh, '\n'.join([','.join(['%d' % v for v in ([y[i]] + (x[i, :].tolist()))]) for i in xrange(x.shape[0])])
+#             if OPTIONS.PHYLOFILTER:
+#                 np.savez('phylo.y.npz', {'data': y})
+#             else:
+#                 with open(antibody + '.mrmr', 'w') as fh:
+#                     print >> fh, 'class,' + ','.join(colnames)
+#                     print >> fh, '\n'.join([','.join(['%d' % v for v in ([y[i]] + (x[i, :].tolist()))]) for i in xrange(x.shape[0])])
 
             # simulations, ho!
             for i in xrange(sim.runs if sim is not None else 1):

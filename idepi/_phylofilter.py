@@ -125,7 +125,7 @@ class PhyloFilter(BaseFilter):
 
         data = tmp[:, idxs]
 
-        np.savez('phylo.x.npz', {'data': data})
+#         np.savez('phylo.x.npz', {'data': data})
 
 #         data = np.zeros((mat.mRows, ncol - len(ignore_idxs)), dtype=float)
 #
