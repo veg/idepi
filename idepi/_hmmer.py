@@ -81,11 +81,11 @@ class Hmmer(object):
         if trim is True:
             args.append('--trim')
         if alphabet is not None:
-            if alphabet is Hmmer.AMINO:
+            if alphabet == Hmmer.AMINO:
                 args.append('--amino')
-            if alphabet is Hmmer.DNA:
+            if alphabet == Hmmer.DNA:
                 args.append('--dna')
-            if alphabet is Hmmer.RNA:
+            if alphabet == Hmmer.RNA:
                 args.append('--rna')
         if informat is not None:
             args.extend(['--informat', informat])

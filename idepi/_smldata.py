@@ -44,15 +44,13 @@ class SmlData(object):
         self.feature_names = feature_names
 
     def add(self, value, features):
-        if type(value).__name__ == 'list' and type(features).__name__ == 'list':
+        if isinstance(value, list) and isinstance(features, list):
             if len(value) == len(features) and len(features) != 0:
                 self.__data.extend([Record(value[i], features[i]) for i in xrange(len(value))])
-            elif len(value) == len(features):
-                pass
-            else:
+            elif len(value) != len(features):
                 print >> stderr, 'ERROR: number of values and features don\'t match for multiple-add'
                 exit(-1)
-        elif type(features).__name__ != 'dict':
+        elif not isinstance(features, dict):
             print >> stderr, 'ERROR: feature argument takes a dict()'
             exit(-1)
         else:

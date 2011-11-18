@@ -58,9 +58,9 @@ class Alphabet(object):
         return len(self.__list)
 
     def __getitem__(self, idx):
-        if type(idx) is int:
+        if isinstance(idx, int):
             return self.__list[idx]
-        elif type(idx) is str:
+        elif isinstance(idx, str):
             return self.__dict[idx]
 
     @staticmethod

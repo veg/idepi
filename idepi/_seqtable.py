@@ -27,7 +27,6 @@ from itertools import chain
 from math import ceil, floor
 from random import randint, shuffle
 from sys import exit, stderr
-from types import ListType, IntType
 
 import numpy as np
 
@@ -82,7 +81,7 @@ class SeqTable(object):
     def __filter(self, func):
         idxs = set()
         if func is not None:
-            if type(func) is ListType:
+            if isinstance(func, list):
                 for f in func:
                     for i, row in enumerate(self.__alignment):
                         if apply(f, (row.id,)):
@@ -120,11 +119,11 @@ class SeqTable(object):
                [self.__alignment[i] for i in sorted(self.__ref_id)]
 
     def mask(self, i):
-        if type(i) is int:
+        if isinstance(i, int):
             self.__mask = set([i])
-        elif type(i) is list:
+        elif isinstance(i, list):
             self.__mask = set(i)
-        elif type(i) is set:
+        elif isinstance(i, set):
             self.__mask = i
         elif i is None:
             self.__mask = None
