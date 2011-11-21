@@ -30,7 +30,7 @@ from math import ceil, log10
 from operator import itemgetter
 from optparse import OptionParser
 from os import close, remove, rename
-from os.path import basename, dirname, exists, join, realpath, splitext
+from os.path import abspath, basename, exists, join, split, splitext
 from random import gauss, randint, random, seed
 from re import match, search, sub
 from subprocess import Popen, PIPE
@@ -42,18 +42,21 @@ from Bio import AlignIO, SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
-from idepi import Alphabet, ClassExtractor, CrossValidator, NaiveFilter, PhyloFilter, Regressor, \
-                  collect_AbRecords_from_db, cv_results_to_output, generate_alignment, \
-                  get_valid_antibodies_from_db, get_valid_subtypes_from_db, id_to_float, is_HXB2, \
-                  regressor_classes, pretty_fmt_results, set_util_params
+from idepi import Alphabet, ClassExtractor, NaiveFilter, PhyloFilter, Regressor, \
+                  collect_AbRecords_from_db, extract_feature_weights, cv_results_to_output, \
+                  generate_alignment, get_valid_antibodies_from_db, get_valid_subtypes_from_db, \
+                  id_to_float, is_HXB2, regressor_classes, pretty_fmt_results, set_util_params, \
+                  __file__ as _idepi_file, __version__ as _idepi_version
 
-__version__ = 0.5
+from pyxval import ContinuousPerfStats, CrossValidator
 
-_WORKING_DIR      = dirname(realpath(__file__)) # '/Users/Lance/Pond'
-_HXB2_DNA_FASTA   = join(_WORKING_DIR, 'res', 'hxb2_dna.fa')
-_HXB2_AMINO_FASTA = join(_WORKING_DIR, 'res', 'hxb2_pep.fa')
+__VERSION__ = _idepi_version
 
-_PHYLOFILTER_BATCHFILE = join(_WORKING_DIR, 'res', 'hyphy', 'CorrectForPhylogeny.bf')
+_IDEPI_PATH       = split(abspath(_idepi_file))[0]
+_HXB2_DNA_FASTA   = join(_IDEPI_PATH, 'data', 'hxb2_dna.fa')
+_HXB2_AMINO_FASTA = join(_IDEPI_PATH, 'data', 'hxb2_pep.fa')
+
+_PHYLOFILTER_BATCHFILE = join(_IDEPI_PATH, 'data', 'hyphy', 'CorrectForPhylogeny.bf')
 
 _DEFAULT_NUM_FEATURES = 10
 
@@ -132,8 +135,8 @@ def setup_option_parser():
     parser.add_option('--phylofilt',    action = 'store_true',                                                          dest = 'PHYLOFILTER')
     parser.add_option('--logspace',     action = 'store_true',                                                          dest = 'LOGSPACE')
 
-    parser.set_defaults(HMMER_ALIGN_BIN    = join(_WORKING_DIR, 'contrib', 'hmmer-3.0', 'src', 'hmmalign'))
-    parser.set_defaults(HMMER_BUILD_BIN    = join(_WORKING_DIR, 'contrib', 'hmmer-3.0', 'src', 'hmmbuild'))
+    parser.set_defaults(HMMER_ALIGN_BIN    = 'hmmalign')
+    parser.set_defaults(HMMER_BUILD_BIN    = 'hmmbuild')
     parser.set_defaults(HMMER_ITER         = 8)
     parser.set_defaults(REGRESSOR_METHOD   = 'ridgelar')
     parser.set_defaults(FILTER             = [])
@@ -148,7 +151,7 @@ def setup_option_parser():
     parser.set_defaults(MAX_CONSERVATION   = 1. ) # 93.)
     parser.set_defaults(MAX_GAP_RATIO      = 0.1 ) # 93.)
     parser.set_defaults(MIN_CONSERVATION   = 1. ) # 33.)
-    parser.set_defaults(NEUT_SQLITE3_DB    = join(_WORKING_DIR, 'res', 'allneuts.sqlite3'))
+    parser.set_defaults(NEUT_SQLITE3_DB    = join(_IDEPI_PATH, 'data', 'allneuts.sqlite3'))
     parser.set_defaults(REFSEQ_FASTA         = _HXB2_AMINO_FASTA)
     parser.set_defaults(HXB2_IDS           = ['9629357', '9629363'])
     parser.set_defaults(RAND_SEED          = 42) # make the behavior deterministic for now
@@ -327,7 +330,7 @@ def main(argv = sys.argv):
     # format as SeqRecord so we can output as FASTA
     abrecords = collect_AbRecords_from_db(OPTIONS.NEUT_SQLITE3_DB, antibody)
 
-    alignment_basename = '%s_%s_%s' % (ab_basename, splitext(basename(OPTIONS.NEUT_SQLITE3_DB))[0], __version__)
+    alignment_basename = '%s_%s_%s' % (ab_basename, splitext(basename(OPTIONS.NEUT_SQLITE3_DB))[0], __VERSION__)
 
     # generate an alignment using HMMER if it doesn't already exist
     seqrecords = [r.to_SeqRecord(dna=True if OPTIONS.DNA else False) for r in abrecords]
@@ -362,13 +365,14 @@ def main(argv = sys.argv):
     y = yextractor.extract(alignment)
 
     crossvalidator = CrossValidator(
-        classifiercls=Regressor,
+        classifier_cls=Regressor,
         folds=OPTIONS.CV_FOLDS,
-        cv=cvopts,
-        mode=CrossValidator.CONTINUOUS
+        classifier_kwargs=cvopts,
+        scorer_cls=ContinuousPerfStats,
+        scorer_kwargs={}
     )
 
-    results = crossvalidator.crossvalidate(x, y, cv={}, extra=lambda x: { 'features': x.selected(), 'weights': x.weights() })
+    results = crossvalidator.crossvalidate(x, y, classifier_kwargs={}, extra=extract_feature_weights)
 
     ret = cv_results_to_output(results, colnames)
 

@@ -30,7 +30,7 @@ from math import ceil, copysign, log10, sqrt
 from operator import itemgetter
 from optparse import OptionParser
 from os import close, remove, rename
-from os.path import basename, dirname, exists, join, realpath, splitext
+from os.path import abspath, basename, exists, join, split, splitext
 from random import gauss, random, seed
 from re import sub, match
 from tempfile import mkstemp
@@ -42,25 +42,28 @@ from Bio import AlignIO, SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
-from idepi import Alphabet, ClassExtractor, DiscreteMrmr, DumbSimulation, LinearSvm, MarkovSimulation, NaiveFilter, \
-                  PhyloFilter, PhyloMrmr, SeqTable, Simulation, collect_AbRecords_from_db, cv_results_to_output, \
-                  extract_feature_weights, generate_alignment, generate_feature_names, get_valid_antibodies_from_db, \
+from idepi import Alphabet, ClassExtractor, DumbSimulation, LinearSvm, MarkovSimulation, NaiveFilter, \
+                  PhyloFilter, SeqTable, Simulation, collect_AbRecords_from_db, cv_results_to_output, \
+                  extract_feature_weights, generate_alignment, get_valid_antibodies_from_db, \
                   get_valid_subtypes_from_db, id_to_float, is_HXB2, make_output_meta, pretty_fmt_results, \
-                  set_util_params
+                  set_util_params, __file__ as _idepi_file, __version__ as _idepi_version
+
+from mrmr import DiscreteMrmr, PhyloMrmr
 
 from pyxval import CrossValidator, DiscretePerfStats, SelectingNestedCrossValidator
 
-__version__ = 0.5
 
-_WORKING_DIR      = dirname(realpath(__file__)) # '/Users/Lance/Pond'
-_HXB2_DNA_FASTA   = join(_WORKING_DIR, 'res', 'hxb2_dna.fa')
-_HXB2_AMINO_FASTA = join(_WORKING_DIR, 'res', 'hxb2_pep.fa')
+__VERSION__ = _idepi_version
+
+_IDEPI_PATH       = split(abspath(_idepi_file))[0]
+_HXB2_DNA_FASTA   = join(_IDEPI_PATH, 'data', 'hxb2_dna.fa')
+_HXB2_AMINO_FASTA = join(_IDEPI_PATH, 'data', 'hxb2_pep.fa')
 
 _DEFAULT_NUM_FEATURES = 10
 
-_RAND_SEQ_STOCKHOLM = join(_WORKING_DIR, 'res', 'randhivenvpep_final.sto')
+_RAND_SEQ_STOCKHOLM = join(_IDEPI_PATH, 'data', 'randhivenvpep_final.sto')
 
-_PHYLOFILTER_BATCHFILE = join(_WORKING_DIR, 'res', 'hyphy', 'CorrectForPhylogeny.bf')
+_PHYLOFILTER_BATCHFILE = join(_IDEPI_PATH, 'hyphy', 'CorrectForPhylogeny.bf')
 
 # strip the _TEST variables because of the beginning and trailing newlines
 _TEST_DNA_STO = '''# STOCKHOLM 1.0
@@ -117,7 +120,6 @@ def setup_option_parser():
     parser.add_option('--hmmbuild',                                                      type='string',          dest='HMMER_BUILD_BIN')
     parser.add_option('--hmmiter',                                                       type='int',             dest='HMMER_ITER')
     parser.add_option('--mrmr',          action='store_false',                                                   dest='MAXREL')
-    parser.add_option('--mrmrprog',                                                      type='string',          dest='MRMR_BIN')
     parser.add_option('--mrmrmethod',                                                    type='string',          dest='MRMR_METHOD')
     parser.add_option('--maxrel',        action='store_true',                                                    dest='MAXREL')
     parser.add_option('--normalizemrmr', action='store_true',                                                    dest='MRMR_NORMALIZE')
@@ -125,9 +127,6 @@ def setup_option_parser():
     parser.add_option('--numfeats',                                                      type='int',             dest='NUM_FEATURES')
     parser.add_option('--forward',       action='store_true',                                                    dest='FORWARD_SELECT')
     parser.add_option('--subtypes',      action='callback',    callback=optparse_csv,    type='string',          dest='SUBTYPES')
-    parser.add_option('--svmtrain',                                                      type='string',          dest='SVM_TRAIN_BIN')
-    parser.add_option('--svmpredict',                                                    type='string',          dest='SVM_PREDICT_BIN')
-    parser.add_option('--svmargs',       action='callback',    callback=optparse_extend, type='string', nargs=2, dest='SVM_ARGS')
     parser.add_option('--nested',        action='store_true',                                                    dest='NESTED')
     parser.add_option('--log2c',         action='callback',    callback=optparse_csv,    type='string',          dest='LOG2C')
     parser.add_option('--weighting',     action='store_true',                                                    dest='WEIGHTING')
@@ -166,10 +165,9 @@ def setup_option_parser():
     parser.add_option('--phylofilt',     action='store_true',                                                    dest='PHYLOFILTER')
     parser.add_option('--output',                                                        type='string',          dest='OUTPUT')
 
-    parser.set_defaults(HMMER_ALIGN_BIN    = join(_WORKING_DIR, 'contrib', 'hmmer-3.0', 'src', 'hmmalign'))
-    parser.set_defaults(HMMER_BUILD_BIN    = join(_WORKING_DIR, 'contrib', 'hmmer-3.0', 'src', 'hmmbuild'))
+    parser.set_defaults(HMMER_ALIGN_BIN    = 'hmmalign')
+    parser.set_defaults(HMMER_BUILD_BIN    = 'hmmbuild')
     parser.set_defaults(HMMER_ITER         = 8)
-    parser.set_defaults(MRMR_BIN           = join(_WORKING_DIR, 'contrib', 'mrmr_c_src', 'mrmr'))
     parser.set_defaults(MRMR_METHOD        = 'MID')
     parser.set_defaults(MRMR_NORMALIZE     = False)
     parser.set_defaults(MAXREL             = False)
@@ -177,9 +175,6 @@ def setup_option_parser():
     parser.set_defaults(NUM_FEATURES       = -1)
     parser.set_defaults(FORWARD_SELECT     = False)
     parser.set_defaults(SUBTYPES           = [])
-    parser.set_defaults(SVM_TRAIN_BIN      = join(_WORKING_DIR, 'contrib', 'libsvm-3.0', 'svm-train'))
-    parser.set_defaults(SVM_PREDICT_BIN    = join(_WORKING_DIR, 'contrib', 'libsvm-3.0', 'svm-predict'))
-    parser.set_defaults(SVM_ARGS           = ['-t', '0', '-h', '0'])
     parser.set_defaults(NESTED             = True)
     parser.set_defaults(WEIGHTING          = False)
     parser.set_defaults(LOG2C              = ['-5', '15', '0.25'])
@@ -200,7 +195,7 @@ def setup_option_parser():
     parser.set_defaults(MIN_CONSERVATION   = 1. ) # 33.)
     parser.set_defaults(IC50GT             = 20.)
     parser.set_defaults(IC50LT             = 2.)
-    parser.set_defaults(NEUT_SQLITE3_DB    = join(_WORKING_DIR, 'res', 'allneuts.sqlite3'))
+    parser.set_defaults(NEUT_SQLITE3_DB    = join(_IDEPI_PATH, 'data', 'allneuts.sqlite3'))
     parser.set_defaults(REFSEQ_FASTA       = _HXB2_AMINO_FASTA)
     parser.set_defaults(HXB2_IDS           = ['9629357', '9629363'])
     parser.set_defaults(SIM                = '') # can be 'randtarget' for now
@@ -451,27 +446,20 @@ def main(argv = sys.argv):
     # format as SeqRecord so we can output as FASTA
     abrecords = collect_AbRecords_from_db(OPTIONS.NEUT_SQLITE3_DB, antibody)
 
-    alignment_basename = '%s_%s_%s' % (ab_basename, splitext(basename(OPTIONS.NEUT_SQLITE3_DB))[0], __version__)
+    alignment_basename = '%s_%s_%s' % (ab_basename, splitext(basename(OPTIONS.NEUT_SQLITE3_DB))[0], __VERSION__)
 
     # generate an alignment using HMMER if it doesn't already exist
     seqrecords = [r.to_SeqRecord(dna=True if OPTIONS.DNA else False) for r in abrecords]
     alignment, refseq_offs = generate_alignment(seqrecords, alignment_basename, is_HXB2, OPTIONS)
     colfilter = None
     if OPTIONS.PHYLOFILTER:
-        numpy_file = alignment_basename + '.npy'
-        colnames_file = alignment_basename + '.cols'
-        if exists(numpy_file) and exists(colnames_file):
-            x = np.load(numpy_file)
-            colnames = csv.reader(colnames_file).read()
-        else:
-            colfilter = PhyloFilter(
-                alph,
-                _PHYLOFILTER_BATCHFILE,
-                is_HXB2,
-                lambda x: False
-            )
-            colnames, x = colfilter.learn(alignment, refseq_offs)
-    #         np.save(numpy_file, x)
+        colfilter = PhyloFilter(
+            alph,
+            _PHYLOFILTER_BATCHFILE,
+            is_HXB2,
+            lambda x: False
+        )
+        colnames, x = colfilter.learn(alignment, refseq_offs)
     else:
         colfilter = NaiveFilter(
             alph,

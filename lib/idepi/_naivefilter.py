@@ -59,7 +59,7 @@ class NaiveFilter(BaseFilter):
             if colsum == 0. or \
                float(min(col)) / colsum > mincons or \
                float(max(col)) / colsum > maxcons or \
-               float(max(col)) / colsum >= 100. or \
+               float(max(col)) / colsum >= 1. or \
                float(col[alphabet['-']]) / colsum > maxgap:
                 ignore_idxs.update(xrange(idx, idx + stride))
             else:

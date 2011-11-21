@@ -37,7 +37,6 @@ from Bio import SeqIO
 from _abrecord import AbRecord
 from _alphabet import Alphabet
 from _hmmer import Hmmer
-from _seqtable import SeqTable
 from _smldata import SmlData
 
 
@@ -59,12 +58,7 @@ __all__ = [
     'ystoconfusionmatrix',
     'collect_AbRecords_from_db',
     'clamp',
-    'binarize_row',
     'sanitize_seq',
-    'generate_relevant_data',
-    'generate_feature_names',
-    'compute_relevant_features_and_names',
-    'binarize',
 ]
 
 __HXB2_IDS = None
@@ -376,15 +370,6 @@ def clamp(x):
         return 1.
     return x
 
-def binarize_row(row, alphabet):
-    alphdict = alphabet.todict()
-    alphabet_len = len(set(alphdict.values()))
-    row = sanitize_seq(str(row), alphabet)
-    ret = []
-    for p in row:
-        ret.extend([1 if i == alphdict[p] else 0 for i in xrange(alphabet_len)])
-    return ret
-
 def sanitize_seq(seq, alphabet):
     alphdict = alphabet.todict()
     assert(len(Alphabet.SPACE) > 0 and len(seq) > 0 and len(alphdict.keys()) > 0)
@@ -396,198 +381,3 @@ def sanitize_seq(seq, alphabet):
     except TypeError, e:
         raise RuntimeError('something is amiss with things:\n  SPACE = %s\n  seq = %s\n  alphabet = %s\n' % (Alphabet.SPACE, seq, alphdict))
     return seq
-
-def generate_relevant_data(feature_names, seq_table, alphabet, feature_idxs, target, subtypes=[], simulation=None):
-    data = SmlData(feature_names)
-
-    neg = 0
-    pos = 0
-
-    for row in seq_table.rows():
-        # everything before the continue takes care of the | and : separators
-        if is_HXB2(row.id):
-            continue
-        if len(subtypes) > 0:
-            rowtype = id_to_subtype(row.id)
-            if rowtype == '' or len([i for i in rowtype if i in subtypes]) <= 0:
-                raise ValueError('Unwanted subtypes should already be masked out: %s' % row.id)
-        expanded_row = binarize_row(row.seq, alphabet)
-        feats = dict([f for f in zip(range(0, len(feature_idxs)), [expanded_row[i] for i in feature_idxs]) if f[1] != 0])
-        if simulation is not None:
-            class_ = random()
-            class_ = 1 if class_ < simulation.proportion else 0
-        else:
-            class_ = id_to_class(row.id, target)
-        data.add(class_, feats)
-        if class_:
-            pos += 1
-        else:
-            neg += 1
-
-    # silence this during testing
-    # print >> sys.stdout, 'Ratio + to - : %d to %d' % (pos, neg)
-
-    return data
-
-def generate_feature_names(seq_table, alph):
-    alphabet, alphabet_names = alph.todict(), alph.names()
-
-    # make the feature names
-    hxb2_seq = None
-    for r in seq_table.rows():
-        if is_HXB2(r.id):
-            hxb2_seq = r.seq
-
-    assert(hxb2_seq is not None)
-
-    # convention is E215 (Glutamic Acid at 215) or 465a (first insertion after 465)
-    names = []
-    c = 0
-    ins = 0
-    for p in hxb2_seq:
-        if p not in Alphabet.SPACE:
-            c += 1
-            ins = 0
-        else:
-            ins += 1
-        for v in set(alphabet.values()):
-            insert = base_26_to_alph(base_10_to_n(ins, BASE_ALPH))
-            names.append('%s%d%s%s' % ('' if insert != '' else p.upper(), c, insert, alphabet_names[v]))
-
-    return names
-
-def compute_relevant_features_and_names(seq_table, alph, names, limits={ 'max': 1.0, 'min': 1.0, 'gap': 0.1 }, filter_list=[]):
-    if type(limits) != dict:
-        raise ValueError('limits must be of type `dict\'')
-
-    for lim in ('max', 'min', 'gap'):
-        if lim not in limits:
-            raise ValueError('limits must contain `%s\'' % lim)
-
-    if not seq_table.loaded:
-        seq_table.fill_columns()
-
-    columns = range(0, seq_table.num_columns)
-    alphabet, alphabet_names = alph.todict(), alph.names()
-    alphabet_len = len(set(alphabet.values()))
-    delete_cols = []
-
-    max_counts = []
-    min_counts = []
-
-    # remove overly-conserved or overly-random columns
-    for i in sorted(seq_table.columns.keys()):
-        j = alphabet_len * i
-        alph_counts = seq_table.columns[i].counts()
-        count = sum(alph_counts.values())
-        max_count = 1. * max(alph_counts.values()) / count
-        min_count = 1. * min(alph_counts.values()) / count
-        gap_count = 1. * alph_counts['-'] / count if '-' in alph_counts else 0.
-        if max_count > limits['max'] or \
-           min_count > limits['min'] or \
-           gap_count > limits['gap']:
-            delete_cols.extend(range(j, j+alphabet_len))
-            continue
-        max_counts.append((i, limits['max'] - max_count))
-        min_counts.append((i, limits['min'] - min_count))
-        # for each unique assignment
-        for v in set(alphabet.values()):
-            c = False
-            # for each value party to that assignment
-            for (k, v_) in alphabet.items():
-                if v != v_:
-                    continue
-                # if we've collected an count for that value
-                if k in seq_table.columns[i].counts():
-                    c = True
-                    break
-            # if we've not collected a count, delete it
-            if not c:
-                delete_cols.append(j+v)
-
-    # TODO: remove overly conserved or overly-random columns in class subgroups
-
-    # I love list comprehensions
-    columns = [i for i in xrange(0, seq_table.num_columns * alphabet_len) if i not in delete_cols]
-
-    # trim columns in excess of _MRMR_MAX_VARS or else everything 'splodes
-#     if len(columns) * seq_table.num_rows > _MRMR_MAX_VARS:
-#         remainder = ceil( (len(columns) * seq_table.num_rows - _MRMR_MAX_VARS) / seq_table.num_rows )
-#         print >> sys.stderr, 'WARNING: having to trim %i excess columns, this may take a minute' % remainder
-#         max_counts = sorted(max_counts, key=itemgetter(1))
-#         max_counts = sorted(min_counts, key=itemgetter(1))
-#         while(len(columns) * seq_table.num_rows > _MRMR_MAX_VARS):
-#             if max_counts[0][1] < min_counts[0][1]:
-#                 j = max_counts.pop(0)[0] * alphabet_len
-#                 columns = [i for i in columns if i not in range(j, j+alphabet_len)]
-#             else:
-#                 j = min_counts.pop(0)[0] * alphabet_len
-#                 columns = [i for i in columns if i not in range(j, j+alphabet_len)]
-#
-#     try:
-#         assert(len(columns) <= _MRMR_MAX_VARS)
-#     except AssertionError, e:
-#         print len(columns), len(delete_cols)
-#         raise e
-
-    columns = sorted(columns)
-
-    # trimmed because they're only the ones for columns, not because of the strip
-    trimmed_names = [names[i] for i in columns]
-
-    if len(filter_list) != 0:
-        delete_cols = []
-        for i in xrange(0, len(columns)):
-            m = match(r'^([A-Z]\d+)', trimmed_names[i])
-            if m:
-                if m.group(1) not in filter_list:
-                    delete_cols.append(i)
-        for i in sorted(delete_cols, reverse=True):
-            del columns[i]
-            del trimmed_names[i]
-
-    return (columns, trimmed_names)
-
-
-def binarize(x, colnames=None, dox=True):
-    assert(x.dtype == int or x.dtype == bool)
-    if colnames is None and not dox:
-        raise RuntimeError('binarize() does no work under these parameters!')
-    nrow, ncol = x.shape
-    donames = colnames is not None
-    if donames:
-        assert(ncol == len(colnames))
-    coldim = np.zeros((ncol,), dtype=int)
-    for j in xrange(ncol):
-        m = max(x[:, j]) + 1
-        coldim[j] = m if m > 2 else 1 if m > 1 else 0
-    newcol = np.sum(coldim)
-    if dox:
-        newx = np.zeros((nrow, newcol), dtype=bool)
-    if donames:
-        newcolnames = []
-    i = 0
-    for j in xrange(ncol):
-        if coldim[j] == 1:
-            continue
-        elif coldim[j] == 2:
-            if dox:
-                newx[:, i] = x[:, j] > 0 # binary 1 stays binary 1
-            if donames:
-                newcolnames.append(colnames[j])
-            i += 1
-        else:
-            for k in xrange(coldim[j]):
-                if dox:
-                    newx[:, i] = x[:, j] == k
-                if donames:
-                    newcolnames.append(colnames[j] + '-' + base_26_to_alph(base_10_to_n(k, 26)).upper())
-                i += 1
-    if dox and donames:
-        return newx, newcolnames
-    elif dox:
-        return newx
-    elif donames:
-        return newcolnames
-    else:
-        assert(0) # dead block, I think

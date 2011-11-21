@@ -36,7 +36,7 @@ from math import ceil, copysign, log10, sqrt
 from operator import itemgetter
 from optparse import OptionParser
 from os import close, remove, rename
-from os.path import basename, dirname, exists, join, realpath, splitext
+from os.path import abspath, basename, exists, join, split, splitext
 from random import gauss, random, seed
 from re import sub, match
 from tempfile import mkstemp
@@ -47,23 +47,29 @@ from Bio import AlignIO, SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
-from idepi import Alphabet, ClassExtractor, DiscreteMrmr, DumbSimulation, FastCaimMrmr, Hmmer, LinearSvm, \
-                  MarkovSimulation, NaiveFilter, NormalValue, PerfStats, PhyloFilter, SelectingGridSearcher, \
+from idepi import Alphabet, ClassExtractor, DumbSimulation, Hmmer, LinearSvm, \
+                  MarkovSimulation, NaiveFilter, NormalValue, PhyloFilter, \
                   SeqTable, Simulation, collect_AbRecords_from_db, crude_sto_read, cv_results_to_output, \
-                  generate_alignment, generate_feature_names, get_valid_antibodies_from_db, \
-                  get_valid_subtypes_from_db, id_to_float, is_HXB2, pretty_fmt_results, set_util_params
+                  generate_alignment, get_valid_antibodies_from_db, \
+                  get_valid_subtypes_from_db, id_to_float, is_HXB2, pretty_fmt_results, set_util_params, \
+                  __file__ as _idepi_file, __version__ as _idepi_version
 
-__version__ = 0.5
+from mrmr import DiscreteMrmr, PhyloMrmr
 
-_WORKING_DIR      = dirname(realpath(__file__)) # '/Users/Lance/Pond'
-_HXB2_DNA_FASTA   = join(_WORKING_DIR, 'res', 'hxb2_dna.fa')
-_HXB2_AMINO_FASTA = join(_WORKING_DIR, 'res', 'hxb2_pep.fa')
+from pyxval import CrossValidator, DiscretePerfStats, SelectingGridSearcher
+
+
+__VERSION__ = _idepi_version
+
+_IDEPI_PATH       = split(abspath(_idepi_file))[0]
+_HXB2_DNA_FASTA   = join(_IDEPI_PATH, 'data', 'hxb2_dna.fa')
+_HXB2_AMINO_FASTA = join(_IDEPI_PATH, 'data', 'hxb2_pep.fa')
 
 _DEFAULT_NUM_FEATURES = 10
 
-_RAND_SEQ_STOCKHOLM = join(_WORKING_DIR, 'res', 'randhivenvpep_final.sto')
+_RAND_SEQ_STOCKHOLM = join(_IDEPI_PATH, 'data', 'randhivenvpep_final.sto')
 
-_PHYLOFILTER_BATCHFILE = join(_WORKING_DIR, 'res', 'hyphy', 'CorrectForPhylogeny.bf')
+_PHYLOFILTER_BATCHFILE = join(_IDEPI_PATH, 'hyphy', 'CorrectForPhylogeny.bf')
 
 # strip the _TEST variables because of the beginning and trailing newlines
 _TEST_DNA_STO = '''# STOCKHOLM 1.0
@@ -127,9 +133,6 @@ def setup_option_parser():
     parser.add_option('--filter',        action='callback',    callback=optparse_csv,    type='string',          dest='FILTER')
     parser.add_option('--numfeats',                                                      type='int',             dest='NUM_FEATURES')
     parser.add_option('--subtypes',      action='callback',    callback=optparse_csv,    type='string',          dest='SUBTYPES')
-    parser.add_option('--svmtrain',                                                      type='string',          dest='SVM_TRAIN_BIN')
-    parser.add_option('--svmpredict',                                                    type='string',          dest='SVM_PREDICT_BIN')
-    parser.add_option('--svmargs',       action='callback',    callback=optparse_extend, type='string', nargs=2, dest='SVM_ARGS')
     parser.add_option('--nested',        action='store_true',                                                    dest='NESTED')
     parser.add_option('--log2c',         action='callback',    callback=optparse_csv,    type='string',          dest='LOG2C')
     parser.add_option('--weighting',     action='store_true',                                                    dest='WEIGHTING')
@@ -161,19 +164,15 @@ def setup_option_parser():
     parser.add_option('--phylofilt',     action='store_true',                                                    dest='PHYLOFILTER')
     parser.add_option('-o', '--output',                                                  type='string',          dest='OUTPUT')
 
-    parser.set_defaults(HMMER_ALIGN_BIN    = join(_WORKING_DIR, 'contrib', 'hmmer-3.0', 'src', 'hmmalign'))
-    parser.set_defaults(HMMER_BUILD_BIN    = join(_WORKING_DIR, 'contrib', 'hmmer-3.0', 'src', 'hmmbuild'))
+    parser.set_defaults(HMMER_ALIGN_BIN    = 'hmmalign')
+    parser.set_defaults(HMMER_BUILD_BIN    = 'hmmbuild')
     parser.set_defaults(HMMER_ITER         = 8)
-    parser.set_defaults(MRMR_BIN           = join(_WORKING_DIR, 'contrib', 'mrmr_c_src', 'mrmr'))
     parser.set_defaults(MRMR_METHOD        = 'MID')
     parser.set_defaults(MRMR_NORMALIZE     = False)
     parser.set_defaults(MAXREL             = False)
     parser.set_defaults(FILTER             = [])
     parser.set_defaults(NUM_FEATURES       = -1)
     parser.set_defaults(SUBTYPES           = [])
-    parser.set_defaults(SVM_TRAIN_BIN      = join(_WORKING_DIR, 'contrib', 'libsvm-3.0', 'svm-train'))
-    parser.set_defaults(SVM_PREDICT_BIN    = join(_WORKING_DIR, 'contrib', 'libsvm-3.0', 'svm-predict'))
-    parser.set_defaults(SVM_ARGS           = ['-t', '0', '-h', '0'])
     parser.set_defaults(NESTED             = True)
     parser.set_defaults(WEIGHTING          = False)
     parser.set_defaults(LOG2C              = ['-5', '15', '0.25'])
@@ -194,7 +193,7 @@ def setup_option_parser():
     parser.set_defaults(MIN_CONSERVATION   = 1. ) # 33.)
     parser.set_defaults(IC50GT             = 20.)
     parser.set_defaults(IC50LT             = 2.)
-    parser.set_defaults(NEUT_SQLITE3_DB    = join(_WORKING_DIR, 'res', 'allneuts.sqlite3'))
+    parser.set_defaults(NEUT_SQLITE3_DB    = join(_IDEPI_PATH, 'data', 'allneuts.sqlite3'))
     parser.set_defaults(REFSEQ_FASTA       = _HXB2_AMINO_FASTA)
     parser.set_defaults(HXB2_IDS           = ['9629357', '9629363'])
     parser.set_defaults(RAND_SEED          = 42) # magic number for determinism
@@ -395,8 +394,8 @@ def main(argv = sys.argv):
     # format as SeqRecord so we can output as FASTA
     abrecords = collect_AbRecords_from_db(OPTIONS.NEUT_SQLITE3_DB, antibody)
 
-    alignment_basename = '%s_%s_%s' % (ab_basename, splitext(basename(OPTIONS.NEUT_SQLITE3_DB))[0], __version__)
-    fasta_basename = '%s_%s_%s_%s' % (ab_basename, splitext(basename(OPTIONS.NEUT_SQLITE3_DB))[0], splitext(basename(fasta))[0], __version__)
+    alignment_basename = '%s_%s_%s' % (ab_basename, splitext(basename(OPTIONS.NEUT_SQLITE3_DB))[0], __VERSION__)
+    fasta_basename = '%s_%s_%s_%s' % (ab_basename, splitext(basename(OPTIONS.NEUT_SQLITE3_DB))[0], splitext(basename(fasta))[0], __VERSION__)
 
     # generate an alignment using HMMER if it doesn't already exist
     seqrecords = [r.to_SeqRecord(dna=True if OPTIONS.DNA else False) for r in abrecords]
@@ -448,19 +447,19 @@ def main(argv = sys.argv):
         )
         yt = yextractor.extract(alignment)
 
-        optstat = PerfStats.MINSTAT
+        optstat = DiscretePerfStats.MINSTAT
         if OPTIONS.ACCURACY:
-            optstat = PerfStats.ACCURACY
+            optstat = DiscretePerfStats.ACCURACY
         elif OPTIONS.PPV:
-            optstat = PerfStats.PPV
+            optstat = DiscretePerfStats.PPV
         elif OPTIONS.NPV:
-            optstat = PerfStats.NPV
+            optstat = DiscretePerfStats.NPV
         elif OPTIONS.SENSITIVITY:
-            optstat = PerfStats.SENSITIVITY
+            optstat = DiscretePerfStats.SENSITIVITY
         elif OPTIONS.SPECIFICITY:
-            optstat = PerfStats.SPECIFICITY
+            optstat = DiscretePerfStats.SPECIFICITY
         elif OPTIONS.FSCORE:
-            optstat = PerfStats.FSCORE
+            optstat = DiscretePerfStats.FSCORE
 
         C_begin, C_end, C_step = OPTIONS.LOG2C
         recip = 1
@@ -474,18 +473,21 @@ def main(argv = sys.argv):
             DiscreteMrmr._NORMALIZED = True
 
         sgs = SelectingGridSearcher(
-            classifiercls=LinearSvm,
-            selectorcls=FastCaimMrmr if OPTIONS.PHYLOFILTER else DiscreteMrmr,
-            folds=OPTIONS.CV_FOLDS,
-            cv={},
-            mode=SelectingGridSearcher.DISCRETE,
-            optstat=optstat,
-            gs={ 'C': C_range },
-            fs={
+            classifier_cls=LinearSvm,
+            selector_cls=PhyloMrmr if OPTIONS.PHYLOFILTER else DiscreteMrmr,
+            validator_cls=CrossValidator,
+            gridsearch_kwargs={ 'C': C_range },
+            classifier_kwargs={},
+            selector_kwargs={
                 'num_features': OPTIONS.NUM_FEATURES,
                 'method': DiscreteMrmr.MAXREL if OPTIONS.MAXREL else \
                           DiscreteMrmr.MID if OPTIONS.MRMR_METHOD == 'MID' else \
                           DiscreteMrmr.MIQ
+            },
+            validator_kwargs={
+                'folds': OPTIONS.CV_FOLDS-1,
+                'scorer_cls': DiscretePerfStats,
+                'scorer_kwargs': { 'optstat': optstat }
             }
         )
 
