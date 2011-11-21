@@ -44,7 +44,6 @@ from _seqtable import *
 from _simulation import *
 from _smldata import *
 from _sparsepartitioning import *
-from _uithread import *
 from _util import *
 
 
@@ -69,5 +68,4 @@ __all__ += _seqtable.__all__
 __all__ += _simulation.__all__
 __all__ += _smldata.__all__
 __all__ += _sparsepartitioning.__all__
-__all__ += _uithread.__all__
 __all__ += _util.__all__
