@@ -1,6 +1,7 @@
 
-from os import close, exists, remove
-from os.path import abspath, join, split
+from multiprocessing import cpu_count
+from os import close, remove
+from os.path import abspath, exists, join, split
 from sys import stderr
 from tempfile import mkstemp
 
@@ -46,9 +47,9 @@ class Ancestors(HyphyInterface):
         self.runqueue()
 
         if not quiet:
-            if self.stdout != ''
+            if self.stdout != '':
                 print >> stderr, self.stdout
-            if self.warnings != ''
+            if self.warnings != '':
                 print >> stderr, self.warnings
 
         if self.stderr != '':
