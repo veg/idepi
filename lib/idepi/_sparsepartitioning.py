@@ -29,7 +29,6 @@ from os.path import exists, isfile, join
 from subprocess import PIPE, Popen
 from sys import exit, stderr
 from tempfile import mkdtemp
-from types import IntType, FloatType
 
 from _smldata import SmlData
 
@@ -137,8 +136,8 @@ class SparsePartitioning(object):
         'spsize.txt'
     )
 
-    __POSITIVE_INTEGER = lambda x: type(x) is IntType and x > 0
-    __POSITIVE_FLOAT = lambda x: type(x) in (IntType, FloatType) and x > 0.
+    __POSITIVE_INTEGER = lambda x: isinstance(x, int) and x > 0
+    __POSITIVE_FLOAT = lambda x: isinstance(x, (float, int)) and x > 0.
 
     __KNOWN_SP_OPTIONS = dict(
         oldn=(True, __POSITIVE_INTEGER),
@@ -148,8 +147,8 @@ class SparsePartitioning(object):
         M=(False, None),
         modenter=(False, None),
         priorent=(False, None),
-        pprior=(None, lambda x: type(x) in (IntType, FloatType)),
-        priorass=(None, lambda x: type(x) in (IntType, FloatType)),
+        pprior=(None, lambda x: isinstance(x, (float, int))),
+        priorass=(None, lambda x: isinstance(x, (float, int))),
         maxT=(None, __POSITIVE_INTEGER),
         maxD=(None, __POSITIVE_INTEGER),
         copies=(None, __POSITIVE_INTEGER),
@@ -158,7 +157,7 @@ class SparsePartitioning(object):
         split=(None, lambda x: x in (0, 1)),
         sskip=(None, __POSITIVE_INTEGER),
         supdate=(None, __POSITIVE_INTEGER),
-        tol=(None, lambda x: type(x) in (IntType, FloatType)),
+        tol=(None, lambda x: isinstance(x, (float, int))),
         randomise=(None, lambda x: x in (0, 1)),
         maxiter=(None, __POSITIVE_INTEGER),
         numcor=(None, __POSITIVE_INTEGER),
@@ -280,7 +279,7 @@ class SparsePartitioning(object):
         SparsePartitioning.__merge_options(self, dict(oldn=oldn, oldN=oldN))
         floats = False
         for r in self.data:
-            if type(r.value) is FloatType:
+            if isinstance(r.value, float):
                 floats = True
         if self.__options is None:
             SparsePartitioning.__merge_options(self, options)

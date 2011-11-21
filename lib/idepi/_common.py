@@ -256,13 +256,13 @@ def pretty_fmt_meta(meta, ident=0):
     output = [prefix + u'  %-*s %s' % (
         name_len,
         u'"%s":' % k,
-        '"%s"' % v if type(v) is str else \
+        '"%s"' % v if isinstance(v, str) else \
         ' { %s }' % ', '.join(
             ['"%s": %s' % (
                 k,
-                '%s' % v if type(v) in (int, float) else '"%s"' % v
+                '%s' % v if isinstance(v, (float, int)) else '"%s"' % v
             ) for k, v in v.items()]
-        ) if type(v) is dict else \
+        ) if isinstance(v, dict) else \
         ' %s' % str(v)
     ) for k, v in sorted(meta.items(), key=itemgetter(0))]
 

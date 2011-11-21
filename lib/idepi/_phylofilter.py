@@ -3,6 +3,7 @@ import json
 from math import floor
 from os import close, getpid, remove
 from os.path import dirname, exists, join, realpath
+from re import compile as re_compile
 from tempfile import mkstemp
 
 import numpy as np
@@ -89,7 +90,8 @@ class PhyloFilter(BaseFilter):
         nchars = int(HyPhy.retrieve(hyphy, 'numChars', HyPhy.NUMBER))
 
         # we need these to know how hyphy screwbar'd our sequence order
-        ids = [int(v.split()[0]) for v in ids]
+        idnum = re_compile(r'^[0-9]+')
+        ids = [int(idnum.search(v).group(0)) for v in ids]
 
         assert(alignment_length == nsites)
         assert(len(order) == nchars)
