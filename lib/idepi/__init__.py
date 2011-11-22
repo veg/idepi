@@ -49,7 +49,7 @@ from _sparsepartitioning import *
 from _util import *
 
 
-__all__ = ['HMMER_LOGGER']
+__all__ = ['IDEPI_LOGGER']
 __all__ += _abrecord.__all__
 __all__ += _alphabet.__all__
 __all__ += _ancestors.__all__

@@ -44,7 +44,7 @@ from Bio.SeqRecord import SeqRecord
 
 from idepi import Alphabet, ClassExtractor, DumbSimulation, LinearSvm, MarkovSimulation, NaiveFilter, \
                   PhyloFilter, SeqTable, Simulation, collect_AbRecords_from_db, cv_results_to_output, \
-                  extract_feature_weights, generate_alignment, get_valid_antibodies_from_db, HMMER_LOGGER, \
+                  extract_feature_weights, generate_alignment, get_valid_antibodies_from_db, IDEPI_LOGGER, \
                   get_valid_subtypes_from_db, id_to_float, is_HXB2, make_output_meta, pretty_fmt_results, \
                   set_util_params, __file__ as _idepi_file, __version__ as _idepi_version
 
@@ -329,7 +329,7 @@ def main(argv = sys.argv):
     (OPTIONS, args) = option_parser.parse_args(argv)
 
     if OPTIONS.LOGGING:
-        logging.getLogger(HMMER_LOGGER).setLevel(logging.DEBUG)
+        logging.getLogger(IDEPI_LOGGER).setLevel(logging.DEBUG)
         logging.getLogger(MRMR_LOGGER).setLevel(logging.DEBUG)
         logging.getLogger(PYXVAL_LOGGER).setLevel(logging.DEBUG)
 

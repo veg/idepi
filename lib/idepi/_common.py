@@ -19,7 +19,7 @@ from Bio.SeqRecord import SeqRecord
 from mrmr import MRMR_LOGGER
 
 from _hmmer import Hmmer
-from _logging import HMMER_LOGGER
+from _logging import IDEPI_LOGGER
 from _normalvalue import NormalValue
 from _simulation import Simulation
 
@@ -87,7 +87,7 @@ def generate_alignment_from_SeqRecords(seq_records, my_basename, opts):
     fd, sto_filename = mkstemp(); close(fd)
     finished = False
 
-    log = logging.getLogger(HMMER_LOGGER)
+    log = logging.getLogger(IDEPI_LOGGER)
 
     try:
         # get the FASTA format file so we can HMMER it
