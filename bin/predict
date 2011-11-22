@@ -23,11 +23,11 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
-import sqlite3, sys
+import logging, sqlite3, sys
 
 try:
     from cStringIO import StringIO
-except ImportError, e:
+except ImportError:
     from StringIO import StringIO
 
 from codecs import getwriter
@@ -54,7 +54,7 @@ from idepi import Alphabet, ClassExtractor, DumbSimulation, Hmmer, LinearSvm, \
                   get_valid_subtypes_from_db, id_to_float, is_HXB2, pretty_fmt_results, set_util_params, \
                   __file__ as _idepi_file, __version__ as _idepi_version
 
-from mrmr import DiscreteMrmr, PhyloMrmr
+from mrmr import MRMR_LOGGER, DiscreteMrmr, PhyloMrmr
 
 from pyxval import CrossValidator, DiscretePerfStats, SelectingGridSearcher
 
@@ -125,6 +125,7 @@ def setup_option_parser():
     parser.add_option('--hmmalign',                                                      type='string',          dest='HMMER_ALIGN_BIN')
     parser.add_option('--hmmbuild',                                                      type='string',          dest='HMMER_BUILD_BIN')
     parser.add_option('--hmmiter',                                                       type='int',             dest='HMMER_ITER')
+    parser.add_option('--log',           action='store_true',                                                    dest='LOGGING')
     parser.add_option('--mrmr',          action='store_false',                                                   dest='MAXREL')
     parser.add_option('--mrmrprog',                                                      type='string',          dest='MRMR_BIN')
     parser.add_option('--mrmrmethod',                                                    type='string',          dest='MRMR_METHOD')
@@ -316,6 +317,10 @@ def main(argv = sys.argv):
     # so some option parsing
     option_parser = setup_option_parser()
     (OPTIONS, args) = option_parser.parse_args(argv)
+
+    if OPTIONS.LOGGING:
+        log = logging.getLogger(MRMR_LOGGER)
+        log.setLevel(logging.DEBUG)
 
     # do some argument parsing
     if OPTIONS.TEST:
