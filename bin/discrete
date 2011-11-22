@@ -50,7 +50,7 @@ from idepi import Alphabet, ClassExtractor, DumbSimulation, LinearSvm, MarkovSim
 
 from mrmr import MRMR_LOGGER, DiscreteMrmr, PhyloMrmr
 
-from pyxval import CrossValidator, DiscretePerfStats, SelectingNestedCrossValidator
+from pyxval import PYXVAL_LOGGER, CrossValidator, DiscretePerfStats, SelectingNestedCrossValidator
 
 
 __VERSION__ = _idepi_version
@@ -331,6 +331,7 @@ def main(argv = sys.argv):
     if OPTIONS.LOGGING:
         logging.getLogger(HMMER_LOGGER).setLevel(logging.DEBUG)
         logging.getLogger(MRMR_LOGGER).setLevel(logging.DEBUG)
+        logging.getLogger(PYXVAL_LOGGER).setLevel(logging.DEBUG)
 
     # do some argument parsing
     if OPTIONS.TEST:
