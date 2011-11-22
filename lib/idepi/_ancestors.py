@@ -15,6 +15,9 @@ from Bio import SeqIO
 from hypy import HyphyInterface
 
 
+__all__ = ['Ancestors']
+
+
 class Ancestors(HyphyInterface):
 
     def __init__(self, batchfile=None, num_cpus=None):

@@ -22,6 +22,7 @@ setup(name='idepi',
       },
       package_data={'idepi': ['data/*', 'hyphy/*.bf']},
       data_files=[('/usr/local/bin', [
+            'bin/ancestors',
             'bin/discrete',
             'bin/predict',
             'bin/regressor',
