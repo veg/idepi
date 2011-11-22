@@ -18,7 +18,8 @@ from Bio.SeqRecord import SeqRecord
 
 from mrmr import MRMR_LOGGER
 
-from _hmmer import Hmmer, HMMER_LOGGER
+from _hmmer import Hmmer
+from _logging import HMMER_LOGGER
 from _normalvalue import NormalValue
 from _simulation import Simulation
 

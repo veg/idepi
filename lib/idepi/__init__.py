@@ -33,6 +33,7 @@ from _discretizer import *
 from _hmmer import *
 from _hyphy import *
 from _linearsvm import *
+from _logging import *
 from _logo import *
 from _mlpy import *
 from _naivefilter import *
@@ -48,7 +49,7 @@ from _sparsepartitioning import *
 from _util import *
 
 
-__all__ = []
+__all__ = ['HMMER_LOGGER']
 __all__ += _abrecord.__all__
 __all__ += _alphabet.__all__
 __all__ += _ancestors.__all__
@@ -58,6 +59,7 @@ __all__ += _discretizer.__all__
 __all__ += _hmmer.__all__
 __all__ += _hyphy.__all__
 __all__ += _linearsvm.__all__
+# don't import logging here, we just want to setup
 __all__ += _logo.__all__
 __all__ += _mlpy.__all__
 __all__ += _naivefilter.__all__
@@ -71,3 +73,5 @@ __all__ += _simulation.__all__
 __all__ += _smldata.__all__
 __all__ += _sparsepartitioning.__all__
 __all__ += _util.__all__
+
+_setup_log()
