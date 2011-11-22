@@ -22,14 +22,23 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
+import logging
+
 from os import close, environ
 from os.path import exists, join
 from subprocess import Popen, PIPE
 from tempfile import mkstemp
 
 
-__all__ = ['Hmmer']
+__all__ = ['Hmmer', 'HMMER_LOGGER']
 
+
+HMMER_LOGGER = 'FmALfZ4Q4JZ9yVJakdJReEty'
+
+_h = logging.StreamHandler()
+_f = logging.Formatter('%(levelname)s %(asctime)s %(process)d %(funcName)s: %(message)s')
+_h.setFormatter(_f)
+logging.getLogger(HMMER_LOGGER).addHandler(_h)
 
 
 class Hmmer(object):

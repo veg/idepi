@@ -1,5 +1,5 @@
 
-import re
+import logging, re
 
 from math import copysign, sqrt
 from operator import itemgetter
@@ -16,7 +16,9 @@ from Bio.Alphabet import Gapped, generic_nucleotide, generic_protein
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
-from _hmmer import Hmmer
+from mrmr import MRMR_LOGGER
+
+from _hmmer import Hmmer, HMMER_LOGGER
 from _normalvalue import NormalValue
 from _simulation import Simulation
 
@@ -84,6 +86,8 @@ def generate_alignment_from_SeqRecords(seq_records, my_basename, opts):
     fd, sto_filename = mkstemp(); close(fd)
     finished = False
 
+    log = logging.getLogger(HMMER_LOGGER)
+
     try:
         # get the FASTA format file so we can HMMER it
         fafh = open(ab_fasta_filename, 'w')
@@ -107,12 +111,14 @@ def generate_alignment_from_SeqRecords(seq_records, my_basename, opts):
         # make the tempfiles for the alignments, and close them out after we use them
         SeqIO.convert(opts.REFSEQ_FASTA, 'fasta', sto_filename, 'stockholm')
 
-        print >> stderr, 'Aligning %d sequences with HMMER:' % (len(seq_records)+1),
-
         hmmer = Hmmer(opts.HMMER_ALIGN_BIN, opts.HMMER_BUILD_BIN)
 
-        for i in xrange(0, opts.HMMER_ITER):
-            print >> stderr, '%d,' % i,
+        numseqs = len(seq_records) + 1
+
+        log.debug('beginning alignment')
+
+        for i in xrange(opts.HMMER_ITER):
+            log.debug('aligning %d sequences (%d of %d)' % (numseqs, i+1, opts.HMMER_ITER))
             hmmer.build(hmm_filename, sto_filename)
             hmmer.align(hmm_filename, ab_fasta_filename, output=sto_filename, alphabet=Hmmer.DNA if opts.DNA else Hmmer.AMINO, outformat=Hmmer.PFAM)
 
@@ -124,7 +130,7 @@ def generate_alignment_from_SeqRecords(seq_records, my_basename, opts):
         if finished:
             copyfile(sto_filename, my_basename + '.sto')
             copyfile(hmm_filename, my_basename + '.hmm')
-            print >> stderr, 'done, output moved to: %s' % my_basename + '.sto'
+            log.debug('finished alignment, output moved to %s.sto' % my_basename)
         remove(sto_filename)
         remove(ab_fasta_filename)
         remove(hmm_filename)
@@ -174,6 +180,13 @@ def cv_results_to_output(results, colnames, meta=None):
     for idx, weights in featureweights.items():
         val = NormalValue(int, weights)
         weightsdict[colnames[idx]] = val
+
+    log = logging.getLogger(MRMR_LOGGER)
+    log.debug('mrmr index to name map: { %s }' % ', '.join(
+        ['%d: "%s"' % (
+            idx, colnames[idx]
+        ) for idx in sorted(featureweights.keys())]
+    ))
 
     ret = {}
 
