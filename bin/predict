@@ -322,6 +322,11 @@ def main(argv = sys.argv):
         logging.getLogger(IDEPI_LOGGER).setLevel(logging.DEBUG)
         logging.getLogger(MRMR_LOGGER).setLevel(logging.DEBUG)
         logging.getLogger(PYXVAL_LOGGER).setLevel(logging.DEBUG)
+        try:
+            from fakemp import FAKEMP_LOGGER
+            logging.getLogger(FAKEMP_LOGGER).setLevel(logging.DEBUG)
+        except ImportError:
+            pass
 
     # do some argument parsing
     if OPTIONS.TEST:
