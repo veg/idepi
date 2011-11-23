@@ -183,8 +183,8 @@ def cv_results_to_output(results, colnames, meta=None):
         weightsdict[colnames[idx]] = val
 
     log = logging.getLogger(MRMR_LOGGER)
-    log.debug('mrmr index to name map: { %s }' % ', '.join(
-        ['%d: "%s"' % (
+    log.debug('mrmr index to name map: {%s}' % ', '.join(
+        ["%d: '%s'" % (
             idx, colnames[idx]
         ) for idx in sorted(featureweights.keys())]
     ))
