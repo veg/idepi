@@ -42,11 +42,11 @@ from Bio import AlignIO, SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
-from idepi import Alphabet, ClassExtractor, DumbSimulation, LinearSvm, MarkovSimulation, NaiveFilter, \
-                  PhyloFilter, SeqTable, Simulation, collect_AbRecords_from_db, cv_results_to_output, \
-                  extract_feature_weights, generate_alignment, get_valid_antibodies_from_db, IDEPI_LOGGER, \
-                  get_valid_subtypes_from_db, id_to_float, is_HXB2, make_output_meta, pretty_fmt_results, \
-                  set_util_params, __file__ as _idepi_file, __version__ as _idepi_version
+from idepi import (Alphabet, ClassExtractor, DumbSimulation, LinearSvm, MarkovSimulation, NaiveFilter,
+                   PhyloFilter, SeqTable, Simulation, collect_AbRecords_from_db, cv_results_to_output,
+                   extract_feature_weights, generate_alignment, get_valid_antibodies_from_db, IDEPI_LOGGER,
+                   get_valid_subtypes_from_db, id_to_float, is_HXB2, make_output_meta, pretty_fmt_results,
+                   set_util_params, __file__ as _idepi_file, __version__ as _idepi_version)
 
 from mrmr import MRMR_LOGGER, DiscreteMrmr, PhyloMrmr
 
