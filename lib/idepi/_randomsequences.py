@@ -151,7 +151,7 @@ def DumbRandomSequences(base_seq, N=1, consensus=False, gaps=False, opts={}, idf
             trim_chars = (' ')
         else:
             trim_chars = (' ', __GAP)
-        assert(seq_str == ''.join([seq[i] for i in xrange(len(seq)) if seq[i] not in trim_chars]))
+        assert(seq_str == ''.join(seq[i] for i in xrange(len(seq)) if seq[i] not in trim_chars))
         seq_id = idfmt % ('sample-%i' % (n + 1), gauss(0, noise))
         seqrecords.append(SeqRecord(Seq(seq_str, generic_protein), id=seq_id, name=seq_id))
 
@@ -197,7 +197,7 @@ def MarkovRandomSequences(file, N=1, consensus=False, gaps=False, opts={}, idfmt
                     vals[v][1][w] = 0.
                 vals[v][1][w] += 1.
         # make everything into a probability distribution
-        sum_v = sum([v[0] for v in vals.values()])
+        sum_v = sum(v[0] for v in vals.values())
         prev_v = 0.
         for v, _ in sorted(vals.items(), key = itemgetter(1), reverse = True):
             vals[v][0] /= sum_v

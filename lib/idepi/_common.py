@@ -68,15 +68,15 @@ def refseq_off(alndict, ref_id_func):
 def crude_sto_read(filename, ref_id_func=None, dna=False):
     with open(filename) as fh:
         notrel = re.compile(r'^(?:#|#=|//)')
-        alndict = dict([line.strip().split() for line in fh if not notrel.match(line.strip()) and line.strip() != ''])
+        alndict = dict(line.strip().split() for line in fh if not notrel.match(line.strip()) and line.strip() != '')
     trim = re.compile(r'[^-A-Z]')
     alph = Gapped(generic_nucleotide if dna else generic_protein)
-    alignment = MultipleSeqAlignment([
+    alignment = MultipleSeqAlignment(
         SeqRecord(
             Seq(trim.sub('', seq), alph),
             acc
         ) for acc, seq in alndict.items()
-    ])
+    )
     off = None if ref_id_func is None else refseq_off(alndict, ref_id_func)
     return alignment, off
 
@@ -114,7 +114,7 @@ def generate_alignment_from_SeqRecords(seq_records, my_basename, opts):
 
         hmmer = Hmmer(opts.HMMER_ALIGN_BIN, opts.HMMER_BUILD_BIN)
 
-        numseqs = len(seq_records) + 1
+        numseqs = len(seq_records)
 
         log.debug('beginning alignment')
 
@@ -184,9 +184,9 @@ def cv_results_to_output(results, colnames, meta=None):
 
     log = logging.getLogger(MRMR_LOGGER)
     log.debug('mrmr index to name map: {%s}' % ', '.join(
-        ["%d: '%s'" % (
+        "%d: '%s'" % (
             idx, colnames[idx]
-        ) for idx in sorted(featureweights.keys())]
+        ) for idx in sorted(featureweights.keys())
     ))
 
     ret = {}
@@ -194,7 +194,7 @@ def cv_results_to_output(results, colnames, meta=None):
     if meta is not None:
         ret['meta'] = meta
 
-    ret['statistics'] = dict([(k, { 'mean': v.mu, 'std': sqrt(v.sigma) }) for k, v in statsdict.items()])
+    ret['statistics'] = dict((k, { 'mean': v.mu, 'std': sqrt(v.sigma) }) for k, v in statsdict.items())
     ret['weights'] = [{ 'position': k, 'value': { 'mean': v.mu, 'std': sqrt(v.sigma), 'N': len(v) } } for k, v in sorted(
         weightsdict.items(),
         key=lambda x: int(re.sub(r'[a-zA-Z\[\]]+', '', x[0]))
@@ -226,14 +226,14 @@ def pretty_fmt_stats(stats, ident=0):
         stat_prefixes[k] = sum([1 for c in k if combining(c) == 0])
 
     stat_len = max(stat_prefixes.values())
-    mean_len = max([len('%.6f' % v['mean']) for v in stats.values()])
-    std_len = max([len('%.6f' % v['std']) for v in stats.values()])
+    mean_len = max(len('%.6f' % v['mean']) for v in stats.values())
+    std_len = max(len('%.6f' % v['std']) for v in stats.values())
     fmt = u'{ "mean": %%%d.6f, "std": %%%d.6f }' % (mean_len, std_len)
-    output = [prefix + u'  %s%s %s' % (
+    output = (prefix + u'  %s%s %s' % (
         u'"%s":' % k,
         u' ' * (stat_len - stat_prefixes[k]),
         fmt % (v['mean'], v['std'])
-    ) for k, v in sorted(stats.items(), key=itemgetter(0))]
+    ) for k, v in sorted(stats.items(), key=itemgetter(0)))
 
     return buf + ',\n'.join(output) + '\n' + prefix + '}'
 
@@ -244,19 +244,19 @@ def pretty_fmt_weights(weights, ident=0):
     buf = prefix + '"weights": [\n'
 
     if len(weights) > 0:
-        name_len = max([len(v['position']) for v in weights]) + 3
-        mean_len = max([len('% .6f' % v['value']['mean']) for v in weights])
-        std_len = max([len('%.6f' % v['value']['std']) for v in weights])
-        N_len = max([len('%d' % v['value']['N']) for v in weights])
+        name_len = max(len(v['position']) for v in weights) + 3
+        mean_len = max(len('% .6f' % v['value']['mean']) for v in weights)
+        std_len = max(len('%.6f' % v['value']['std']) for v in weights)
+        N_len = max(len('%d' % v['value']['N']) for v in weights)
         fmt = u'{ "mean": %%%d.6f, "std": %%%d.6f, "N": %%%dd }' % (mean_len, std_len, N_len)
-        output = [prefix + u'  { "position": %-*s "value": %s }' % (
+        output = (prefix + u'  { "position": %-*s "value": %s }' % (
             name_len, u'"%s",' % v['position'],
             fmt % (
                 v['value']['mean'],
                 v['value']['std'],
                 v['value']['N']
             ),
-        ) for v in sorted(weights, key=lambda x: int(re.sub(r'[a-zA-Z\[\]]+', '', x['position'])))]
+        ) for v in sorted(weights, key=lambda x: int(re.sub(r'[a-zA-Z\[\]]+', '', x['position']))))
 
     return buf + ',\n'.join(output) + '\n' + prefix + ']'
 
@@ -266,19 +266,19 @@ def pretty_fmt_meta(meta, ident=0):
 
     buf = prefix + '"meta": {\n'
 
-    name_len = max([len(k) for k in meta.keys()]) + 3
-    output = [prefix + u'  %-*s %s' % (
+    name_len = max(len(k) for k in meta.keys()) + 3
+    output = (prefix + u'  %-*s %s' % (
         name_len,
         u'"%s":' % k,
         '"%s"' % v if isinstance(v, str) else \
         ' { %s }' % ', '.join(
-            ['"%s": %s' % (
+            ('"%s": %s' % (
                 k,
                 '%s' % v if isinstance(v, (float, int)) else '"%s"' % v
-            ) for k, v in v.items()]
+            ) for k, v in v.items())
         ) if isinstance(v, dict) else \
         ' %s' % str(v)
-    ) for k, v in sorted(meta.items(), key=itemgetter(0))]
+    ) for k, v in sorted(meta.items(), key=itemgetter(0)))
 
     return buf + ',\n'.join(output) + '\n' + prefix + '}'
 

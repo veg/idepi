@@ -22,6 +22,7 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
+from collections import Iterable
 from math import sqrt
 from numpy import mean, nan_to_num, var
 
@@ -32,8 +33,8 @@ __all__ = ['NormalValue']
 class NormalValue(list):
 
     def __init__(self, dtype, L=[], name=None):
-        assert(isinstance(L, list))
-        assert(all([isinstance(l, dtype) for l in L]))
+        assert(isinstance(L, Iterable))
+        assert(all(isinstance(l, dtype) for l in L))
         super(NormalValue, self).__init__(L)
         self.__dtype = dtype
         if name is not None:
@@ -55,7 +56,7 @@ class NormalValue(list):
 
     def __mul__(self, value):
         assert(isinstance(value, self.__dtype))
-        return NormalValue(self.__dtype, [v * value for v in self], self.name if hasattr(self, 'name') else None)
+        return NormalValue(self.__dtype, (v * value for v in self), self.name if hasattr(self, 'name') else None)
 
     def append(self, value):
         assert(isinstance(value, self.__dtype))
@@ -64,7 +65,7 @@ class NormalValue(list):
 
     def extend(self, values):
         assert(isinstance(values, list))
-        assert(all([isinstance(v, self.__dtype) for v in values]))
+        assert(all(isinstance(v, self.__dtype) for v in values))
         super(NormalValue, self).extend(values)
         NormalValue.__compute(self)
 

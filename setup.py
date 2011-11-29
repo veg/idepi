@@ -15,18 +15,13 @@ setup(name='idepi',
       author_email='nlhepler@gmail.com',
       url='http://github.com/veg/idepi',
       license='GNU GPL version 3',
-      packages=['idepi', 'idepi._mlpy'],
+      packages=['idepi', 'idepi._bin', 'idepi._mlpy'],
       package_dir={
             'idepi': 'lib/idepi',
+            'idepi._bin': 'lib/idepi/_bin',
             'idepi._mlpy': 'lib/idepi/_mlpy'
       },
       package_data={'idepi': ['data/*', 'hyphy/*.bf']},
-      data_files=[('/usr/local/bin', [
-            'bin/ancestors',
-            'bin/discrete',
-            'bin/predict',
-            'bin/regressor',
-            'bin/sto2fa'
-      ])],
+      data_files=[('/usr/local/bin', ['bin/idepi'])],
       requires=['Bio', 'cvxopt', 'fakemp', 'hypy', 'mlpy', 'mrmr', 'numpy', 'pyxval']
      )

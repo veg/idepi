@@ -61,7 +61,7 @@ __all__ = [
     'sanitize_seq',
 ]
 
-__HXB2_IDS = None
+__HXB2_IDS = ('9629357', '9629363')
 __IC50LT = None
 __IC50GT = None
 
@@ -308,9 +308,9 @@ def ystoconfusionmatrix(truth, preds):
     pns = preds <= 0.
 
                                                            # true pos    true neg    false pos   false neg
-    tp, tn, fp, fn = map(lambda a: np.sum(np.multiply(*a)), [(tps, pps), (tns, pns), (tns, pps), (tps, pns)])
+    tp, tn, fp, fn = (np.sum(np.multiply(a, b)) for a, b in ((tps, pps), (tns, pns), (tns, pps), (tps, pns)))
 
-    return (tp, tn, fp, fn)
+    return tp, tn, fp, fn
 
 def get_valid_subtypes_from_db(dbpath):
     conn = connect(dbpath)
@@ -353,7 +353,7 @@ def collect_AbRecords_from_db(dbpath, antibody):
     for row in curr:
         try:
             ab_record = AbRecord(*row)
-            if ab_record.id in [abr.id for abr in ab_records]:
+            if ab_record.id in (abr.id for abr in ab_records):
                 ab_record.id += '-1'
             ab_records.append(ab_record)
         except ValueError:

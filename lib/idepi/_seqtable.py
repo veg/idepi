@@ -96,7 +96,7 @@ class SeqTable(object):
     def __partition(l, folds):
         npf = int(floor(l / folds)) # num per fold
         r = l % folds
-        p = list(chain(*[[i] * npf for i in xrange(folds)])) + range(r)
+        p = list(chain(*([i] * npf for i in xrange(folds)))) + range(r)
         shuffle(p)
         assert(len(p) == l)
         return p

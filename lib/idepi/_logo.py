@@ -126,7 +126,7 @@ class Logo(object):
         if self.seq is not None:
             return self.seq
 
-        ret = dict([('%d' % (i+1), [(self.refseq[i], -1, -1)]) for i in xrange(len(self.refseq))])
+        ret = dict(('%d' % (i+1), [(self.refseq[i], -1, -1)]) for i in xrange(len(self.refseq)))
         inserts = {}
         for pos, stats in self.statistics.items():
             m = match(r'^(\d+)([a-z]+)([A-Z])', pos)
@@ -135,12 +135,12 @@ class Logo(object):
                 ins = m.group(1) + m.group(2)
                 if ins not in inserts:
                     ret[ins] = ['']
-                ret[ins].append((m.group(3), sum([i for i in stats if i > 0]), sum([i for i in stats if i < 0])))
+                ret[ins].append((m.group(3), sum(i for i in stats if i > 0), sum(i for i in stats if i < 0)))
             else:
                 m = match(r'^[A-Z](\d+)([A-Z])', pos)
                 if m:
                     assert(m.group(1) in ret)
-                    ret[m.group(1)].append((m.group(2), sum([i for i in stats if i > 0]), sum([i for i in stats if i < 0])))
+                    ret[m.group(1)].append((m.group(2), sum(i for i in stats if i > 0), sum(i for i in stats if i < 0)))
         self.seq = ret
         return ret
 

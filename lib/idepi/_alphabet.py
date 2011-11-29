@@ -36,7 +36,7 @@ class Alphabet(object):
             l = []
             # don't forget to +1 here, otherwise we miss the '-' character
             for i in xrange(max(d.values()) + 1):
-                l.append('[%s]' % ''.join(sorted([k if k not in Alphabet.SPACE else '' for k, v_ in d.items() if i == v_])))
+                l.append('[%s]' % ''.join(sorted(k if k not in Alphabet.SPACE else '' for k, v_ in d.items() if i == v_)))
 
         elif mode in (Alphabet.AMINO, Alphabet.DNA):
             alph = Alphabet.__AMINO_ALPH if mode == self.AMINO else Alphabet.__DNA_ALPH
@@ -66,7 +66,7 @@ class Alphabet(object):
     @staticmethod
     def __dict_and_list(alphabet):
         alph = alphabet.upper()
-        d = dict([(alph[i], i) for i in xrange(len(alph))])
+        d = dict((alph[i], i) for i in xrange(len(alph)))
         l = [alph[i] if alph[i] not in Alphabet.SPACE else '[]' for i in xrange(len(alph))]
         return d, l
 

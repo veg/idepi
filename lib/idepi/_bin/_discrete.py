@@ -316,7 +316,7 @@ def fix_hxb2_fasta():
         OPTIONS.REFSEQ_FASTA = _HXB2_DNA_FASTA
 
 
-def main(argv = sys.argv):
+def main(argv=sys.argv):
     np.seterr(all='raise')
 
     global OPTIONS
@@ -368,12 +368,13 @@ def main(argv = sys.argv):
         option_parser.error('option --mrmrmethod takes either MIQ or MID')
 
     # check to make sure our mode is exclusive, and set the default (AMINO) if none is set
-    if sum([1 for v in (OPTIONS.AMINO, OPTIONS.DNA, OPTIONS.STANFEL) if v]) > 1:
+    alphoptlen = sum(1 for v in (OPTIONS.AMINO, OPTIONS.DNA, OPTIONS.STANFEL) if v)
+    if alphoptlen > 1:
         option_parser.error('options --amino, --dna, and --stanfel are mutually exclusive')
-    elif sum([1 for v in (OPTIONS.AMINO, OPTIONS.DNA, OPTIONS.STANFEL) if v]) == 0:
+    elif alphoptlen == 0:
         OPTIONS.AMINO = True
 
-    if sum([1 for v in (OPTIONS.ACCURACY, OPTIONS.PPV, OPTIONS.NPV, OPTIONS.SENSITIVITY, OPTIONS.SPECIFICITY, OPTIONS.FSCORE) if v]) > 1:
+    if sum(1 for v in (OPTIONS.ACCURACY, OPTIONS.PPV, OPTIONS.NPV, OPTIONS.SENSITIVITY, OPTIONS.SPECIFICITY, OPTIONS.FSCORE) if v) > 1:
         option_parser.error('options --accuracy, --ppv/--precision, --npv, --sensitivity/--recall, --specificity/--tnr, --fscore are mutually exclusive')
 
     try:
@@ -389,7 +390,7 @@ def main(argv = sys.argv):
     valid_antibodies = sorted(get_valid_antibodies_from_db(OPTIONS.NEUT_SQLITE3_DB), key = lambda x: x.strip())
     if antibody not in valid_antibodies:
         if ' ' + antibody not in valid_antibodies:
-            option_parser.error('%s not in the list of permitted antibodies: \n  %s' % (antibody, '\n  '.join([ab.strip() for ab in valid_antibodies])))
+            option_parser.error('%s not in the list of permitted antibodies: \n  %s' % (antibody, '\n  '.join(ab.strip() for ab in valid_antibodies)))
         else:
             antibody = ' ' + antibody
 
@@ -397,7 +398,7 @@ def main(argv = sys.argv):
     valid_subtypes = sorted(get_valid_subtypes_from_db(OPTIONS.NEUT_SQLITE3_DB), key = lambda x: x.strip().upper())
     for subtype in OPTIONS.SUBTYPES:
         if subtype not in valid_subtypes:
-            option_parser.error('%s not in the list of permitted subtypes: \n  %s' % (subtype, '\n  '.join([st.strip() for st in valid_subtypes])))
+            option_parser.error('%s not in the list of permitted subtypes: \n  %s' % (subtype, '\n  '.join(st.strip() for st in valid_subtypes)))
 
     if OPTIONS.SIM in (Simulation.EPITOPE, Simulation.SEQUENCE) and OPTIONS.DNA:
         option_parser.error('randseq simulation target not compatible with DNA mode')

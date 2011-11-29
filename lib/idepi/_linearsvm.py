@@ -138,7 +138,7 @@ class LinearSvmModel(object):
 
             elif mode == 'W':
                 if len(vals) > 1:
-                    weight += sum([float(v) for v in vals[1:]])
+                    weight += sum(float(v) for v in vals[1:])
                 self.__feature_weights[f] = weight
                 f += 1
 

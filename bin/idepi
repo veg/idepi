@@ -1,0 +1,22 @@
+#!/usr/bin/env python2.7
+
+from os.path import basename
+from sys import argv as sys_argv, exit as sys_exit, stderr
+
+from idepi._bin import (ancestors, discrete, predict, regressor,
+                        sto2fa, __all__ as programs)
+
+def main(argv=sys_argv):
+    try:
+        argv[0] = ' '.join(argv[:2])
+        progname = argv.pop(1)
+        assert(progname in programs)
+    except:
+        print >> stderr, 'usage: %s [%s] ARGS' % (name, '|'.join(programs))
+        return -1
+
+    return globals()[progname](argv)
+
+
+if __name__ == '__main__':
+    sys_exit(main())

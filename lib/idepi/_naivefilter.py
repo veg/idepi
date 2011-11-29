@@ -63,7 +63,7 @@ class NaiveFilter(BaseFilter):
                float(col[alphabet['-']]) / colsum > maxgap:
                 ignore_idxs.update(xrange(idx, idx + stride))
             else:
-                ignore_idxs.update([idx + j for j in xrange(stride) if col[j] == 0.])
+                ignore_idxs.update(idx + j for j in xrange(stride) if col[j] == 0.)
 
         colnames = BaseFilter._colnames(alignment, alphabet, ref_id_func, refseq_offs, ignore_idxs)
         data = NaiveFilter._filter(seqtable, ignore_idxs)

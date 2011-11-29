@@ -61,7 +61,9 @@ class Ancestors(HyphyInterface):
         tree = self.getvar('tree')
         with StringIO(self.getvar('ancestors')) as fh:
             fh.seek(0)
-            ancestors = [r for r in SeqIO.parse(fh, 'fasta')]
+            ancestors = MultipleSequenceAlignment(
+                r for r in SeqIO.parse(fh, 'fasta')
+            )
 
         return tree, ancestors
 

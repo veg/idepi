@@ -306,7 +306,7 @@ def fix_hxb2_fasta():
         OPTIONS.REFSEQ_FASTA = _HXB2_DNA_FASTA
 
 
-def main(argv = sys.argv):
+def main(argv=sys.argv):
     np.seterr(all='raise')
 
     global OPTIONS

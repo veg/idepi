@@ -63,20 +63,25 @@ class PhyloFilter(BaseFilter):
 
         alignment_length = alignment.get_alignment_length()
 
-        alignment = [row for row in alignment if \
-                         not apply(ref_id_func, (row.id,)) and \
-                         not apply(skip_func, (row.id,))]
-
         old_ids = [None] * len(alignment)
         for i, row in enumerate(alignment):
+            # remove if requested
+            if ref_id_func(row.id) or skip_func(row.id):
+                pass
             old_ids[i] = row.id
             row.id = '%d' % i
 
         with open(inputfile, 'w') as fh:
-            SeqIO.write(alignment, fh, 'fasta')
+            SeqIO.write((row for row in alignment
+                             if not ref_id_func(row.id) and
+                                not skip_func(row.id)),
+                        fh, 'fasta')
 
         # restore the old id names or barfage later
         for i, row in enumerate(alignment):
+            # remove if requested
+            if ref_id_func(row.id) or skip_func(row.id):
+                pass
             row.id = old_ids[i]
 
         HyPhy.execute(hyphy, batchfile, (inputfile,))
@@ -123,7 +128,7 @@ class PhyloFilter(BaseFilter):
 
         colsum = np.mean(tmp[:, :]['b'], axis=0)
         idxs = [i for i in xrange(ncol) if colsum[i] not in (0., 1.)]
-        ignore_idxs = set([i for i in xrange(ncol) if colsum[i] in (0., 1.)])
+        ignore_idxs = set(i for i in xrange(ncol) if colsum[i] in (0., 1.))
 
         data = tmp[:, idxs]
 

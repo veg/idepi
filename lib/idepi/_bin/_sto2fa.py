@@ -28,7 +28,9 @@ from sys import argv, exit, stderr, stdout
 from Bio import AlignIO
 
 
-def main(name=basename(argv[0]), argv=argv[1:]):
+def main(argv=argv):
+
+    name = basename(argv.pop(0))
 
     if len(argv) != 1 or not exists(argv[0]):
         print >> stderr, 'usage: %s <infile>' % name
