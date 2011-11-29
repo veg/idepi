@@ -2,7 +2,7 @@ MESSAGE_LOGGING = 0;
 
 LoadFunctionLibrary ("ReadDelimitedFiles.bf");
 LoadFunctionLibrary ("NJ.bf");
-LoadFunctionLibrary ("p_Distance_aa.bf");
+LoadFunctionLibrary ("p_Distance_aa");
 
 SetDialogPrompt ("Please specify an amino-acid file:");
 
@@ -37,7 +37,7 @@ fprintf (stdout, "\nBuilding a NJ tree...\n");
 treeString = InferTreeTopology (1);
 fprintf (stdout, "\nFitting an evolutionary model for HIV-1 sequences (this could take a bit of time)...\n");
 
-LoadFunctionLibrary ("HIVbetween+F.bf", {"00":"Fixed Rates"});
+LoadFunctionLibrary ("HIVbetween+F.mdl", {"00":"Fixed Rates"});
 Tree aTree = treeString;
 
 LikelihoodFunction lf = (filteredData, aTree);
@@ -56,7 +56,7 @@ _output * ((_marginalAncestorsFilter.sites + 100) * _marginalAncestorsFilter.spe
 for (_idx_1 = 0; _idx_1 < _marginalAncestorsFilter.species; _idx_1 += 1) {
     GetDataInfo (_seq, _marginalAncestorsFilter, _idx_1);
     GetString(_name, _marginalAncestorsFilter, _idx_1);
-    _output * (">\n" + _name + "\n" + _seq + "\n");
+    _output * (">" + _name + "\n" + _seq + "\n");
 }
 _output * 0;
 

@@ -1,5 +1,6 @@
 #!/usr/bin/env python2.7
 
+from contextlib import closing
 from copy import deepcopy
 from os.path import basename, exists
 from sys import argv as sys_argv, exit as sys_exit, stderr
@@ -9,7 +10,7 @@ try:
 except ImportError:
     from StringIO import StringIO
 
-from Bio import AlignIO
+from Bio import SeqIO
 
 from idepi import Alphabet, Ancestors, is_HXB2
 
@@ -25,14 +26,15 @@ def main(argv=sys_argv):
         sys_exit(-1)
 
     with open(argv[0]) as fh:
-        seqrecords = AlignIO.read(fh, 'stockholm')
+        seqrecords = [r for r in SeqIO.parse(fh, 'stockholm')]
 
     alph = Alphabet(Alphabet.AMINO)
 
     refseq = None
     for i, r in enumerate(seqrecords):
         if is_HXB2(r.id):
-            refseq = str(seqrecords.pop(i).seq).upper()
+            refseq = str(seqrecords[i].seq).upper()
+            del seqrecords[i]
             break
 
     if refseq is None:
@@ -49,7 +51,7 @@ def main(argv=sys_argv):
 
     tree, alignment = Ancestors()(seqrecords)
 
-    with StringIO() as output:
+    with closing(StringIO()) as output:
         for idx, colname in colnames:
             newtree = deepcopy(tree)
             for seq in alignment: 

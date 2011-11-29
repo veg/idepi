@@ -1,4 +1,5 @@
 
+from contextlib import closing
 from multiprocessing import cpu_count
 from os import close, remove
 from os.path import abspath, exists, join, split
@@ -58,12 +59,13 @@ class Ancestors(HyphyInterface):
         if self.stderr != '':
             raise RuntimeError(self.stderr)
 
-        tree = self.getvar('tree')
-        with StringIO(self.getvar('ancestors')) as fh:
+        tree = self.getvar('tree', HyphyInterface.STRING)
+        with closing(StringIO(self.getvar('ancestors', HyphyInterface.STRING))) as fh:
             fh.seek(0)
-            ancestors = MultipleSequenceAlignment(
-                r for r in SeqIO.parse(fh, 'fasta')
-            )
+            ancestors = [r for r in SeqIO.parse(fh, 'fasta')]
+
+        if tree[-1] != ';':
+            tree += ';'
 
         return tree, ancestors
 
