@@ -139,7 +139,7 @@ def id_to_subtype(id):
 def id_to_float(id):
     try:
         ic50 = float(id.rsplit('|', 3)[3]) # accession | subtype | ab | ic50
-    except ValueError, e:
+    except:
         raise ValueError('Cannot parse `%s\' for IC50 value' % id)
     return ic50
 

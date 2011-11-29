@@ -1,18 +1,11 @@
 #!/usr/bin/env python2.7
 
-from contextlib import closing
-from copy import deepcopy
 from os.path import basename, exists
 from sys import argv as sys_argv, exit as sys_exit, stderr
 
-try:
-    from cStringIO import StringIO
-except ImportError:
-    from StringIO import StringIO
-
 from Bio import SeqIO
 
-from idepi import Alphabet, Ancestors, is_HXB2
+from idepi import Alphabet, Ancestors, id_to_float, is_HXB2
 
 
 def main(argv=sys_argv):
@@ -51,13 +44,20 @@ def main(argv=sys_argv):
 
     tree, alignment = Ancestors()(seqrecords)
 
-    with closing(StringIO()) as output:
+    for r in alignment:
+        # labels has length of colnames plus the ic50
+        labels = [None] * (len(colnames) + 1)
+        i = 1
         for idx, colname in colnames:
-            newtree = deepcopy(tree)
-            for seq in alignment: 
-                newtree = newtree.replace(seq.id, seq.seq[idx])
-            print >> output, colname + ': ' + newtree 
-        print output.getvalue()
+            labels[i] = colname + r.seq[idx]
+            i += 1
+        try:
+            labels[0] = '%.3g' % id_to_float(r.id)
+        except ValueError:
+            labels[0] = ''
+        tree = tree.replace(r.id, '_'.join(labels))
+
+    print tree
 
     return 0
 
