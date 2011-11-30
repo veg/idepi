@@ -26,7 +26,6 @@ __version__ = '0.5'
 
 from _abrecord import *
 from _alphabet import *
-from _ancestors import *
 from _classextractor import *
 from _common import *
 from _discretizer import *
@@ -39,6 +38,7 @@ from _mlpy import *
 from _naivefilter import *
 from _normalvalue import *
 from _orflist import *
+from _phylo import *
 from _phylofilter import *
 from _randomsequences import *
 from _seqtable import *
@@ -52,7 +52,6 @@ from _util import *
 __all__ = ['IDEPI_LOGGER']
 __all__ += _abrecord.__all__
 __all__ += _alphabet.__all__
-__all__ += _ancestors.__all__
 __all__ += _classextractor.__all__
 __all__ += _common.__all__
 __all__ += _discretizer.__all__
@@ -65,6 +64,7 @@ __all__ += _mlpy.__all__
 __all__ += _naivefilter.__all__
 __all__ += _normalvalue.__all__
 __all__ += _orflist.__all__
+__all__ += _phylo.__all__
 __all__ += _phylofilter.__all__
 __all__ += _randomsequences.__all__
 __all__ += _seqtable.__all__
