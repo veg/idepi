@@ -342,9 +342,9 @@ def collect_AbRecords_from_db(dbpath, antibody):
 
     curr.execute('''
     select distinct S.ID as ID, S.SEQ as SEQ, G.SUBTYPE as SUBTYPE, N.AB as AB, N.IC50 as IC50 from
-    (select ACCESSION_ID as ID, RAW_SEQ as SEQ from SEQUENCE group by ACCESSION_ID) as S join
-    (select ACCESSION_ID as ID, SUBTYPE from GENO_REPORT group by ACCESSION_ID) as G join
-    (select ACCESSION_ID as ID, ANTIBODY as AB, IC50_STRING as IC50 from NEUT where ANTIBODY = ?) as N
+    (select SEQUENCE_ID as ID, RAW_SEQ as SEQ from SEQUENCE group by SEQUENCE_ID) as S join
+    (select SEQUENCE_ID as ID, SUBTYPE from GENO_REPORT group by SEQUENCE_ID) as G join
+    (select SEQUENCE_ID as ID, ANTIBODY as AB, IC50 as IC50 from NEUT where ANTIBODY = ?) as N
     on N.ID = S.ID and G.ID = S.ID order by S.ID;
     ''', (antibody,))
 
