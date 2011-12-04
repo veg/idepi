@@ -22,9 +22,9 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
-from mlpy import Lar, RidgeRegression
+from mlpy import LARS, Ridge
 
-from _wrappedregressor import WrappedRegressor
+from ._wrappedregressor import WrappedRegressor
 
 
 __all__ = ['RidgeLar']
@@ -32,4 +32,4 @@ __all__ = ['RidgeLar']
 
 class RidgeLar(WrappedRegressor):
     def __init__(self, m, alpha=0.0, **kwargs):
-        super(RidgeLar, self).__init__(selectorcls=Lar, regressorcls=RidgeRegression, m0=m, alpha1=alpha, **kwargs)
+        super(RidgeLar, self).__init__(selectorcls=LARS, regressorcls=Ridge, m0=m, alpha1=alpha, **kwargs)

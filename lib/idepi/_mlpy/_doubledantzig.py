@@ -22,8 +22,8 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
-from _dantzig import Dantzig
-from _wrappedregressor import WrappedRegressor
+from ._dantzig import Dantzig
+from ._wrappedregressor import WrappedRegressor
 
 
 __all__ = ['DoubleDantzig']

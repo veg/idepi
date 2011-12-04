@@ -51,7 +51,7 @@ class Hmmer(object):
                     if exists(join(path, bin)):
                         ex = True
             if not ex:
-                raise StandardError('Executable %s not found.' % bin)
+                raise Exception('Executable %s not found.' % bin)
 
     def align(self, hmmfile, seqfile, output=None, allcol=False, mapali=None, trim=False, alphabet=None, informat=None, outformat=None):
 

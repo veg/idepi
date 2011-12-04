@@ -10,10 +10,10 @@ import numpy as np
 
 from Bio import SeqIO
 
-from _alphabet import Alphabet
-from _basefilter import BaseFilter
-from _hyphy import HyPhy
-from _util import is_HXB2
+from ._alphabet import Alphabet
+from ._basefilter import BaseFilter
+from ._hyphy import HyPhy
+from ._util import is_HXB2
 
 
 __all__ = ['PhyloFilter']
@@ -55,7 +55,7 @@ class PhyloFilter(BaseFilter):
 
         refseq = None
         for row in alignment:
-            r = apply(ref_id_func, (row.id,))
+            r = ref_id_func(*(row.id,))
             if r and refseq is None:
                 refseq = row
             elif r:
@@ -110,11 +110,11 @@ class PhyloFilter(BaseFilter):
         tmp = np.zeros((nspecies, ncol), dtype=custom_type) #, order='F') # use column-wise order in memory
 
         # cache the result for each stride's indexing into the alphabet
-        alphidx = [alphabet[order[i]] for i in xrange(len(order))]
+        alphidx = [alphabet[order[i]] for i in range(len(order))]
 
-        for i in xrange(nspecies):
-            for j in xrange(nsites):
-                for k in xrange(nchars):
+        for i in range(nspecies):
+            for j in range(nsites):
+                for k in range(nchars):
                     # we map j from HyPhy column order into self.__alph column order
                     # by getting at the MSA column (j / len(order)), multiplying by
                     # the self.__alph stride (len(self.__alph)), and then finally adding
@@ -127,8 +127,8 @@ class PhyloFilter(BaseFilter):
         # np.save('phylofilt.%d' % getpid(), tmp)
 
         colsum = np.mean(tmp[:, :]['b'], axis=0)
-        idxs = [i for i in xrange(ncol) if colsum[i] not in (0., 1.)]
-        ignore_idxs = set(i for i in xrange(ncol) if colsum[i] in (0., 1.))
+        idxs = [i for i in range(ncol) if colsum[i] not in (0., 1.)]
+        ignore_idxs = set(i for i in range(ncol) if colsum[i] in (0., 1.))
 
         data = tmp[:, idxs]
 

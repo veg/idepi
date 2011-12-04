@@ -22,10 +22,10 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
-from mlpy import RidgeRegression
+from mlpy import Ridge
 
-from _dantzig import Dantzig
-from _wrappedregressor import WrappedRegressor
+from ._dantzig import Dantzig
+from ._wrappedregressor import WrappedRegressor
 
 
 __all__ = ['RidgeDantzig']
@@ -39,4 +39,4 @@ class RidgeDantzig(WrappedRegressor):
         if 'lam0' in kwargs:
             lam=kwargs['lam0']
             del kwargs['lam0']
-        super(RidgeDantzig, self).__init__(selectorcls=Dantzig, regressorcls=RidgeRegression, tol0=tol, lam0=lam, alpha1=alpha, **kwargs)
+        super(RidgeDantzig, self).__init__(selectorcls=Dantzig, regressorcls=Ridge, tol0=tol, lam0=lam, alpha1=alpha, **kwargs)

@@ -26,11 +26,10 @@
 import logging, sqlite3, sys
 
 try:
-    from cStringIO import StringIO
+    from io import StringIO
 except ImportError:
-    from StringIO import StringIO
+    from io import StringIO
 
-from codecs import getwriter
 from json import dumps as json_dumps
 from math import ceil, copysign, log10, sqrt
 from operator import itemgetter
@@ -109,7 +108,7 @@ OPTIONS = None
 
 def optparse_extend(option, opt_str, value, parser):
     if getattr(parser.values, option.dest, None) is None:
-        setattr(parser.values, option.dest, list())
+        setattr(parser.values, option.dest, [])
     getattr(parser.values, option.dest).extend(value)
 
 
@@ -223,7 +222,7 @@ def run_tests():
 
     try:
         fh = open(sto_filename, 'w')
-        print >> fh, _TEST_AMINO_STO
+        print(_TEST_AMINO_STO, file=fh)
         fh.close()
 
         alignment = AlignIO.read(sto_filename, 'stockholm')
@@ -297,7 +296,7 @@ def run_tests():
     finally:
         remove(sto_filename)
 
-    print >> sys.stderr, 'ALL TESTS PASS'
+    print('ALL TESTS PASS', file=sys.stderr)
 
 
 def fix_hxb2_fasta():
@@ -310,9 +309,6 @@ def main(argv=sys.argv):
     np.seterr(all='raise')
 
     global OPTIONS
-
-    # fix some stupid bugs
-    sys.stdout = getwriter('utf8')(sys.stdout)
 
     # so some option parsing
     option_parser = setup_option_parser()
@@ -360,7 +356,7 @@ def main(argv=sys.argv):
         if len(OPTIONS.LOG2C) != 3 or float(OPTIONS.LOG2C[2]) <= 0.:
             raise ValueError
         OPTIONS.LOG2C = [int(OPTIONS.LOG2C[0]), int(OPTIONS.LOG2C[1]), float(OPTIONS.LOG2C[2])]
-    except ValueError, e:
+    except ValueError as e:
         option_parser.error('option --log2c takes an argument of the form C_BEGIN,C_END,C_STEP where C_STEP must be > 0')
 
     # validate the antibody argument, currently a hack exists to make PG9/PG16 work
@@ -382,7 +378,7 @@ def main(argv=sys.argv):
     if len(OPTIONS.FILTER) != 0:
         if OPTIONS.NUM_FEATURES > len(OPTIONS.FILTER):
             OPTIONS.NUM_FEATURES = len(OPTIONS.FILTER)
-            print >> sys.stderr, 'warning: clamping --numfeats to sizeof(--filter) = %d' % OPTIONS.NUM_FEATURES
+            print('warning: clamping --numfeats to sizeof(--filter) = %d' % OPTIONS.NUM_FEATURES, file=sys.stderr)
     else: # len(OPTIONS.FILTER) == 0
         if OPTIONS.NUM_FEATURES == -1:
             OPTIONS.NUM_FEATURES = _DEFAULT_NUM_FEATURES
@@ -478,7 +474,7 @@ def main(argv=sys.argv):
             recip = 1. / C_step
             C_begin, C_end = int(recip * C_begin), int(recip * C_end)
             C_step = 1
-        C_range = [pow(2., float(C) / recip) for C in xrange(C_begin, C_end + 1, C_step)]
+        C_range = [pow(2., float(C) / recip) for C in range(C_begin, C_end + 1, C_step)]
 
         if OPTIONS.MRMR_NORMALIZE:
             DiscreteMrmr._NORMALIZED = True
@@ -506,8 +502,8 @@ def main(argv=sys.argv):
         yp = sgs.predict(xp).astype(int)
 
         # print stats and results:
-#         print >> sys.stdout, '********************* REPORT FOR ANTIBODY %s IC50 %s *********************' % \
-#           (antibody, '< %d' % OPTIONS.IC50LT if target == 'lt' else '> %d' % OPTIONS.IC50GT)
+#         print('********************* REPORT FOR ANTIBODY %s IC50 %s *********************' % \
+#           (antibody, '< %d' % OPTIONS.IC50LT if target == 'lt' else '> %d' % OPTIONS.IC50GT))
 #
 #         if OPTIONS.SIM not in (Simulation.EPITOPE, Simulation.SEQUENCE, Simulation.TARGET):
 #             fmt = ('', OPTIONS.CV_FOLDS, '')
@@ -527,24 +523,24 @@ def main(argv=sys.argv):
 
         output = StringIO()
 
-        print >> output, '''{
+        print('''{
     "meta": {
         "antibody":  "%s",
         "fraction+": %g,
         "target":    { "operator": "%s", "threshold": %g }
-    },''' % (antibody, np.mean(yp), target, OPTIONS.IC50GT if target == 'gt' else OPTIONS.IC50LT)
+    },''' % (antibody, np.mean(yp), target, OPTIONS.IC50GT if target == 'gt' else OPTIONS.IC50LT), file=output)
 
-        print >> output, '    "predictions": {'
+        print('    "predictions": {', file=output)
         rowlen = max([len(row.id) + 3 for row in fasta_aln])
         for i, row in enumerate(fasta_aln):
-            print >> output, '        %-*s %d' % (rowlen, '"%s":' % row.id, yp[i]) + (',' if i+1 < len(fasta_aln) else '') # +1 to prevent trailing commas
-        print >> output, '    }\n}'
+            print('        %-*s %d' % (rowlen, '"%s":' % row.id, yp[i]) + (',' if i+1 < len(fasta_aln) else ''), file=output) # +1 to prevent trailing commas
+        print('    }\n}', file=output)
 
         if OPTIONS.OUTPUT is None:
-            print output.getvalue()
+            print(output.getvalue())
         else:
             with open(OPTIONS.OUTPUT, 'w') as fh:
-                print >> fh, output.getvalue()
+                print(output.getvalue(), file=fh)
 
     return 0
 

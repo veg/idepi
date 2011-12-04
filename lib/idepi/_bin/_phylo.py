@@ -16,7 +16,7 @@ def main(argv=sys_argv):
     try:
         assert(len(argv) == 2 and exists(argv[0]))
     except:
-        print >> stderr, 'usage: %s ALIGNMENT OUTPUT' % name
+        print('usage: %s ALIGNMENT OUTPUT' % name, file=stderr)
         sys_exit(-1)
 
     with open(argv[0]) as fh:
@@ -35,9 +35,9 @@ def main(argv=sys_argv):
     tree, alignment = Phylo()(seqrecords)
 
     with GzipFile(argv[1], 'w') as fh:
-        print >> fh, '\n'.join(['BEGIN NEWICK', tree, 'END NEWICK', 'BEGIN FASTA'])
+        print('\n'.join(['BEGIN NEWICK', tree, 'END NEWICK', 'BEGIN FASTA']), file=fh)
         SeqIO.write(alignment, fh, 'fasta')
-        print >> fh, '\n'.join(['END FASTA', 'BEGIN REFSEQ', refseq, 'END REFSEQ'])
+        print('\n'.join(['END FASTA', 'BEGIN REFSEQ', refseq, 'END REFSEQ']), file=fh)
 
     return 0
 

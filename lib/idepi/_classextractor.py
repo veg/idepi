@@ -1,5 +1,5 @@
 
-from sys import maxint
+from sys import maxsize
 
 from numpy import zeros
 
@@ -20,7 +20,7 @@ class ClassExtractor(object):
     @staticmethod
     def __extract(alignment, count, extract, skip, discretize):
         if count is None:
-            count = maxint
+            count = maxsize
 
         skipped = 0
         if discretize is None:
@@ -33,7 +33,7 @@ class ClassExtractor(object):
             skip = lambda _: False
         else:
             for i, row in enumerate(alignment):
-                if apply(skip, (row.id,)) or i > count:
+                if skip(*(row.id,)) or i > count:
                     skipped += 1
 
         i = 0
@@ -41,11 +41,11 @@ class ClassExtractor(object):
 
         off = 0
         for i, row in enumerate(alignment):
-            if apply(skip, (row.id,)):
+            if skip(*(row.id,)):
                 off += 1
                 pass
             else:
-                y[i - off] = apply(discretize, (apply(extract, (row.id,)),))
+                y[i - off] = discretize(*(extract(*(row.id,)),))
             if i > count:
                 break
 

@@ -3,10 +3,10 @@ from math import modf
 from operator import itemgetter
 from random import randint
 
-from _alphabet import Alphabet
-from _randomsequences import DumbRandomSequences, MarkovRandomSequences
-from _simulatedepitope import SimulatedEpitope
-from _util import get_noise, is_HXB2, sanitize_seq
+from ._alphabet import Alphabet
+from ._randomsequences import DumbRandomSequences, MarkovRandomSequences
+from ._simulatedepitope import SimulatedEpitope
+from ._util import get_noise, is_HXB2, sanitize_seq
 
 
 __all__ = ['Simulation', 'DumbSimulation', 'MarkovSimulation']
@@ -83,7 +83,7 @@ class BaseSimulation(Simulation):
         # generate a approximately uniformly random epitope from the available nucleotides at each position (ensure that existing sequences match the epitope)
         while len(positions) < size:
             # only grab as many new positions as we need (size - len(positions))
-            new_positions = random_column_subset(size - len(positions), seq_table.columns.keys())
+            new_positions = random_column_subset(size - len(positions), list(seq_table.columns.keys()))
             for i in new_positions:
                 # if we already have that position, delete it and skip
                 if i in positions:

@@ -64,9 +64,9 @@ class LinearSvm(object):
 
     def weights(self):
         if self.__computed == False:
-            raise StandardError('No SVM model computed')
+            raise Exception('No SVM model computed')
         fd, self.__modelfile = mkstemp(); close(fd)
-        self.__lsvm.save_model(self.__modelfile)
+        self.__lsvm.save_model(self.__modelfile.encode('ascii'))
         model = LinearSvmModel(self.__modelfile)
         remove(self.__modelfile)
         return model.weights()
@@ -119,9 +119,9 @@ class LinearSvmModel(object):
             try:
                 weight = float(vals[0]) * rev
             except ValueError:
-                print >> stderr, 'ERROR: broken SVM model, skipping line \'%s\'' % line
+                print('ERROR: broken SVM model, skipping line \'%s\'' % line, file=stderr)
                 with open(self.__modelfile) as fh:
-                    print >> stderr, fh.read()
+                    print(fh.read(), file=stderr)
                 raise ValueError
 
             if mode == 'SV':

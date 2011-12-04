@@ -1,7 +1,7 @@
 
 from Bio.SeqRecord import SeqRecord
 
-from _orflist import OrfList
+from ._orflist import OrfList
 
 
 __all__ = ['AbRecord']

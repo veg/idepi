@@ -28,7 +28,7 @@ class HyPhy(object):
 
     def execute(self, batchfile, arguments=None, quiet=True):
         execstr = 'ExecuteAFile("%s")' % batchfile if (arguments is None or len(arguments) < 1) else \
-                  'ExecuteAFile("%s", { %s })' % (batchfile, ', '.join('"%d": "%s"' % (i, arguments[i]) for i in xrange(len(arguments))))
+                  'ExecuteAFile("%s", { %s })' % (batchfile, ', '.join('"%d": "%s"' % (i, arguments[i]) for i in range(len(arguments))))
         result = self.__instance.ExecuteBF(execstr)
         out = self.__instance.GetStdout().sData
         err = self.__instance.GetErrors().sData
@@ -36,7 +36,7 @@ class HyPhy(object):
 
         if not quiet:
             if war.strip() != '':
-                print >> stderr, war
+                print(war, file=stderr)
 
         if err.strip() != '':
             raise RuntimeError(err)

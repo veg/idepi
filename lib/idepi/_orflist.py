@@ -34,7 +34,7 @@ class OrfList(object):
 
     def __init__(self, seq):
         # accumulate all the potential start codon indices
-        start_indices = list()
+        start_indices = []
         for codon in ("ATG", "AUG"):
             seq_ = seq.upper()
             prefix = 0
@@ -49,7 +49,7 @@ class OrfList(object):
                     break
         start_indices = sorted(start_indices)
 
-        putative_seqs = list()
+        putative_seqs = []
 
         # find only those that terminate.. and truncate to its stop codon
         for idx in start_indices:

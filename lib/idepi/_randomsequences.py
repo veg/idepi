@@ -24,14 +24,13 @@
 #!/usr/bin/env python
 
 import sys
-from types import DictType, IntType, TupleType
 from operator import itemgetter
 from random import gauss, randint, random
 
 try:
-    from cStringIO import StringIO
+    from io import StringIO
 except ImportError:
-    from StringIO import StringIO
+    from io import StringIO
 
 from Bio import AlignIO, SeqIO
 from Bio.Seq import Seq
@@ -47,13 +46,13 @@ __GAP = '-'
 
 
 def help():
-    print >> sys.stderr, 'usage: %s [-N <NUMSEQ>] <ALNFILE>' % NAME
+    print('usage: %s [-N <NUMSEQ>] <ALNFILE>' % NAME, file=sys.stderr)
     return -1
 
 
 def parse_opts(argv):
     global NAME
-    opts = { 'N': (IntType, 1), 'c': False, 'g': False }
+    opts = { 'N': (int, 1), 'c': False, 'g': False }
     NAME = argv[0]
     i = 1
     while i < len(argv):
@@ -67,7 +66,7 @@ def parse_opts(argv):
                 else:
                     opts[v] = not opts[v]
             else:
-                print >> sys.stderr, 'ERROR: INVALID ARGUMENT %s' % arg
+                print('ERROR: INVALID ARGUMENT %s' % arg, file=sys.stderr)
                 return None, None, help()
         else:
             return opts, argv[i:], 0
@@ -105,10 +104,10 @@ def read_alignment(file):
                             if seq_len == 0:
                                 seq_len = len(seq)
                         else:
-                            print >> sys.stderr, 'ERROR: SEQUENCE IS OF LENGTH 0'
+                            print('ERROR: SEQUENCE IS OF LENGTH 0', file=sys.stderr)
                             return -1
                     else:
-                        print >> sys.stderr, 'ERROR: DUPLICATE IDS IN ALIGNMENT'
+                        print('ERROR: DUPLICATE IDS IN ALIGNMENT', file=sys.stderr)
                         return -1
 
     fh.close()
@@ -126,7 +125,7 @@ def seqrecords_to_alignment(seqrecords):
 def DumbRandomSequences(base_seq, N=1, consensus=False, gaps=False, opts={}, idfmt='', noise=0., rate=0., alphabet=None):
 
     if len(opts) == 0:
-        opts['N'] = (IntType, N)
+        opts['N'] = (int, N)
         opts['c'] = consensus
         opts['g'] = gaps
 
@@ -135,10 +134,10 @@ def DumbRandomSequences(base_seq, N=1, consensus=False, gaps=False, opts={}, idf
 
     seqrecords = []
 
-    for n in xrange(opts['N'][1]):
+    for n in range(opts['N'][1]):
         seq = [i for i in base_seq]
         if rate > 0.:
-            for p in xrange(len(seq)):
+            for p in range(len(seq)):
                 if random() < rate:
                     c = seq[p]
                     while c == seq[p]:
@@ -151,7 +150,7 @@ def DumbRandomSequences(base_seq, N=1, consensus=False, gaps=False, opts={}, idf
             trim_chars = (' ')
         else:
             trim_chars = (' ', __GAP)
-        assert(seq_str == ''.join(seq[i] for i in xrange(len(seq)) if seq[i] not in trim_chars))
+        assert(seq_str == ''.join(seq[i] for i in range(len(seq)) if seq[i] not in trim_chars))
         seq_id = idfmt % ('sample-%i' % (n + 1), gauss(0, noise))
         seqrecords.append(SeqRecord(Seq(seq_str, generic_protein), id=seq_id, name=seq_id))
 
@@ -162,11 +161,11 @@ def DumbRandomSequences(base_seq, N=1, consensus=False, gaps=False, opts={}, idf
 
 def MarkovRandomSequences(file, N=1, consensus=False, gaps=False, opts={}, idfmt='', noise=0., rate=0., alphabet=None):
     if rate > 0. and alphabet is None:
-        print >> sys.stderr, 'ERROR: MarkovRandomSequences requires an alphabet if substitution rate > 0'
+        print('ERROR: MarkovRandomSequences requires an alphabet if substitution rate > 0', file=sys.stderr)
         sys.exit(-1)
 
     if len(opts) == 0:
-        opts['N'] = (IntType, N)
+        opts['N'] = (int, N)
         opts['c'] = consensus
         opts['g'] = gaps
 
@@ -179,7 +178,7 @@ def MarkovRandomSequences(file, N=1, consensus=False, gaps=False, opts={}, idfmt
     tree = [{}] * (seq_len)
 
     # make the markov tree (this could be done more elegantly)
-    for i in xrange(seq_len):
+    for i in range(seq_len):
         vals = {}
         for seq in id_seqs.values():
             v = seq[i].upper()
@@ -216,10 +215,10 @@ def MarkovRandomSequences(file, N=1, consensus=False, gaps=False, opts={}, idfmt
     # make the seqs
     seqrecords = []
 
-    for n in xrange(opts['N'][1]):
+    for n in range(opts['N'][1]):
         seq = [' '] * seq_len
         if opts['c']:
-            for i in xrange(len(tree)):
+            for i in range(len(tree)):
                 for w, _ in sorted(tree[i].items(), key = lambda x: x[1][0]):
                     if w == __GAP:
                         continue
@@ -233,7 +232,7 @@ def MarkovRandomSequences(file, N=1, consensus=False, gaps=False, opts={}, idfmt
                     seq[0] = w
                     break
             # get all following positions
-            for i in xrange(len(tree)-1):
+            for i in range(len(tree)-1):
                 r = random()
                 for w, curr_r in sorted(tree[i][seq[i]][1].items(), key = itemgetter(1)):
                     if curr_r > r:
@@ -241,7 +240,7 @@ def MarkovRandomSequences(file, N=1, consensus=False, gaps=False, opts={}, idfmt
                         break
         # perform some base mutation on the sequences
         if rate > 0.:
-            for p in xrange(len(seq)):
+            for p in range(len(seq)):
                 if random() < rate:
                     c = seq[p]
                     while c == seq[p]:
@@ -251,7 +250,7 @@ def MarkovRandomSequences(file, N=1, consensus=False, gaps=False, opts={}, idfmt
             trim_chars = (' ')
         else:
             trim_chars = (' ', __GAP)
-        seq = [seq[i] for i in xrange(len(seq)) if seq[i] not in trim_chars]
+        seq = [seq[i] for i in range(len(seq)) if seq[i] not in trim_chars]
         seq_str = ''.join(seq)
         # seq_str = '\n'.join(['%s' % ''.join(seq[i:i+80]) for i in xrange(len(seq), 80)])
         seq_id = idfmt % ('sample-%i' % (n + 1), gauss(0, noise))

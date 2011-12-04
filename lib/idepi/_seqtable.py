@@ -22,7 +22,6 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
-from exceptions import ValueError
 from itertools import chain
 from math import ceil, floor
 from random import randint, shuffle
@@ -45,7 +44,7 @@ class SeqTable(object):
 
         self.__ref_id = SeqTable.__filter(self, ref_id_func)
         self.__skip = SeqTable.__filter(self, skip_func)
-        self.__keep = sorted(set(xrange(len(self.__alignment))) - (self.__ref_id | self.__skip))
+        self.__keep = sorted(set(range(len(self.__alignment))) - (self.__ref_id | self.__skip))
 
         self.nrow = len(self.__alignment) - len(self.__ref_id) - len(self.__skip)
         self.ncol = self.__alignment.get_alignment_length()
@@ -74,7 +73,7 @@ class SeqTable(object):
                 off += 1
                 continue
             seq = str(row.seq)
-            for j in xrange(ncol):
+            for j in range(ncol):
                 v = seq[j]
                 data[i - off, j, alphabet[v]] = True
 
@@ -84,11 +83,11 @@ class SeqTable(object):
             if isinstance(func, list):
                 for f in func:
                     for i, row in enumerate(self.__alignment):
-                        if apply(f, (row.id,)):
+                        if f(*(row.id,)):
                             idxs.add(i)
             else:
                 for i, row in enumerate(self.__alignment):
-                    if apply(func, (row.id,)):
+                    if func(*(row.id,)):
                         idxs.add(i)
         return idxs
 
@@ -96,7 +95,7 @@ class SeqTable(object):
     def __partition(l, folds):
         npf = int(floor(l / folds)) # num per fold
         r = l % folds
-        p = list(chain(*([i] * npf for i in xrange(folds)))) + range(r)
+        p = list(chain(*([i] * npf for i in range(folds)))) + list(range(r))
         shuffle(p)
         assert(len(p) == l)
         return p

@@ -22,10 +22,10 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
-from mlpy import Lar
+from mlpy import LARS
 
-from _dantzig import Dantzig
-from _wrappedregressor import WrappedRegressor
+from ._dantzig import Dantzig
+from ._wrappedregressor import WrappedRegressor
 
 
 __all__ = ['LarDantzig']

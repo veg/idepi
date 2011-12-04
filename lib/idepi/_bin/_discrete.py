@@ -25,7 +25,6 @@
 
 import logging, sqlite3, sys
 
-from codecs import getwriter
 from math import ceil, copysign, log10, sqrt
 from operator import itemgetter
 from optparse import OptionParser
@@ -34,7 +33,6 @@ from os.path import abspath, basename, exists, join, split, splitext
 from random import gauss, random, seed
 from re import sub, match
 from tempfile import mkstemp
-from types import StringTypes
 
 import numpy as np
 
@@ -103,7 +101,7 @@ OPTIONS = None
 
 def optparse_extend(option, opt_str, value, parser):
     if getattr(parser.values, option.dest, None) is None:
-        setattr(parser.values, option.dest, list())
+        setattr(parser.values, option.dest, [])
     getattr(parser.values, option.dest).extend(value)
 
 
@@ -233,7 +231,7 @@ def run_tests():
 
     try:
         fh = open(sto_filename, 'w')
-        print >> fh, _TEST_AMINO_STO
+        print(_TEST_AMINO_STO, file=fh)
         fh.close()
 
         alignment = AlignIO.read(sto_filename, 'stockholm')
@@ -307,7 +305,7 @@ def run_tests():
     finally:
         remove(sto_filename)
 
-    print >> sys.stderr, 'ALL TESTS PASS'
+    print('ALL TESTS PASS', file=sys.stderr)
 
 
 def fix_hxb2_fasta():
@@ -320,9 +318,6 @@ def main(argv=sys.argv):
     np.seterr(all='raise')
 
     global OPTIONS
-
-    # fix some stupid bugs
-    sys.stdout = getwriter('utf8')(sys.stdout)
 
     # so some option parsing
     option_parser = setup_option_parser()
@@ -381,7 +376,7 @@ def main(argv=sys.argv):
         if len(OPTIONS.LOG2C) != 3 or float(OPTIONS.LOG2C[2]) <= 0.:
             raise ValueError
         OPTIONS.LOG2C = [int(OPTIONS.LOG2C[0]), int(OPTIONS.LOG2C[1]), float(OPTIONS.LOG2C[2])]
-    except ValueError, e:
+    except ValueError as e:
         option_parser.error('option --log2c takes an argument of the form C_BEGIN,C_END,C_STEP where C_STEP must be > 0')
 
     # validate the antibody argument, currently a hack exists to make PG9/PG16 work
@@ -418,13 +413,13 @@ def main(argv=sys.argv):
     if len(OPTIONS.FILTER) != 0:
         if OPTIONS.NUM_FEATURES > len(OPTIONS.FILTER):
             OPTIONS.NUM_FEATURES = len(OPTIONS.FILTER)
-            print >> sys.stderr, 'warning: clamping --numfeats to sizeof(--filter) = %d' % OPTIONS.NUM_FEATURES
+            print('warning: clamping --numfeats to sizeof(--filter) = %d' % OPTIONS.NUM_FEATURES, file=sys.stderr)
     else: # len(OPTIONS.FILTER) == 0
         if OPTIONS.NUM_FEATURES == -1:
             OPTIONS.NUM_FEATURES = _DEFAULT_NUM_FEATURES
 
     if OPTIONS.MRMR_NORMALIZE and OPTIONS.PHYLOFILTER:
-        print >> sys.stderr, "mRMR normalization and phylofiltering are incompatible, disabling mRMR normalization"
+        print("mRMR normalization and phylofiltering are incompatible, disabling mRMR normalization", file=sys.stderr)
         OPTIONS.MRMR_NORMALIZE = False
 
     # destroy the parser because optparse docs recommend it
@@ -497,7 +492,7 @@ def main(argv=sys.argv):
         forward_initval = 1 if OPTIONS.FORWARD_SELECT else OPTIONS.NUM_FEATURES
         forward_select = None
         results = None
-        for num_features in xrange(forward_initval, OPTIONS.NUM_FEATURES + 1):
+        for num_features in range(forward_initval, OPTIONS.NUM_FEATURES + 1):
 
             if sim is None:
                 yextractor = ClassExtractor(
@@ -511,11 +506,11 @@ def main(argv=sys.argv):
 #                 np.savez('phylo.y.npz', {'data': y})
 #             else:
 #                 with open(antibody + '.mrmr', 'w') as fh:
-#                     print >> fh, 'class,' + ','.join(colnames)
-#                     print >> fh, '\n'.join([','.join(['%d' % v for v in ([y[i]] + (x[i, :].tolist()))]) for i in xrange(x.shape[0])])
+#                     print('class,' + ','.join(colnames), file=fh)
+#                     print('\n'.join(','.join('%d' % v for v in ([y[i]] + (x[i, :].tolist()))) for i in range(x.shape[0])), file=fh)
 
             # simulations, ho!
-            for i in xrange(sim.runs if sim is not None else 1):
+            for i in range(sim.runs if sim is not None else 1):
 
                 # here is where the sequences must be generated for the random sequence and random epitope simulations
                 if sim is not None:
@@ -539,8 +534,8 @@ def main(argv=sys.argv):
                     )
 
                     if epi_def is not None:
-                        print >> sys.stdout, '********************* SIMULATED EPITOPE DESCRIPTION (%d) *********************\n' % OPTIONS.SIM_EPI_SIZE
-                        print >> sys.stdout, '%s\n' % str(epi_def)
+                        print('********************* SIMULATED EPITOPE DESCRIPTION (%d) *********************\n' % OPTIONS.SIM_EPI_SIZE, file=sys.stdout)
+                        print('%s\n' % str(epi_def), file=sys.stdout)
 
                 optstat = DiscretePerfStats.MINSTAT
                 if OPTIONS.ACCURACY:
@@ -562,7 +557,7 @@ def main(argv=sys.argv):
                     recip = 1. / C_step
                     C_begin, C_end = int(recip * C_begin), int(recip * C_end)
                     C_step = 1
-                C_range = [pow(2., float(C) / recip) for C in xrange(C_begin, C_end + 1, C_step)]
+                C_range = [pow(2., float(C) / recip) for C in range(C_begin, C_end + 1, C_step)]
 
                 if OPTIONS.MRMR_NORMALIZE:
                     DiscreteMrmr._NORMALIZED = True
@@ -603,11 +598,11 @@ def main(argv=sys.argv):
         meta = make_output_meta(OPTIONS, len(alignment), target, antibody, forward_select)
         ret = cv_results_to_output(results, colnames, meta)
 
-        if isinstance(OPTIONS.OUTPUT, StringTypes):
+        if isinstance(OPTIONS.OUTPUT, str):
             with open(OPTIONS.OUTPUT, 'w') as fh:
-                print >> fh, pretty_fmt_results(ret)
+                print(pretty_fmt_results(ret), file=fh)
         else:
-            print pretty_fmt_results(ret)
+            print(pretty_fmt_results(ret))
 
     return 0
 

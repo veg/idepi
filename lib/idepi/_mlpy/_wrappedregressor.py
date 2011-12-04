@@ -67,7 +67,7 @@ class WrappedRegressor(object):
         self.__beta0 = self.__selector.beta()
 
         self.__idxs = [0]
-        for i in xrange(1, len(self.__beta0)):
+        for i in range(1, len(self.__beta0)):
             if self.__beta0[i] != 0.0:
                 self.__idxs.append(i)
         x = x[:, self.__idxs]

@@ -35,7 +35,7 @@ class Alphabet(object):
             d = Alphabet.__STANFEL_ALPH
             l = []
             # don't forget to +1 here, otherwise we miss the '-' character
-            for i in xrange(max(d.values()) + 1):
+            for i in range(max(d.values()) + 1):
                 l.append('[%s]' % ''.join(sorted(k if k not in Alphabet.SPACE else '' for k, v_ in d.items() if i == v_)))
 
         elif mode in (Alphabet.AMINO, Alphabet.DNA):
@@ -50,7 +50,7 @@ class Alphabet(object):
         else:
             raise ValueError('mode must be one of Alphabet.AMINO, Alphabet.DNA, Alphabet.STANFEL, or Alphabet.CUSTOM')
 
-        self.__dict = defaultdict(repeat(d['X']).next)
+        self.__dict = defaultdict(repeat(d['X']).__next__)
         self.__dict.update(d)
         self.__list = l
 
@@ -66,8 +66,8 @@ class Alphabet(object):
     @staticmethod
     def __dict_and_list(alphabet):
         alph = alphabet.upper()
-        d = dict((alph[i], i) for i in xrange(len(alph)))
-        l = [alph[i] if alph[i] not in Alphabet.SPACE else '[]' for i in xrange(len(alph))]
+        d = dict((alph[i], i) for i in range(len(alph)))
+        l = [alph[i] if alph[i] not in Alphabet.SPACE else '[]' for i in range(len(alph))]
         return d, l
 
     def todict(self):

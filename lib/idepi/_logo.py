@@ -28,7 +28,7 @@ from re import match
 
 import PIL as pil
 
-from _util import alph_to_base_26, base_n_to_10, BASE_ALPH
+from ._util import alph_to_base_26, base_n_to_10, BASE_ALPH
 
 __all__ = ['AlphIndex', 'Logo']
 
@@ -126,7 +126,7 @@ class Logo(object):
         if self.seq is not None:
             return self.seq
 
-        ret = dict(('%d' % (i+1), [(self.refseq[i], -1, -1)]) for i in xrange(len(self.refseq)))
+        ret = dict(('%d' % (i+1), [(self.refseq[i], -1, -1)]) for i in range(len(self.refseq)))
         inserts = {}
         for pos, stats in self.statistics.items():
             m = match(r'^(\d+)([a-z]+)([A-Z])', pos)
@@ -199,6 +199,6 @@ class Logo(object):
         self.draw = pil.ImageDraw.Draw(self.image)
         self.font = font
         indices = sorted(Logo.sequence(self).items(), key=AlphIndex)
-        for i in xrange(len(indices)):
-            Logo.draw_column(self, char_width * i + self.margin, indices[i])
+        for i, idx in enumerate(indices):
+            Logo.draw_column(self, char_width * i + self.margin, idx)
         self.image.save(filename)

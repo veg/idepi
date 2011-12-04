@@ -26,7 +26,7 @@ from operator import itemgetter
 from os import close, remove, rename
 from random import random
 from re import sub, match
-from sqlite3 import connect
+from sqlite3 import OperationalError, connect
 from sys import stderr
 from tempfile import mkstemp
 
@@ -34,10 +34,10 @@ import numpy as np
 
 from Bio import SeqIO
 
-from _abrecord import AbRecord
-from _alphabet import Alphabet
-from _hmmer import Hmmer
-from _smldata import SmlData
+from ._abrecord import AbRecord
+from ._alphabet import Alphabet
+from ._hmmer import Hmmer
+from ._smldata import SmlData
 
 
 __all__ = [
@@ -84,8 +84,8 @@ def is_testdata(id):
                 return True
             else:
                 return False
-        except IndexError, e:
-            print >> stderr, 'ERROR: malformed ID: %s' % id
+        except IndexError as e:
+            print('ERROR: malformed ID: %s' % id, file=stderr)
             raise e
     return False
 
@@ -97,7 +97,7 @@ def is_HXB2(id):
         gid = gid.split(':', 1)[0]
         if gid in __HXB2_IDS:
             return True
-    except IndexError, e:
+    except IndexError as e:
         pass
         # we don't care about this, do we?
         # print >> stderr, "ERROR: malformed ID: %s" % id
@@ -106,7 +106,7 @@ def is_HXB2(id):
 
 def id_to_class(id, target):
     if target not in ("lt", "gt"):
-        print >> stderr, "ERROR: target must be one of \"lt\" or \"gt\"."
+        print("ERROR: target must be one of \"lt\" or \"gt\".", file=stderr)
         raise ValueError
     try:
         ic50 = id.rsplit('|', 3)[3] # accession | subtype | ab | ic50
@@ -114,11 +114,11 @@ def id_to_class(id, target):
             return None
         else:
             ic50 = float(ic50)
-    except ValueError, e:
-        print >> stderr, "ERROR: cannot parse '%s' for IC50 value" % id
+    except ValueError as e:
+        print("ERROR: cannot parse '%s' for IC50 value" % id, file=stderr)
         raise e
     if __IC50GT is None or __IC50LT is None:
-        print >> stderr, 'ERROR: call set_util_params to set IC50GT and IC50LT values for utilities'
+        print('ERROR: call set_util_params to set IC50GT and IC50LT values for utilities', file=stderr)
         exit(-1)
     if target == "gt":
         c = ic50 > __IC50GT
@@ -131,7 +131,7 @@ def id_to_class(id, target):
 def id_to_subtype(id):
     try:
         subtype = id.rsplit('|', 3)[1].upper()
-    except ValueError, e:
+    except ValueError as e:
         raise ValueError('Cannot parse `%s\' for HIV subtype' % id)
     return subtype
 
@@ -165,7 +165,7 @@ def base_10_to_n(n, N):
         val -= pow(N, pow_) * mul_
         cols[pow_] = mul_
     cols[0] = val
-    for i in xrange(min(cols.keys())+1, max(cols.keys())):
+    for i in range(min(cols.keys())+1, max(cols.keys())):
         if i not in cols:
             cols[i] = 0
     return cols
@@ -188,11 +188,11 @@ def base_26_to_alph(cols):
 def alph_to_base_26(str):
     cols = {}
     col_idx = 0
-    for i in xrange(len(str)-1, -1, -1):
+    for i in range(len(str)-1, -1, -1):
         new_val = ord(str[i]) - ord('a') + 1
         cols[col_idx] = new_val
         col_idx += 1
-    for i in xrange(col_idx):
+    for i in range(col_idx):
         if cols[i] > 25:
             cols[i] %= 26
             if (i+1) not in cols:
@@ -244,7 +244,7 @@ try:
             oldrank = -1
             sumranks = 0
             newarray = np.zeros(n, float)
-            for i in xrange(n):
+            for i in range(n):
                 if a[i] <= 0.:
                     newarray[b[i]] = 0.
                     continue
@@ -253,7 +253,7 @@ try:
                 dupcount += 1
                 if i == n-1 or a[i] != a[i+1]:
                     averrank = float(sumranks) / float(dupcount) + 1
-                    for j in xrange(i-dupcount+1, i+1):
+                    for j in range(i-dupcount+1, i+1):
                         newarray[b[j]] = averrank
                     sumranks = 0
                     dupcount = 0
@@ -261,22 +261,22 @@ try:
 
         b = len(args)
         if b < 3:
-            raise ValueError, 'Less than 3 levels. Durbin test is not appropriate'
+            raise ValueError('Less than 3 levels. Durbin test is not appropriate')
         k = len(args[0])
-        for i in xrange(1, b):
-            if len(args[i]) <> k:
-                raise ValueError, 'Unequal N in durbin. Aborting.'
+        for i in range(1, b):
+            if len(args[i]) != k:
+                raise ValueError('Unequal N in durbin. Aborting.')
 
-        data = apply(_abut,args)
+        data = _abut(*args)
         data = data.astype(float)
 
         A = 0.
         t = data.shape[1]
         R = np.zeros(t, float)
         rs = np.zeros(t, int)
-        for i in xrange(len(data)):
+        for i in range(len(data)):
             data[i] = _rankposdata(data[i])
-            for j in xrange(len(data[i])):
+            for j in range(len(data[i])):
                 A += pow(data[i,j], 2.)
                 R[j] += data[i,j]
                 if data[i,j] > 0.:
@@ -287,12 +287,12 @@ try:
         b = float(b)
         k = float(k)
         C = b * k * pow(k + 1, 2) / 4
-        T1 = (t-1) * sum(map(lambda x: pow(x, 2) - r*C, R)) / (A-C)
+        T1 = (t-1) * sum([pow(x, 2) - r*C for x in R]) / (A-C)
         T2 = (T1 / (t-1)) / ((b*k - b - T1) / (b*k - b - t + 1))
 
-        print data
-        print R
-        print "r = %g, t = %g, b = %g, k = %g, C = %g, A = %g, T1 = %g" % (r, t, b, k, C, A, T1)
+        print(data)
+        print(R)
+        print("r = %g, t = %g, b = %g, k = %g, C = %g, A = %g, T1 = %g" % (r, t, b, k, C, A, T1))
 
         return T2, fdtrc(k-1, b*k-b-t+1, T2)
 
@@ -340,13 +340,22 @@ def collect_AbRecords_from_db(dbpath, antibody):
     conn = connect(dbpath)
     curr = conn.cursor()
 
-    curr.execute('''
-    select distinct S.ID as ID, S.SEQ as SEQ, G.SUBTYPE as SUBTYPE, N.AB as AB, N.IC50 as IC50 from
-    (select SEQUENCE_ID as ID, RAW_SEQ as SEQ from SEQUENCE group by SEQUENCE_ID) as S join
-    (select SEQUENCE_ID as ID, SUBTYPE from GENO_REPORT group by SEQUENCE_ID) as G join
-    (select SEQUENCE_ID as ID, ANTIBODY as AB, IC50 as IC50 from NEUT where ANTIBODY = ?) as N
-    on N.ID = S.ID and G.ID = S.ID order by S.ID;
-    ''', (antibody,))
+    try:
+        curr.execute('''
+        select distinct S.ID as ID, S.SEQ as SEQ, G.SUBTYPE as SUBTYPE, N.AB as AB, N.IC50 as IC50 from
+        (select SEQUENCE_ID as ID, RAW_SEQ as SEQ from SEQUENCE group by SEQUENCE_ID) as S join
+        (select SEQUENCE_ID as ID, SUBTYPE from GENO_REPORT group by SEQUENCE_ID) as G join
+        (select SEQUENCE_ID as ID, ANTIBODY as AB, IC50 as IC50 from NEUT where ANTIBODY = ?) as N
+        on N.ID = S.ID and G.ID = S.ID order by S.ID;
+        ''', (antibody,))
+    except OperationalError:
+        curr.execute('''
+        select distinct S.ID as ID, S.SEQ as SEQ, G.SUBTYPE as SUBTYPE, N.AB as AB, N.IC50 as IC50 from
+        (select ACCESSION_ID as ID, RAW_SEQ as SEQ from SEQUENCE group by ACCESSION_ID) as S join
+        (select ACCESSION_ID as ID, SUBTYPE from GENO_REPORT group by ACCESSION_ID) as G join
+        (select ACCESSION_ID as ID, ANTIBODY as AB, IC50_STRING as IC50 from NEUT where ANTIBODY = ?) as N
+        on N.ID = S.ID and G.ID = S.ID order by S.ID;
+        ''', (antibody,))
 
     # make sure the records are unique
     ab_records = []
@@ -372,12 +381,12 @@ def clamp(x):
 
 def sanitize_seq(seq, alphabet):
     alphdict = alphabet.todict()
-    assert(len(Alphabet.SPACE) > 0 and len(seq) > 0 and len(alphdict.keys()) > 0)
+    assert(len(Alphabet.SPACE) > 0 and len(seq) > 0 and len(alphdict) > 0)
     try:
         seq = str(seq)
         seq = seq.upper()
         seq = sub(r'[%s]' % Alphabet.SPACE, '-', seq)
         seq = sub(r'[^%s]' % ''.join(alphdict.keys()), 'X', seq)
-    except TypeError, e:
+    except TypeError as e:
         raise RuntimeError('something is amiss with things:\n  SPACE = %s\n  seq = %s\n  alphabet = %s\n' % (Alphabet.SPACE, seq, alphdict))
     return seq

@@ -24,29 +24,28 @@
 
 __version__ = '0.5'
 
-from _abrecord import *
-from _alphabet import *
-from _classextractor import *
-from _common import *
-from _discretizer import *
-from _hmmer import *
-from _hyphy import *
-from _linearsvm import *
-from _logging import *
-from _logo import *
-from _mlpy import *
-from _naivefilter import *
-from _normalvalue import *
-from _orflist import *
-from _phylo import *
-from _phylofilter import *
-from _randomsequences import *
-from _seqtable import *
+from ._abrecord import *
+from ._alphabet import *
+from ._classextractor import *
+from ._common import *
+from ._discretizer import *
+from ._hmmer import *
+from ._hyphy import *
+from ._linearsvm import *
+from ._logging import *
+from ._mlpy import *
+from ._naivefilter import *
+from ._normalvalue import *
+from ._orflist import *
+from ._phylo import *
+from ._phylofilter import *
+from ._randomsequences import *
+from ._seqtable import *
 # from _simulatedepitope import *
-from _simulation import *
-from _smldata import *
-from _sparsepartitioning import *
-from _util import *
+from ._simulation import *
+from ._smldata import *
+from ._sparsepartitioning import *
+from ._util import *
 
 
 __all__ = ['IDEPI_LOGGER']
@@ -59,7 +58,6 @@ __all__ += _hmmer.__all__
 __all__ += _hyphy.__all__
 __all__ += _linearsvm.__all__
 # don't import logging here, we just want to setup
-__all__ += _logo.__all__
 __all__ += _mlpy.__all__
 __all__ += _naivefilter.__all__
 __all__ += _normalvalue.__all__
@@ -73,5 +71,11 @@ __all__ += _simulation.__all__
 __all__ += _smldata.__all__
 __all__ += _sparsepartitioning.__all__
 __all__ += _util.__all__
+
+try:
+    from ._logo import *
+    __all__ += _logo.__all__
+except ImportError:
+    pass
 
 _setup_log()

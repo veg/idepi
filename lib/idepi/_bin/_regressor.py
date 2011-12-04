@@ -25,7 +25,6 @@
 
 import sqlite3, sys
 
-from codecs import getwriter
 from math import ceil, log10
 from operator import itemgetter
 from optparse import OptionParser
@@ -98,7 +97,7 @@ OPTIONS = None
 
 def optparse_extend(option, opt_str, value, parser):
     if getattr(parser.values, option.dest, None) is None:
-        setattr(parser.values, option.dest, list())
+        setattr(parser.values, option.dest, [])
     getattr(parser.values, option.dest).extend(value)
 
 
@@ -177,7 +176,7 @@ def run_tests():
 
     try:
         fh = open(sto_filename, 'w')
-        print >> fh, _TEST_AMINO_STO
+        print(_TEST_AMINO_STO, file=fh)
         fh.close()
 
         alignment = AlignIO.read(sto_filename, 'stockholm')
@@ -234,7 +233,7 @@ def run_tests():
     finally:
         remove(sto_filename)
 
-    print >> sys.stderr, 'ALL TESTS PASS'
+    print('ALL TESTS PASS', file=sys.stderr)
 
 
 def fix_hxb2_fasta():
@@ -245,9 +244,6 @@ def fix_hxb2_fasta():
 
 def main(argv=sys.argv):
     global OPTIONS
-
-    # fix some stupid bugs
-    sys.stdout = getwriter('utf8')(sys.stdout)
 
     # so some option parsing
     option_parser = setup_option_parser()
@@ -376,30 +372,30 @@ def main(argv=sys.argv):
 
     ret = cv_results_to_output(results, colnames)
 
-    print pretty_fmt_results(ret)
+    print(pretty_fmt_results(ret))
 
 #     mean_len = max([len('%.3f' % v.mu) for v in avg_stats.values()])
 #     std_len = max([len('%.3f' % v.sigma) for v in avg_stats.values()])
 #     std_len = int(log10(max([1.] + [v.sigma for v in avg_stats.values()]))) + 5
 #     for k, v in sorted(avg_stats.items(), key = lambda x: x[0][0]):
 #         v_str = u'= %*.3f \xb1 %*.3f' % (mean_len, v.mu, std_len, v.sigma)
-#         print >> sys.stdout, u'  %s%s' % (k, v_str)
+#         print(u'  %s%s' % (k, v_str))
 #
 #     for k, v in avg_weights.items():
 #         if abs(v.mu) < 0.0001 and v.sigma == 0.:
 #             del avg_weights[k]
 #
-#     print >> sys.stdout, '\nSignificant positions (top %d):' % (len(avg_weights))
+#     print('\nSignificant positions (top %d):' % (len(avg_weights)))
 #
 #     if len(avg_weights) > 0:
-#         name_len = max([len(k) for k in avg_weights.keys()])
-#         mean_len = max([len('% .1f' % v.mu) for v in avg_weights.values()])
-#         std_len = max([len('%.1f' % v.sigma) for v in avg_weights.values()])
-#         N_len = max([len('%d' % len(v.values)) for v in avg_weights.values()])
-#         for k, v in sorted(avg_weights.items(), key = lambda x: int(sub(r'[a-zA-Z\[\]]+', '', x[0]))):
-#             print >> sys.stdout, u'  %-*s  % *.1f \xb1 %*.1f (N = %*d)' % (name_len, k, mean_len, v.mu, std_len, v.sigma, N_len, len(v.values))
+#         name_len = max(len(k) for k in avg_weights.keys())
+#         mean_len = max(len('% .1f' % v.mu) for v in avg_weights.values())
+#         std_len = max(len('%.1f' % v.sigma) for v in avg_weights.values())
+#         N_len = max(len('%d' % len(v.values)) for v in avg_weights.values())
+#         for k, v in sorted(avg_weights.items(), key=lambda x: int(sub(r'[a-zA-Z\[\]]+', '', x[0]))):
+#             print(u'  %-*s  % *.1f \xb1 %*.1f (N = %*d)' % (name_len, k, mean_len, v.mu, std_len, v.sigma, N_len, len(v.values)))
 #
-#     print >> sys.stdout, '\n'
+#     print('\n')
 
     return 0
 

@@ -22,22 +22,19 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
-from exceptions import AssertionError
 from itertools import chain
 
 import numpy as np
 
-from mlpy import ElasticNet, GradientDescent, Lar, Lasso, RidgeRegression
+from mlpy import ElasticNet, LARS, Ridge
 
-from _dantzig import Dantzig
-from _doubledantzig import DoubleDantzig
-from _lardantzig import LarDantzig
-from _lassodantzig import LassoDantzig
-from _linearsvr import LinearSvr
-from _ridgedantzig import RidgeDantzig
-from _ridgelar import RidgeLar
-from _ridgelasso import RidgeLasso
-from _ridgelar import RidgeLar
+from ._dantzig import Dantzig
+from ._doubledantzig import DoubleDantzig
+from ._lardantzig import LarDantzig
+from ._linearsvr import LinearSvr
+from ._ridgedantzig import RidgeDantzig
+from ._ridgelar import RidgeLar
+from ._ridgelar import RidgeLar
 
 
 __all__ = ['Regressor', 'regressor_classes']
@@ -47,15 +44,12 @@ class Regressor(object):
     DANTZIG = Dantzig
     DBLDANTZIG = DoubleDantzig
     ELASTICNET = ElasticNet
-    LAR = Lar
+    LAR = LARS
     LARDANTZIG = LarDantzig
-    LASSO = Lasso
-    LASSODANTZIG = LassoDantzig
     LINEARSVR = LinearSvr
-    RIDGE = RidgeRegression
+    RIDGE = Ridge
     RIDGEDANTZIG = RidgeDantzig
     RIDGELAR = RidgeLar
-    RIDGELASSO = RidgeLasso
 
     def __init__(self, regressorcls=RidgeLar, logspace=False, *args, **kwargs):
 
@@ -95,7 +89,7 @@ class Regressor(object):
             # normalize x and validate
             xbar = np.zeros(ncol, dtype=float)
             xvar = np.zeros(ncol, dtype=float)
-            for j in xrange(1, ncol):
+            for j in range(1, ncol):
                 xbar[j] = np.mean(x[:, j])
                 x[:, j] -= xbar[j]
                 assert(np.abs(np.mean(x[:, j])) < ZERO)
@@ -105,8 +99,8 @@ class Regressor(object):
                     x[:, j] /= xvar[j]
                     try:
                         assert(np.abs(sum([pow(i, 2.0) for i in x[:, j]]) - 1.0) < ZERO)
-                    except AssertionError, e:
-                        print u'\u03c3: %.4g, \u03a3x\u00b2: %.4g' % (xvar[j], sum([pow(i, 2.0) for i in x[:, j]]))
+                    except AssertionError as e:
+                        print('\u03c3: %.4g, \u03a3x\u00b2: %.4g' % (xvar[j], sum([pow(i, 2.0) for i in x[:, j]])))
         finally:
             np.seterr(**nperr)
 
@@ -130,13 +124,13 @@ class Regressor(object):
         ncol = x.shape[1]
 
 #        if self.__method not in ('gd',):
-#        y -= self.__ybar # LAR, LASSO, ElasticNet: responses have mean 0
+#        y -= self.__ybar # LARS, ElasticNet: responses have mean 0
         # skip index 0 because it's our y-intercept
-        for j in xrange(1, ncol):
-            x[:, j] -= xbar[j] # LAR, LASSO, ElasticNet: covariates have mean 0
+        for j in range(1, ncol):
+            x[:, j] -= xbar[j] # LARS, ElasticNet: covariates have mean 0
 #            if self.__method not in ('ridge', 'gd'):
             if xvar[j] != 0.0:
-                x[:, j] /= xvar[j] # LAR, LASSO: covariates have unit length
+                x[:, j] /= xvar[j] # LARS: covariates have unit length
 
         np.seterr(**nperr)
 
@@ -214,11 +208,8 @@ regressor_classes = {
     'elasticnet': Regressor.ELASTICNET,
     'lar': Regressor.LAR,
     'lardantzig': Regressor.LARDANTZIG,
-    'lasso': Regressor.LASSO,
-    'lassodantzig': Regressor.LASSODANTZIG,
     'linearsvr': Regressor.LINEARSVR,
     'ridge': Regressor.RIDGE,
     'ridgedantzig': Regressor.RIDGEDANTZIG,
     'ridgelar': Regressor.RIDGELAR,
-    'ridgelasso': Regressor.RIDGELASSO
 }

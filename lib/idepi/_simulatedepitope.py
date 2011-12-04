@@ -1,7 +1,7 @@
 
 from re import sub
 
-from _util import clamp, sanitize_seq
+from ._util import clamp, sanitize_seq
 
 
 __all__ = ['SimulatedEpitope']

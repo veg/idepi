@@ -1,10 +1,10 @@
 
 import numpy as np
 
-from _alphabet import Alphabet
-from _basefilter import BaseFilter
-from _seqtable import SeqTable
-from _util import is_HXB2
+from ._alphabet import Alphabet
+from ._basefilter import BaseFilter
+from ._seqtable import SeqTable
+from ._util import is_HXB2
 
 
 __all__ = ['NaiveFilter']
@@ -51,7 +51,7 @@ class NaiveFilter(BaseFilter):
         stride = len(alphabet)
         assert(len(seqtable.cols[0]) == stride)
 
-        for i in xrange(seqtable.ncol):
+        for i in range(seqtable.ncol):
             col = seqtable.cols[i]
             colsum = float(np.sum(col))
             idx = stride * i
@@ -61,9 +61,9 @@ class NaiveFilter(BaseFilter):
                float(max(col)) / colsum > maxcons or \
                float(max(col)) / colsum >= 1. or \
                float(col[alphabet['-']]) / colsum > maxgap:
-                ignore_idxs.update(xrange(idx, idx + stride))
+                ignore_idxs.update(range(idx, idx + stride))
             else:
-                ignore_idxs.update(idx + j for j in xrange(stride) if col[j] == 0.)
+                ignore_idxs.update(idx + j for j in range(stride) if col[j] == 0.)
 
         colnames = BaseFilter._colnames(alignment, alphabet, ref_id_func, refseq_offs, ignore_idxs)
         data = NaiveFilter._filter(seqtable, ignore_idxs)
@@ -77,8 +77,8 @@ class NaiveFilter(BaseFilter):
         data = np.zeros((seqtable.nrow, ncol), dtype=bool)
 
         k = 0
-        for i in xrange(seqtable.ncol):
-            for j in xrange(stride):
+        for i in range(seqtable.ncol):
+            for j in range(stride):
                 idx = i * stride + j
                 if idx in ignore_idxs:
                     continue

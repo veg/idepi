@@ -1,8 +1,8 @@
 
 from numpy import zeros
 
-from _alphabet import Alphabet
-from _util import BASE_ALPH, base_10_to_n, base_26_to_alph, id_to_class
+from ._alphabet import Alphabet
+from ._util import BASE_ALPH, base_10_to_n, base_26_to_alph, id_to_class
 
 
 __all__ = ['BaseFilter']
@@ -21,7 +21,7 @@ class BaseFilter(object):
     def _colnames(alignment, alphabet, ref_id_func, refseq_offs, ignore_idxs):
         ref = None
         for r in alignment:
-            if apply(ref_id_func, (r.id,)):
+            if ref_id_func(*(r.id,)):
                 ref = str(r.seq)
 
         if ref is None:
@@ -37,7 +37,7 @@ class BaseFilter(object):
                 ins += 1
             if i in refseq_offs:
                 c += refseq_offs[i]
-            for j in xrange(len(alphabet)):
+            for j in range(len(alphabet)):
                 if col in ignore_idxs:
                     pass
                 else:

@@ -6,9 +6,9 @@ from re import compile as re_compile
 from sys import argv as sys_argv, exit as sys_exit, stderr
 
 try:
-    from cStringIO import StringIO
+    from io import StringIO
 except ImportError:
-    from StringIO import StringIO
+    from io import StringIO
 
 from Bio import SeqIO
 
@@ -23,7 +23,7 @@ def main(argv=sys_argv):
         features = set(int(numeric.sub('', f)) for f in argv.pop().split(','))
         assert(len(argv) == 1 and exists(argv[0]) and len(features))
     except:
-        print >> stderr, 'usage: %s TREE FEATURES' % name
+        print('usage: %s TREE FEATURES' % name, file=stderr)
         sys_exit(-1)
 
     tree = None
@@ -31,7 +31,7 @@ def main(argv=sys_argv):
     refseq = None
     buf = None
     with GzipFile(argv[0]) as fh:
-        for line in (l.strip() for l in fh):
+        for line in (l.decode('utf-8').strip() for l in fh):
             sep = '' if len(line) < 5 else line[:5].lower()
             if sep.find('end') == 0 and buf is not None:
                 typ = line.split()[1].lower()
@@ -56,7 +56,7 @@ def main(argv=sys_argv):
     colnames = [None] * len(features)
     colnum = 1
     j = 0
-    for i in xrange(len(refseq)):
+    for i in range(len(refseq)):
         if refseq[i] not in '._-':
             colname = refseq[i] + str(colnum)
             if colnum in features:
@@ -81,7 +81,7 @@ def main(argv=sys_argv):
         # include the ':' here to make sure we grab the end of the label
         tree = tree.replace(r.id + ':', '_'.join(labels) + ':')
 
-    print tree
+    print(tree)
 
     return 0
 

@@ -8,9 +8,9 @@ from sys import stderr
 from tempfile import mkstemp
 
 try:
-    from cStringIO import StringIO
+    from io import StringIO
 except ImportError:
-    from StringIO import StringIO
+    from io import StringIO
 
 from Bio import SeqIO
 
@@ -59,9 +59,9 @@ class Phylo(HyphyInterface):
 
         if not quiet:
             if self.stdout != '':
-                print >> stderr, self.stdout
+                print(self.stdout, file=stderr)
             if self.warnings != '':
-                print >> stderr, self.warnings
+                print(self.warnings, file=stderr)
 
         if self.stderr != '':
             raise RuntimeError(self.stderr)

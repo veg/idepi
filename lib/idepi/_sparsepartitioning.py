@@ -22,7 +22,6 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
-from exceptions import StandardError
 from re import match
 from os import chdir, getcwd, listdir, remove, rmdir
 from os.path import exists, isfile, join
@@ -30,7 +29,7 @@ from subprocess import PIPE, Popen
 from sys import exit, stderr
 from tempfile import mkdtemp
 
-from _smldata import SmlData
+from ._smldata import SmlData
 
 
 __all__ = ['SpDeterministicFeature', 'SpDeterministicModel', 'SpMcmcFeature', 'SpMcmcPair', 'SpMcmcModel', 'SparsePartitioning']
@@ -61,7 +60,7 @@ class SpDeterministicModel(object):
             assert(len(self.features) == len(other.features))
             A = sorted(self.features, key=lambda x: x.idx)
             B = sorted(other.features, key=lambda x: x.idx)
-            for i in xrange(len(A)):
+            for i in range(len(A)):
                 assert(A[i] == B[i])
             return True
         except AssertionError:
@@ -182,8 +181,8 @@ class SparsePartitioning(object):
         self.data = data
         try:
             assert(self.data.feature_names == self.feature_names)
-        except AssertionError, e:
-            print >> stderr, 'ERROR: feature names do not match those of the SmlData, aborting'
+        except AssertionError as e:
+            print('ERROR: feature names do not match those of the SmlData, aborting', file=stderr)
             raise e
         self.method = None
         self.__options = None
@@ -198,10 +197,10 @@ class SparsePartitioning(object):
                     if file in self.__KNOWN_SP_FILES:
                         remove(filepath)
                     else:
-                        print >> stderr, 'WARNING: will not remove temporary directory %s, for it contains an unknown file %s' % (self.dirname, file_)
+                        print('WARNING: will not remove temporary directory %s, for it contains an unknown file %s' % (self.dirname, file_), file=stderr)
                         del_ = False
                 else:
-                    print >> stderr, 'WARNING: will not remove temporary directory %s, for it contains an unknown directory %s' % (self.dirname, file_)
+                    print('WARNING: will not remove temporary directory %s, for it contains an unknown directory %s' % (self.dirname, file_), file=stderr)
                     del_ = False
             if del_:
                 rmdir(self.dirname)
@@ -210,12 +209,12 @@ class SparsePartitioning(object):
     def __merge_options(self, options):
         for k, v in options.items():
             if k not in self.__KNOWN_SP_OPTIONS:
-                print >> stderr, 'WARNING: ignoring option %s, for it isn\'t a valid option' % k
+                print('WARNING: ignoring option %s, for it isn\'t a valid option' % k, file=stderr)
                 del options[k]
             elif self.__KNOWN_SP_OPTIONS[k][0] is False:
-                print >> stderr, 'WARNING: ignoring option %s, for it cannot be set by this module' % k
+                print('WARNING: ignoring option %s, for it cannot be set by this module' % k, file=stderr)
             elif self.__KNOWN_SP_OPTIONS[k][1](v) is False:
-                print >> stderr, 'WARNING: ignoring option %s, for %s isn\'t valid for this option' % (k, str(v))
+                print('WARNING: ignoring option %s, for %s isn\'t valid for this option' % (k, str(v)), file=stderr)
             else:
                 self.__options[k] = v
 
@@ -224,16 +223,13 @@ class SparsePartitioning(object):
         for k, v in self.__KNOWN_SP_OPTIONS.items():
             if v[0]: # the options is True, as in not in (False, None)
                 if k not in self.__options:
-                    print >> stderr, 'ERROR: option %s must be set!' % k
-                    raise StandardError
+                    raise ValueError('option %s must be set!' % k)
                 elif v[1](self.__options[k]) is False:
-                    print >> stderr, 'ERROR: option %s has invalid value %s' % (k, str(self.__options[k]))
-                    raise StandardError
+                    raise ValueError('option %s has invalid value %s' % (k, str(self.__options[k])))
         # iterate over all set options, and make sure it's valid
         for k, v in self.__options.items():
             if self.__KNOWN_SP_OPTIONS[k][1](v) is False:
-                print >> stderr, 'ERROR: option %s has invalid value %s' % (k, v)
-                raise StandardError
+                raise ValueError('option %s has invalid value %s' % (k, v))
 
     def run(self, iter=None, method=None, sp=None, options=None, fixdet=True):
         if iter is None:
@@ -243,8 +239,7 @@ class SparsePartitioning(object):
         if options is None:
             options = self.__DEFAULT_SP_OPTIONS
         if method not in ('det', 'mcmc'):
-            print >> stderr, 'ERROR: method must be either deterministic (\'det\') or monte carlo markov chain (\'mcmc\')'
-            raise StandardError
+            raise ValueError('method must be either deterministic (\'det\') or monte carlo markov chain (\'mcmc\')')
         if sp is None:
             sp = self.__DEFAULT_SP_DET if method == 'det' else self.__DEFAULT_SP_MCMC
         # this is a convenience bit for appropriately transforming the function into its deterministic cousin
@@ -257,8 +252,7 @@ class SparsePartitioning(object):
             if not exists(reqfile) or self.__dir_is_temp:
                 if self.feature_names is None or len(self.feature_names) == 0 or \
                     self.data is None or len(self.data) == 0:
-                    print >> stderr, 'ERROR: %s not found and/or no data exists to save there' % reqfile
-                    raise StandardError
+                    raise ValueError('%s not found and/or no data exists to save there' % reqfile)
                 save = True
         if save:
             SparsePartitioning.save(self, options)
@@ -284,28 +278,27 @@ class SparsePartitioning(object):
         if self.__options is None:
             SparsePartitioning.__merge_options(self, options)
         if self.__options['modtype'] in (2, 3) and floats:
-            print >> stderr, 'ERROR: modtype %i requires binary, not continuous, responses' % self.__options['modtype']
-            raise StandardError
+            raise ValueError('modtype %i requires binary, not continuous, responses' % self.__options['modtype'])
         SparsePartitioning.__validate_options(self)
         fh = open(self.filenames['input'], 'w')
         for option, value in self.__options.items():
             if value is not None and value is not False:
-                print >> fh, '%s=%s' % (option, str(value))
+                print('%s=%s' % (option, str(value)), file=fh)
         fh.close()
         # have to convert to column format
-        preds = dict([(i, {}) for i in xrange(oldN)])
-        for i in xrange(len(self.data)):
+        preds = dict([(i, {}) for i in range(oldN)])
+        for i in range(len(self.data)):
             for p, v in self.data[i].features.items():
                 preds[p][i] = v
         # print the predictors (genotypes?)
         fh = open(self.filenames['data'], 'w')
         for p in sorted(preds.keys()):
-            print >> fh, ' '.join([1 if preds[p][i] else 0 for i in xrange(oldn)])
+            print(' '.join([1 if preds[p][i] else 0 for i in range(oldn)]), file=fh)
         fh.close()
         # print the phenotypes
         fh = open(self.filenames['phen'], 'w')
         for r in self.data:
-            print >> fh, r.value
+            print(r.value, file=fh)
         fh.close()
 
     def parse(self):

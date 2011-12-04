@@ -1,4 +1,4 @@
-#!/usr/bin/env python2.7
+#!/usr/bin/env python3.2
 
 from os.path import basename
 from sys import argv as sys_argv, exit as sys_exit, stderr
@@ -16,7 +16,7 @@ def main(argv=sys_argv):
         progname = argv.pop(1)
         assert(progname in programs)
     except:
-        print >> stderr, 'usage: %s [%s] ARGS' % (name, '|'.join(programs))
+        print('usage: %s [%s] ARGS' % (name, '|'.join(programs)), file=stderr)
         return -1
 
     return globals()[progname](argv)

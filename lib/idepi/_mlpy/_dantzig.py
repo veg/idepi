@@ -29,7 +29,7 @@ from cvxopt import solvers as co_solvers
 
 import numpy as np
 
-from _glm import Glm
+from ._glm import Glm
 
 
 __all__ = ['Dantzig']
@@ -151,7 +151,7 @@ class Dantzig(object):
             zstar = z * v
             xstar = x * v
             # scale columns of Xstar to unit length
-            colscale = np.array([np.sqrt(sum(np.square(x[:, j]))) for j in xrange(ncol)])
+            colscale = np.array([np.sqrt(sum(np.square(x[:, j]))) for j in range(ncol)])
             xstar /= colscale
             beta_new = Dantzig.__linearoptim(xstar, zstar, sigma) / colscale
             xbeta = np.dot(x, beta_new)
@@ -165,7 +165,7 @@ class Dantzig(object):
 
         self.__L = l
         self.__beta = beta_new
-        self.__selected = [i for i in xrange(ncol) if (self.__beta[i] != 0.0)]
+        self.__selected = [i for i in range(ncol) if (self.__beta[i] != 0.0)]
 
         np.seterr(**nperr)
 
@@ -180,7 +180,7 @@ class Dantzig(object):
             raise ValueError("x must be an 2d array")
 
         if x.shape[1] != self.__beta.shape[0]:
-            print x.shape[1], self.__beta.shape[0]
+            print(x.shape[1], self.__beta.shape[0])
             raise ValueError("x and beta are not aligned")
 
         return np.dot(x, self.__beta)

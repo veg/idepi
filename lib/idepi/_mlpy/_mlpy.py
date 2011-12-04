@@ -253,7 +253,7 @@ class Dantzig(object):
             zstar = z * v
             xstar = x * v
             # scale columns of Xstar to unit length
-            colscale = np.array([np.sqrt(sum(np.square(x[:, j]))) for j in xrange(ncol)])
+            colscale = np.array([np.sqrt(sum(np.square(x[:, j]))) for j in range(ncol)])
             xstar /= colscale
             beta_new = Dantzig.__linearoptim(xstar, zstar, sigma) / colscale
             xbeta = np.dot(x, beta_new)
@@ -267,7 +267,7 @@ class Dantzig(object):
 
         self.__L = l
         self.__beta = beta_new
-        self.__selected = [i for i in xrange(ncol) if (self.__beta[i] != 0.0)]
+        self.__selected = [i for i in range(ncol) if (self.__beta[i] != 0.0)]
 
     def beta(self):
         return self.__beta
@@ -280,7 +280,7 @@ class Dantzig(object):
             raise ValueError("x must be an 2d array")
 
         if x.shape[1] != self.__beta.shape[0]:
-            print x.shape[1], self.__beta.shape[0]
+            print(x.shape[1], self.__beta.shape[0])
             raise ValueError("x and beta are not aligned")
 
         return np.dot(x, self.__beta)
@@ -296,7 +296,7 @@ class WrappedRegressor(object):
 
     def __init__(self, method0, method1, **kwargs):
 
-        methods = regressor_methods.keys()
+        methods = list(regressor_methods.keys())
         try:
             methods.pop(methods.index('metadantzig'))
         except ValueError:
@@ -339,7 +339,7 @@ class WrappedRegressor(object):
         self.__beta0 = self.__first.beta()
 
         self.__idxs = []
-        for i in xrange(len(self.__beta0)):
+        for i in range(len(self.__beta0)):
             if self.__beta0[i] != 0.0:
                 self.__idxs.append(i)
         x = x[:, self.__idxs]
@@ -349,7 +349,7 @@ class WrappedRegressor(object):
         # reconstruct the full beta
         beta = np.zeros(len(self.__beta0))
         beta_ = self.__second.beta()
-        for i in xrange(len(self.__idxs)):
+        for i in range(len(self.__idxs)):
             beta[self.__idxs[i]] = beta_[i]
         self.__beta = beta
 
@@ -430,7 +430,7 @@ class Regressor(object):
     def __init__(self, data, method='ridgedantzig', *args, **kwargs):
 
         if method not in regressor_methods.keys():
-            raise ValueError, 'method `%s\' not in list of valid methods (%s)' % (method, ', '.join(regressor_methods.keys()))
+            raise ValueError('method `%s\' not in list of valid methods (%s)' % (method, ', '.join(regressor_methods.keys())))
 
         self.__method = method
         self.__regressor = eval(regressor_methods[self.__method])(*args, **kwargs)
@@ -463,7 +463,7 @@ class Regressor(object):
             # normalize x and validate
             self.__xbar = np.zeros(ncol, dtype=float)
             self.__xvar = np.zeros(ncol, dtype=float)
-            for j in xrange(ncol):
+            for j in range(ncol):
                 self.__xbar[j] = np.mean(self.__x_active[:, j])
                 self.__x_active[:, j] -= self.__xbar[j]
                 assert(np.abs(np.mean(self.__x_active[:, j])) < __zero)
@@ -473,13 +473,13 @@ class Regressor(object):
                         self.__x_active[:, j] /= self.__xvar[j]
                         try:
                             assert(np.abs(sum([pow(i, 2.0) for i in self.__x_active[:, j]]) - 1.0) < __zero)
-                        except AssertionError, e:
-                            print u'\u03c3: %.4g, \u03a3x\u00b2: %.4g' % (self.__xvar[j], sum([pow(i, 2.0) for i in self.__x_active[:, j]]))
+                        except AssertionError as e:
+                            print('\u03c3: %.4g, \u03a3x\u00b2: %.4g' % (self.__xvar[j], sum([pow(i, 2.0) for i in self.__x_active[:, j]])))
 
     def partition(self, l, folds):
         npf = int(np.floor(l / folds)) # num per fold
         r = len % folds
-        p = list(chain(*[[i] * npf for i in xrange(folds)])) + range(r)
+        p = list(chain(*([i] * npf for i in range(folds)))) + list(range(r))
         np.random.shuffle(p)
         assert(len(p) == self.__x.shape[0])
         self.__folds = folds
@@ -487,8 +487,8 @@ class Regressor(object):
 
     def mask(self, fold):
         assert(0 <= fold and fold < self.__folds)
-        active = [i for i in xrange(self.__x.shape[0]) if self.__partition[i] != fold]
-        inactive = [i for i in xrange(self.__x.shape[0]) if self.__partition[i] == fold]
+        active = [i for i in range(self.__x.shape[0]) if self.__partition[i] != fold]
+        inactive = [i for i in range(self.__x.shape[0]) if self.__partition[i] == fold]
         # don't need to issue a copy() here
         self.__x_active = self.__x[active, :]
         self.__y_active = self.__y[active]
@@ -507,7 +507,7 @@ class Regressor(object):
         y = []
 
         for row in data:
-            x.append([row.features[j] if j in row.features else 0. for j in xrange(ncol)])
+            x.append([row.features[j] if j in row.features else 0. for j in range(ncol)])
             y.append(row.value)
 
         x = np.array(x).astype(float)
@@ -525,7 +525,7 @@ class Regressor(object):
         if self.__method not in ('gd',):
             y -= self.__ybar # LAR, LASSO, ElasticNet: responses have mean 0
             # skip index 0 because it's our y-intercept
-            for j in xrange(1, ncol):
+            for j in range(1, ncol):
                 x[:, j] -= self.__xbar[j] # LAR, LASSO, ElasticNet: covariates have mean 0
                 if self.__method not in ('ridge', 'gd'):
                     if self.__xvar[j] != 0.0:
@@ -577,14 +577,14 @@ class Regressor(object):
         sst = sum(pow(y - ybar, 2.0))
         r2 = 1.0 - (sse / sst)
         nless1 = len(y) - 1
-        p = len([1 for i in self.weights.values() if i != 0.0]) - 1 # - 1 to avoid counting the constant term
+        p = len(1 for i in self.weights.values() if i != 0.0) - 1 # - 1 to avoid counting the constant term
         mse = sse / (nless1 - p) # count the the full N
         rmse = np.sqrt(mse)
         rbar2 = 1.0 - (1.0 - r2) * nless1 / (nless1 - p)
         return {
-            u'R\u0304\u00b2   ': rbar2,
-            u'R\u00b2   ': r2,
+            'R\u0304\u00b2   ': rbar2,
+            'R\u00b2   ': r2,
             # u'SSE  ': sse,
             # u'MSE  ': mse,
-            u'RMSE ': rmse,
+            'RMSE ': rmse,
         }

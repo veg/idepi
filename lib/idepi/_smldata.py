@@ -22,7 +22,6 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
-from exceptions import IndexError
 from sys import stderr
 
 import numpy as np
@@ -40,18 +39,18 @@ class Record(object):
 class SmlData(object):
 
     def __init__(self, feature_names):
-        self.__data = list()
+        self.__data = []
         self.feature_names = feature_names
 
     def add(self, value, features):
         if isinstance(value, list) and isinstance(features, list):
             if len(value) == len(features) and len(features) != 0:
-                self.__data.extend([Record(value[i], features[i]) for i in xrange(len(value))])
+                self.__data.extend([Record(value[i], features[i]) for i in range(len(value))])
             elif len(value) != len(features):
-                print >> stderr, 'ERROR: number of values and features don\'t match for multiple-add'
+                print('ERROR: number of values and features don\'t match for multiple-add', file=stderr)
                 exit(-1)
         elif not isinstance(features, dict):
-            print >> stderr, 'ERROR: feature argument takes a dict()'
+            print('ERROR: feature argument takes a dict()', file=stderr)
             exit(-1)
         else:
             self.__data.append(Record(value, features))
@@ -88,18 +87,18 @@ class SmlData(object):
 
     def save_tab(self, filename, target):
         fh = open(filename, 'w')
-        print >> fh, '%s\t%s' % ('\t'.join([self.feature_names[i] for i in xrange(len(self.feature_names))]), target)
-        print >> fh, '%s\td' % '\t'.join(['d' for i in xrange(len(self.feature_names))])
-        print >> fh, '%s\tclass' % '\t'.join(['' for i in xrange(len(self.feature_names))])
+        print('%s\t%s' % ('\t'.join([self.feature_names[i] for i in range(len(self.feature_names))]), target), file=fh)
+        print('%s\td' % '\t'.join(['d' for i in range(len(self.feature_names))]), file=fh)
+        print('%s\tclass' % '\t'.join(['' for i in range(len(self.feature_names))]), file=fh)
         for r in self:
-            line = '\t'.join(['1' if i in r.features else '0' for i in xrange(len(self.feature_names))])
+            line = '\t'.join(['1' if i in r.features else '0' for i in range(len(self.feature_names))])
             if r.value is None:
                 raise ValueError('ERROR: save_tab doesn\'t yet support value-less SmlData')
-            print >> fh, '%s\t%d' % (line, r.value)
+            print('%s\t%d' % (line, r.value), file=fh)
         fh.close()
 
     def tondarrays(self):
         y = np.array([r.value for r in self])
-        x = np.array([[1 if i in r.features else 0 for i in xrange(len(self.feature_names))] for r in self])
+        x = np.array([[1 if i in r.features else 0 for i in range(len(self.feature_names))] for r in self])
 
         return x, y

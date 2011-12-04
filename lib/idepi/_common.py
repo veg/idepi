@@ -18,10 +18,10 @@ from Bio.SeqRecord import SeqRecord
 
 from mrmr import MRMR_LOGGER
 
-from _hmmer import Hmmer
-from _logging import IDEPI_LOGGER
-from _normalvalue import NormalValue
-from _simulation import Simulation
+from ._hmmer import Hmmer
+from ._logging import IDEPI_LOGGER
+from ._normalvalue import NormalValue
+from ._simulation import Simulation
 
 
 __all__ = [
@@ -44,7 +44,7 @@ __all__ = [
 def refseq_off(alndict, ref_id_func):
     refseq = None
     for acc in alndict.keys():
-        if apply(ref_id_func, (acc,)):
+        if ref_id_func(*(acc,)):
             refseq = alndict[acc]
             break
     if refseq is None:
@@ -101,8 +101,8 @@ def generate_alignment_from_SeqRecords(seq_records, my_basename, opts):
         # type errors here?
         try:
             SeqIO.write(seq_records, fafh, 'fasta')
-        except TypeError, e:
-            print >> stderr, seq_records
+        except TypeError as e:
+            print(seq_records, file=stderr)
             raise e
 
         # close the handles in this order because BioPython wiki does so
@@ -118,7 +118,7 @@ def generate_alignment_from_SeqRecords(seq_records, my_basename, opts):
 
         log.debug('beginning alignment')
 
-        for i in xrange(opts.HMMER_ITER):
+        for i in range(opts.HMMER_ITER):
             log.debug('aligning %d sequences (%d of %d)' % (numseqs, i+1, opts.HMMER_ITER))
             hmmer.build(hmm_filename, sto_filename)
             hmmer.align(hmm_filename, ab_fasta_filename, output=sto_filename, alphabet=Hmmer.DNA if opts.DNA else Hmmer.AMINO, outformat=Hmmer.PFAM)
@@ -168,9 +168,9 @@ def cv_results_to_output(results, colnames, meta=None):
 
     featureweights = {}
 
-    for i in xrange(len(results.extra)):
+    for i in range(len(results.extra)):
         assert(len(results.extra[i]['features']) >= len(results.extra[i]['weights']))
-        for j in xrange(len(results.extra[i]['features'])):
+        for j in range(len(results.extra[i]['features'])):
             v = results.extra[i]['weights'][j] if j < len(results.extra[i]['weights']) else 0.
             k = results.extra[i]['features'][j]
             if k not in featureweights:
@@ -215,7 +215,7 @@ def make_output_meta(opts, N, target, antibody, forward_select=None):
 
 
 def pretty_fmt_stats(stats, ident=0):
-    prefix = u' ' * 2 * ident
+    prefix = ' ' * 2 * ident
 
     buf = prefix
 
@@ -228,10 +228,10 @@ def pretty_fmt_stats(stats, ident=0):
     stat_len = max(stat_prefixes.values())
     mean_len = max(len('%.6f' % v['mean']) for v in stats.values())
     std_len = max(len('%.6f' % v['std']) for v in stats.values())
-    fmt = u'{ "mean": %%%d.6f, "std": %%%d.6f }' % (mean_len, std_len)
-    output = (prefix + u'  %s%s %s' % (
-        u'"%s":' % k,
-        u' ' * (stat_len - stat_prefixes[k]),
+    fmt = '{ "mean": %%%d.6f, "std": %%%d.6f }' % (mean_len, std_len)
+    output = (prefix + '  %s%s %s' % (
+        '"%s":' % k,
+        ' ' * (stat_len - stat_prefixes[k]),
         fmt % (v['mean'], v['std'])
     ) for k, v in sorted(stats.items(), key=itemgetter(0)))
 
@@ -239,7 +239,7 @@ def pretty_fmt_stats(stats, ident=0):
 
 
 def pretty_fmt_weights(weights, ident=0):
-    prefix = u' ' * 2 * ident
+    prefix = ' ' * 2 * ident
 
     buf = prefix + '"weights": [\n'
 
@@ -248,9 +248,9 @@ def pretty_fmt_weights(weights, ident=0):
         mean_len = max(len('% .6f' % v['value']['mean']) for v in weights)
         std_len = max(len('%.6f' % v['value']['std']) for v in weights)
         N_len = max(len('%d' % v['value']['N']) for v in weights)
-        fmt = u'{ "mean": %%%d.6f, "std": %%%d.6f, "N": %%%dd }' % (mean_len, std_len, N_len)
-        output = (prefix + u'  { "position": %-*s "value": %s }' % (
-            name_len, u'"%s",' % v['position'],
+        fmt = '{ "mean": %%%d.6f, "std": %%%d.6f, "N": %%%dd }' % (mean_len, std_len, N_len)
+        output = (prefix + '  { "position": %-*s "value": %s }' % (
+            name_len, '"%s",' % v['position'],
             fmt % (
                 v['value']['mean'],
                 v['value']['std'],
@@ -262,14 +262,14 @@ def pretty_fmt_weights(weights, ident=0):
 
 
 def pretty_fmt_meta(meta, ident=0):
-    prefix = u' ' * 2 * ident
+    prefix = ' ' * 2 * ident
 
     buf = prefix + '"meta": {\n'
 
     name_len = max(len(k) for k in meta.keys()) + 3
-    output = (prefix + u'  %-*s %s' % (
+    output = (prefix + '  %-*s %s' % (
         name_len,
-        u'"%s":' % k,
+        '"%s":' % k,
         '"%s"' % v if isinstance(v, str) else \
         ' { %s }' % ', '.join(
             ('"%s": %s' % (
