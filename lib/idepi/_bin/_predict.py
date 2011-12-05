@@ -25,11 +25,7 @@
 
 import logging, sqlite3, sys
 
-try:
-    from io import StringIO
-except ImportError:
-    from io import StringIO
-
+from io import StringIO
 from json import dumps as json_dumps
 from math import ceil, copysign, log10, sqrt
 from operator import itemgetter

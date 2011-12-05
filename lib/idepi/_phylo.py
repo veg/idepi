@@ -1,16 +1,12 @@
 
 from contextlib import closing
+from io import StringIO
 from multiprocessing import cpu_count
 from os import close, remove
 from os.path import abspath, exists, join, split
 from re import compile as re_compile, I as re_I
 from sys import stderr
 from tempfile import mkstemp
-
-try:
-    from io import StringIO
-except ImportError:
-    from io import StringIO
 
 from Bio import SeqIO
 

@@ -24,13 +24,10 @@
 #!/usr/bin/env python
 
 import sys
+
+from io import StringIO
 from operator import itemgetter
 from random import gauss, randint, random
-
-try:
-    from io import StringIO
-except ImportError:
-    from io import StringIO
 
 from Bio import AlignIO, SeqIO
 from Bio.Seq import Seq

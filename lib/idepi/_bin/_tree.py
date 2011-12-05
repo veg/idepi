@@ -1,14 +1,10 @@
 #!/usr/bin/env python2.7
 
 from gzip import GzipFile
+from io import StringIO
 from os.path import basename, exists
 from re import compile as re_compile
 from sys import argv as sys_argv, exit as sys_exit, stderr
-
-try:
-    from io import StringIO
-except ImportError:
-    from io import StringIO
 
 from Bio import SeqIO
 

@@ -66,7 +66,7 @@ class LinearSvm(object):
         if self.__computed == False:
             raise Exception('No SVM model computed')
         fd, self.__modelfile = mkstemp(); close(fd)
-        self.__lsvm.save_model(self.__modelfile.encode('ascii'))
+        self.__lsvm.save_model(bytes(self.__modelfile, 'utf-8'))
         model = LinearSvmModel(self.__modelfile)
         remove(self.__modelfile)
         return model.weights()

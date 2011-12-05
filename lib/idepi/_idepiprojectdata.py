@@ -4,14 +4,10 @@ import json
 import sqlite3
 
 from datetime import datetime
+from io import StringIO
 from os import close
 from os.path import exists
 from tempfile import mkstemp
-
-try:
-    from io import StringIO
-except ImportError:
-    from io import StringIO
 
 import numpy as np
 
