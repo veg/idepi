@@ -69,13 +69,13 @@ class OrfList(object):
             # truncate the stop "*" from the protein seq
             putative_seqs.append((p_seq, p_seq.translate()[:-1]))
 
-        self.ORF = sorted(putative_seqs, key = lambda d: len(d[1]), reverse = True)
+        self.ORFs = sorted(putative_seqs, key=lambda d: len(d[1]), reverse=True)
 
     def __getitem__(self, key):
-        return self.ORF[key]
+        return self.ORFs[key]
 
     def __len__(self):
-        return len(self.ORF)
+        return len(self.ORFs)
 
     def __contains__(self, key):
-        return True if key >= 0 and key < len(self.ORF) else False
+        return True if key >= 0 and key < len(self.ORFs) else False

@@ -44,10 +44,10 @@ from Bio.SeqRecord import SeqRecord
 
 from idepi import (Alphabet, ClassExtractor, DumbSimulation, Hmmer, LinearSvm,
                    MarkovSimulation, NaiveFilter, NormalValue, PhyloFilter,
-                   SeqTable, Simulation, collect_AbRecords_from_db, crude_sto_read, cv_results_to_output,
+                   SeqTable, Simulation, collect_seqrecords_from_db, crude_sto_read, cv_results_to_output,
                    generate_alignment, get_valid_antibodies_from_db, IDEPI_LOGGER,
-                   get_valid_subtypes_from_db, id_to_float, is_HXB2, pretty_fmt_results, set_util_params,
-                   __file__ as _idepi_file, __version__ as _idepi_version)
+                   get_valid_subtypes_from_db, is_HXB2, pretty_fmt_results, seqrecord_to_ic50s,
+                   set_util_params, __file__ as _idepi_file, __version__ as _idepi_version)
 
 from mrmr import MRMR_LOGGER, DiscreteMrmr, PhyloMrmr
 
@@ -263,7 +263,7 @@ def run_tests():
             # test mRMR and LSVM file generation
             for target in OPTIONS.TARGETS:
                 yextractor = ClassExtractor(
-                    id_to_float,
+                    seqrecord_to_ic50s,
                     lambda row: is_HXB2(row) or False, # TODO: again filtration function
                     lambda x: x < OPTIONS.IC50LT if target == 'lt' else x > OPTIONS.IC50GT
                 )
@@ -393,15 +393,13 @@ def main(argv=sys.argv):
 
     ab_basename = '%s_%s' % (antibody, 'dna' if OPTIONS.DNA else 'amino')
 
-    # grab the relevant antibody from the SQLITE3 data
-    # format as SeqRecord so we can output as FASTA
-    abrecords = collect_AbRecords_from_db(OPTIONS.NEUT_SQLITE3_DB, antibody)
-
     alignment_basename = '%s_%s_%s' % (ab_basename, splitext(basename(OPTIONS.NEUT_SQLITE3_DB))[0], __VERSION__)
     fasta_basename = '%s_%s_%s_%s' % (ab_basename, splitext(basename(OPTIONS.NEUT_SQLITE3_DB))[0], splitext(basename(fasta))[0], __VERSION__)
 
-    # generate an alignment using HMMER if it doesn't already exist
-    seqrecords = [r.to_SeqRecord(dna=True if OPTIONS.DNA else False) for r in abrecords]
+    # grab the relevant antibody from the SQLITE3 data
+    # format as SeqRecord so we can output as FASTA
+    # and generate an alignment using HMMER if it doesn't already exist
+    seqrecords = collect_seqrecords_from_db(OPTIONS.NEUT_SQLITE3_DB, antibody, OPTIONS.DNA)
     alignment, refseq_offs = generate_alignment(seqrecords, alignment_basename, is_HXB2, OPTIONS)
 
     fasta_stofile = fasta_basename + '.sto'
@@ -444,7 +442,7 @@ def main(argv=sys.argv):
     for target in OPTIONS.TARGETS:
 
         yextractor = ClassExtractor(
-            id_to_float,
+            seqrecord_to_ic50s,
             lambda row: is_HXB2(row) or False, # TODO: again filtration function
             lambda x: x < OPTIONS.IC50LT if target == 'lt' else x > OPTIONS.IC50GT
         )

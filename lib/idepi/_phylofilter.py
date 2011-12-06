@@ -55,7 +55,7 @@ class PhyloFilter(BaseFilter):
 
         refseq = None
         for row in alignment:
-            r = ref_id_func(*(row.id,))
+            r = ref_id_func(row)
             if r and refseq is None:
                 refseq = row
             elif r:
@@ -66,21 +66,21 @@ class PhyloFilter(BaseFilter):
         old_ids = [None] * len(alignment)
         for i, row in enumerate(alignment):
             # remove if requested
-            if ref_id_func(row.id) or skip_func(row.id):
+            if ref_id_func(row) or skip_func(row):
                 pass
             old_ids[i] = row.id
             row.id = '%d' % i
 
         with open(inputfile, 'w') as fh:
             SeqIO.write((row for row in alignment
-                             if not ref_id_func(row.id) and
-                                not skip_func(row.id)),
+                             if not ref_id_func(row) and
+                                not skip_func(row)),
                         fh, 'fasta')
 
         # restore the old id names or barfage later
         for i, row in enumerate(alignment):
             # remove if requested
-            if ref_id_func(row.id) or skip_func(row.id):
+            if ref_id_func(row) or skip_func(row):
                 pass
             row.id = old_ids[i]
 

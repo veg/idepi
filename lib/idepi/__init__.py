@@ -24,7 +24,6 @@
 
 __version__ = '0.5'
 
-from ._abrecord import *
 from ._alphabet import *
 from ._classextractor import *
 from ._common import *
@@ -49,7 +48,6 @@ from ._util import *
 
 
 __all__ = ['IDEPI_LOGGER']
-__all__ += _abrecord.__all__
 __all__ += _alphabet.__all__
 __all__ += _classextractor.__all__
 __all__ += _common.__all__

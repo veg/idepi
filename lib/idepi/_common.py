@@ -1,6 +1,8 @@
 
 import logging, re
 
+from collections import namedtuple
+from io import StringIO
 from math import copysign, sqrt
 from operator import itemgetter
 from os import close, remove, rename
@@ -10,8 +12,7 @@ from sys import stderr, stdout
 from tempfile import mkstemp
 from unicodedata import combining
 
-from Bio import SeqIO
-from Bio.Align import MultipleSeqAlignment
+from Bio import AlignIO, SeqIO
 from Bio.Alphabet import Gapped, generic_nucleotide, generic_protein
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
@@ -28,7 +29,7 @@ __all__ = [
     'cv_results_to_output',
     'make_output_meta',
     'crude_sto_read',
-    'generate_alignment_from_SeqRecords',
+    'generate_alignment_from_seqrecords',
     'generate_alignment',
     'pretty_fmt_results',
     'pretty_fmt_stats',
@@ -41,14 +42,7 @@ __all__ = [
 # and for values the number of trimmed positions occuring immediately
 # before the key-index. This so the colfilter can properly name the
 # positions according to the full reference sequence 
-def refseq_off(alndict, ref_id_func):
-    refseq = None
-    for acc in alndict.keys():
-        if ref_id_func(*(acc,)):
-            refseq = alndict[acc]
-            break
-    if refseq is None:
-        raise RuntimeError('Unable to find the reference sequence to compute an offset!')
+def refseq_off(refseq):
     off = 0
     offs = {}
     i = 0
@@ -66,22 +60,40 @@ def refseq_off(alndict, ref_id_func):
 
 
 def crude_sto_read(filename, ref_id_func=None, dna=False):
-    with open(filename) as fh:
-        notrel = re.compile(r'^(?:#|#=|//)')
-        alndict = dict(line.strip().split() for line in fh if not notrel.match(line.strip()) and line.strip() != '')
-    trim = re.compile(r'[^-A-Z]')
+    Fake = namedtuple('FakeSeqRecord', ['id'])
     alph = Gapped(generic_nucleotide if dna else generic_protein)
-    alignment = MultipleSeqAlignment(
-        SeqRecord(
-            Seq(trim.sub('', seq), alph),
-            acc
-        ) for acc, seq in alndict.items()
-    )
-    off = None if ref_id_func is None else refseq_off(alndict, ref_id_func)
-    return alignment, off
+    refseq = None
+    with open(filename) as fh, StringIO() as tmp:
+        notrel = re.compile(r'^(?:#|#=|//)')
+        trim = re.compile(r'[^-A-Z]')
+        for line in (line.strip() for line in fh):
+            if notrel.match(line) or line == '':
+                # don't print the GR lines, they won't match anymore after trimming
+                if not line.startswith('#=GR'):
+                    print(line, file=tmp)
+            else:
+                padlen = 1
+                for i in range(line.find(' ') + 1, len(line)):
+                    if line != ' ':
+                        break
+                    padlen += 1
+                pad = ' ' * padlen
+                acc, seq = line.split()
+                if ref_id_func is not None and ref_id_func(Fake(acc)):
+                    refseq = seq
+                seq = trim.sub('', seq)
+                print(pad.join((acc, seq)), file=tmp)
+        tmp.seek(0)
+        alignment = AlignIO.read(tmp, 'stockholm', alphabet=alph)
+
+    if refseq is None and ref_id_func is not None:
+        raise RuntimeError('Unable to find the reference sequence to compute an offset!')
+
+    offs = None if ref_id_func is None else refseq_off(refseq)
+    return alignment, offs
 
 
-def generate_alignment_from_SeqRecords(seq_records, my_basename, opts):
+def generate_alignment_from_seqrecords(seq_records, my_basename, opts):
     fd, ab_fasta_filename = mkstemp(); close(fd)
     fd, hmm_filename = mkstemp(); close(fd)
     fd, sto_filename = mkstemp(); close(fd)
@@ -145,7 +157,7 @@ def generate_alignment(seqrecords, my_basename, ref_id_func, opts):
         with open(hmm_filename, 'w') as fh:
             SeqIO.write(seqrecords, fh, 'stockholm')
     elif not exists(sto_filename):
-        generate_alignment_from_SeqRecords(
+        generate_alignment_from_seqrecords(
             seqrecords,
             my_basename,
             opts

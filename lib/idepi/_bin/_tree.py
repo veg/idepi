@@ -6,9 +6,11 @@ from os.path import basename, exists
 from re import compile as re_compile
 from sys import argv as sys_argv, exit as sys_exit, stderr
 
+from numpy import mean
+
 from Bio import SeqIO
 
-from idepi import id_to_float
+from idepi import seqrecord_to_ic50s
 
 
 def main(argv=sys_argv):
@@ -71,7 +73,7 @@ def main(argv=sys_argv):
                 labels[i] = r.seq[idx]
             i += 1
         try:
-            labels[0] = '%.3g' % id_to_float(r.id)
+            labels[0] = '%.3g' % mean(seqrecord_to_ic50s(r))
         except ValueError:
             labels.pop(0)
         # include the ':' here to make sure we grab the end of the label

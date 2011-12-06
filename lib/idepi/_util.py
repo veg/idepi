@@ -33,10 +33,11 @@ from tempfile import mkstemp
 import numpy as np
 
 from Bio import SeqIO
+from Bio.SeqRecord import SeqRecord
 
-from ._abrecord import AbRecord
 from ._alphabet import Alphabet
 from ._hmmer import Hmmer
+from ._orflist import OrfList
 from ._smldata import SmlData
 
 
@@ -45,9 +46,8 @@ __all__ = [
     'set_util_params',
     'is_testdata',
     'is_HXB2',
-    'id_to_class',
-    'id_to_float',
-    'id_to_subtype',
+    'seqrecord_to_ic50s',
+    'seqrecord_to_subtype',
     'get_noise',
     'get_valid_antibodies_from_db',
     'get_valid_subtypes_from_db',
@@ -56,7 +56,7 @@ __all__ = [
     'alph_to_base_26',
     'base_n_to_10',
     'ystoconfusionmatrix',
-    'collect_AbRecords_from_db',
+    'collect_seqrecords_from_db',
     'clamp',
     'sanitize_seq',
 ]
@@ -75,27 +75,25 @@ def set_util_params(hxb2_ids, ic50gt=None, ic50lt=None):
     __IC50LT = ic50lt
 
 
-def is_testdata(id):
-    if is_HXB2(id):
+def is_testdata(sid):
+    if is_HXB2(sid):
         return False
     else:
         try:
-            if not id.rsplit('|', 3)[3]:
+            if not sid.rsplit('|', 3)[3]:
                 return True
             else:
                 return False
         except IndexError as e:
-            print('ERROR: malformed ID: %s' % id, file=stderr)
-            raise e
+            raise ValueError('malformed ID: %s' % sid)
     return False
 
 
-def is_HXB2(id):
+def is_HXB2(seqrecord):
     try:
-        gid = id
-        gid = gid.split('|', 2)[1]
-        gid = gid.split(':', 1)[0]
-        if gid in __HXB2_IDS:
+        sid = seqrecord.id.split('|', 2)[1]
+        sid = sid.split(':', 1)[0]
+        if sid in __HXB2_IDS:
             return True
     except IndexError as e:
         pass
@@ -104,48 +102,28 @@ def is_HXB2(id):
     return False
 
 
-def id_to_class(id, target):
-    if target not in ("lt", "gt"):
-        print("ERROR: target must be one of \"lt\" or \"gt\".", file=stderr)
-        raise ValueError
+def seqrecord_to_ic50s(seqrecord):
+    # cap ic50s to 25
     try:
-        ic50 = id.rsplit('|', 3)[3] # accession | subtype | ab | ic50
-        if not ic50:
-            return None
-        else:
-            ic50 = float(ic50)
-    except ValueError as e:
-        print("ERROR: cannot parse '%s' for IC50 value" % id, file=stderr)
-        raise e
-    if __IC50GT is None or __IC50LT is None:
-        print('ERROR: call set_util_params to set IC50GT and IC50LT values for utilities', file=stderr)
-        exit(-1)
-    if target == "gt":
-        c = ic50 > __IC50GT
-    else:
-        c = ic50 < __IC50LT
-    # print '%.2f\t%d' % (ic50, c)
-    return c
+        ic50s = [
+            min(float(ic50.strip('<>')), 25.) for ic50 in seqrecord.description.rsplit('|', 2)[2].split(',')
+        ] # subtype | ab | ic50
+    except:
+        raise ValueError('Cannot parse `%s\' for IC50 value' % seqrecord.description)
+    return ic50s
 
 
-def id_to_subtype(id):
+def seqrecord_to_subtype(seqrecord):
     try:
-        subtype = id.rsplit('|', 3)[1].upper()
-    except ValueError as e:
-        raise ValueError('Cannot parse `%s\' for HIV subtype' % id)
+        subtype = seqrecord.description.rsplit('|', 2)[0].upper()
+    except ValueError:
+        raise ValueError('Cannot parse `%s\' for HIV subtype' % seqrecord.description)
     return subtype
 
 
-def id_to_float(id):
-    try:
-        ic50 = float(id.rsplit('|', 3)[3]) # accession | subtype | ab | ic50
-    except:
-        raise ValueError('Cannot parse `%s\' for IC50 value' % id)
-    return ic50
-
-
-def get_noise(id):
-    return id_to_float(id)
+def get_noise(seqrecord):
+    # just return the "mean" as noise
+    return np.mean(seqrecord_to_ic50s(seqrecord.description))
 
 
 def base_10_to_n(n, N):
@@ -306,10 +284,8 @@ def ystoconfusionmatrix(truth, preds):
     tns = truth <= 0.
     pps = preds > 0.
     pns = preds <= 0.
-
                                                            # true pos    true neg    false pos   false neg
     tp, tn, fp, fn = (np.sum(np.multiply(a, b)) for a, b in ((tps, pps), (tns, pns), (tns, pps), (tps, pns)))
-
     return tp, tn, fp, fn
 
 def get_valid_subtypes_from_db(dbpath):
@@ -336,41 +312,51 @@ def get_valid_antibodies_from_db(dbpath):
 
     return valid_antibodies
 
-def collect_AbRecords_from_db(dbpath, antibody):
+def collect_seqrecords_from_db(dbpath, antibody, dna):
     conn = connect(dbpath)
     curr = conn.cursor()
 
     try:
         curr.execute('''
-        select distinct S.ID as ID, S.SEQ as SEQ, G.SUBTYPE as SUBTYPE, N.AB as AB, N.IC50 as IC50 from
-        (select SEQUENCE_ID as ID, RAW_SEQ as SEQ from SEQUENCE group by SEQUENCE_ID) as S join
+        select distinct S.NO as NO, S.ID as ID, S.SEQ as SEQ, G.SUBTYPE as SUBTYPE, N.AB as AB, N.IC50 as IC50 from
+        (select SEQUENCE_NO as NO, SEQUENCE_ID as ID, RAW_SEQ as SEQ from SEQUENCE group by SEQUENCE_ID) as S join
         (select SEQUENCE_ID as ID, SUBTYPE from GENO_REPORT group by SEQUENCE_ID) as G join
-        (select SEQUENCE_ID as ID, ANTIBODY as AB, IC50 as IC50 from NEUT where ANTIBODY = ?) as N
+        (select SEQUENCE_ID as ID, ANTIBODY as AB, group_concat(IC50, ',') as IC50 from NEUT where ANTIBODY = ? group by ID, AB) as N
         on N.ID = S.ID and G.ID = S.ID order by S.ID;
         ''', (antibody,))
     except OperationalError:
         curr.execute('''
-        select distinct S.ID as ID, S.SEQ as SEQ, G.SUBTYPE as SUBTYPE, N.AB as AB, N.IC50 as IC50 from
-        (select ACCESSION_ID as ID, RAW_SEQ as SEQ from SEQUENCE group by ACCESSION_ID) as S join
+        select distinct S.NO as NO, S.ID as ID, S.SEQ as SEQ, G.SUBTYPE as SUBTYPE, N.AB as AB, N.IC50 as IC50 from
+        (select SEQUENCE_NO as NO, ACCESSION_ID as ID, RAW_SEQ as SEQ from SEQUENCE group by ACCESSION_ID) as S join
         (select ACCESSION_ID as ID, SUBTYPE from GENO_REPORT group by ACCESSION_ID) as G join
-        (select ACCESSION_ID as ID, ANTIBODY as AB, IC50_STRING as IC50 from NEUT where ANTIBODY = ?) as N
+        (select ACCESSION_ID as ID, ANTIBODY as AB, group_concat(IC50_STRING, ',') as IC50 from NEUT where ANTIBODY = ? group by ID, AB) as N
         on N.ID = S.ID and G.ID = S.ID order by S.ID;
         ''', (antibody,))
 
-    # make sure the records are unique
-    ab_records = []
+    ids = {}
+    seqrecords = []
     for row in curr:
         try:
-            ab_record = AbRecord(*row)
-            if ab_record.id in (abr.id for abr in ab_records):
-                ab_record.id += '-1'
-            ab_records.append(ab_record)
+            nno, sid, seq = row[:3]
+            dnaseq, aminoseq = OrfList(seq)[0]
+            record = SeqRecord(
+                dnaseq if dna else aminoseq,
+                id=sid,
+                description='|'.join(row[3:])
+            )
+            if sid in ids:
+                record.id += str(-ids[sid])
+                ids[sid] += 1
+            else:
+                ids[sid] = 1
+            seqrecords.append(record)
         except ValueError:
             continue
 
     conn.close()
 
-    return ab_records
+    return seqrecords
+
 
 def clamp(x):
     if x < 0.:

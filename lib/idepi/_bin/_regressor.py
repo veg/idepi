@@ -42,10 +42,10 @@ from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
 from idepi import (Alphabet, ClassExtractor, NaiveFilter, PhyloFilter, Regressor,
-                   collect_AbRecords_from_db, extract_feature_weights, cv_results_to_output,
+                   collect_seqrecords_from_db, extract_feature_weights, cv_results_to_output,
                    generate_alignment, get_valid_antibodies_from_db, get_valid_subtypes_from_db,
-                   id_to_float, is_HXB2, regressor_classes, pretty_fmt_results, set_util_params,
-                   __file__ as _idepi_file, __version__ as _idepi_version)
+                   is_HXB2, regressor_classes, pretty_fmt_results, seqrecord_to_ic50s,
+                   set_util_params, __file__ as _idepi_file, __version__ as _idepi_version)
 
 from pyxval import ContinuousPerfStats, CrossValidator
 
@@ -220,7 +220,7 @@ def run_tests():
 
             # test mRMR and LSVM file generation
             yextractor = ClassExtractor(
-                id_to_float,
+                seqrecord_to_ic50s,
                 lambda row: is_HXB2(row) or False, # TODO: again filtration function
             )
             y = yextractor.extract(alignment)
@@ -322,14 +322,12 @@ def main(argv=sys.argv):
 
     ab_basename = '%s_%s' % (antibody, 'dna' if OPTIONS.DNA else 'amino')
 
-    # grab the relevant antibody from the SQLITE3 data
-    # format as SeqRecord so we can output as FASTA
-    abrecords = collect_AbRecords_from_db(OPTIONS.NEUT_SQLITE3_DB, antibody)
-
     alignment_basename = '%s_%s_%s' % (ab_basename, splitext(basename(OPTIONS.NEUT_SQLITE3_DB))[0], __VERSION__)
 
-    # generate an alignment using HMMER if it doesn't already exist
-    seqrecords = [r.to_SeqRecord(dna=True if OPTIONS.DNA else False) for r in abrecords]
+    # grab the relevant antibody from the SQLITE3 data
+    # format as SeqRecord so we can output as FASTA
+    # and generate an alignment using HMMER if it doesn't already exist
+    seqrecords = collect_seqrecords_from_db(OPTIONS.NEUT_SQLITE3_DB, antibody, OPTIONS.DNA)
     alignment, refseq_offs = generate_alignment(seqrecords, alignment_basename, is_HXB2, OPTIONS)
     colfilter = None
     if OPTIONS.PHYLOFILTER:
@@ -355,7 +353,7 @@ def main(argv=sys.argv):
     colnames, x = colfilter.learn(alignment, refseq_offs)
 
     yextractor = ClassExtractor(
-        id_to_float,
+        seqrecord_to_ic50s,
         lambda row: is_HXB2(row) or False, # TODO: again filtration function
     )
     y = yextractor.extract(alignment)

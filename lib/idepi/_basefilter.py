@@ -2,7 +2,7 @@
 from numpy import zeros
 
 from ._alphabet import Alphabet
-from ._util import BASE_ALPH, base_10_to_n, base_26_to_alph, id_to_class
+from ._util import BASE_ALPH, base_10_to_n, base_26_to_alph
 
 
 __all__ = ['BaseFilter']
@@ -21,7 +21,7 @@ class BaseFilter(object):
     def _colnames(alignment, alphabet, ref_id_func, refseq_offs, ignore_idxs):
         ref = None
         for r in alignment:
-            if ref_id_func(*(r.id,)):
+            if ref_id_func(r):
                 ref = str(r.seq)
 
         if ref is None:

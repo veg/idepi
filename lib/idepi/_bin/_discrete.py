@@ -41,10 +41,11 @@ from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
 from idepi import (Alphabet, ClassExtractor, DumbSimulation, LinearSvm, MarkovSimulation, NaiveFilter,
-                   PhyloFilter, SeqTable, Simulation, collect_AbRecords_from_db, cv_results_to_output,
+                   PhyloFilter, SeqTable, Simulation, collect_seqrecords_from_db, cv_results_to_output,
                    extract_feature_weights, generate_alignment, get_valid_antibodies_from_db, IDEPI_LOGGER,
-                   get_valid_subtypes_from_db, id_to_float, is_HXB2, make_output_meta, pretty_fmt_results,
-                   set_util_params, __file__ as _idepi_file, __version__ as _idepi_version)
+                   get_valid_subtypes_from_db, is_HXB2, make_output_meta, pretty_fmt_results,
+                   seqrecord_to_ic50s, set_util_params, __file__ as _idepi_file,
+                   __version__ as _idepi_version)
 
 from mrmr import MRMR_LOGGER, DiscreteMrmr, PhyloMrmr
 
@@ -202,7 +203,7 @@ def setup_option_parser():
     parser.set_defaults(SIM_RUNS           = 1) # can be 'randtarget' for now
     parser.set_defaults(SIM_EPI_SIZE       = 10)
     parser.set_defaults(SIM_EPI_MUT_RATE   = 0.01)
-    parser.set_defaults(SIM_EPI_N          = None) # default is to use len(abrecords)
+    parser.set_defaults(SIM_EPI_N          = None) # default is to use len(seqrecords)
     parser.set_defaults(SIM_EPI_NOISE      = 0.08)
     parser.set_defaults(SIM_EPI_PERCENTILE = 0.5)
     parser.set_defaults(RAND_SEED          = 42) # magic number for determinism
@@ -276,7 +277,7 @@ def run_tests():
             # test mRMR and LSVM file generation
             for target in OPTIONS.TARGETS:
                 yextractor = ClassExtractor(
-                    id_to_float,
+                    seqrecord_to_ic50s,
                     lambda row: is_HXB2(row) or False, # TODO: again filtration function
                     lambda x: x < OPTIONS.IC50LT if target == 'lt' else x > OPTIONS.IC50GT
                 )
@@ -450,14 +451,12 @@ def main(argv=sys.argv):
 
     ab_basename = '%s%s_%s' % (antibody, '_randseq' if sim is not None and sim.mode == Simulation.SEQUENCE else '', 'dna' if OPTIONS.DNA else 'amino')
 
-    # grab the relevant antibody from the SQLITE3 data
-    # format as SeqRecord so we can output as FASTA
-    abrecords = collect_AbRecords_from_db(OPTIONS.NEUT_SQLITE3_DB, antibody)
-
     alignment_basename = '%s_%s_%s' % (ab_basename, splitext(basename(OPTIONS.NEUT_SQLITE3_DB))[0], __VERSION__)
 
-    # generate an alignment using HMMER if it doesn't already exist
-    seqrecords = [r.to_SeqRecord(dna=True if OPTIONS.DNA else False) for r in abrecords]
+    # grab the relevant antibody from the SQLITE3 data
+    # format as SeqRecord so we can output as FASTA
+    # and generate an alignment using HMMER if it doesn't already exist
+    seqrecords = collect_seqrecords_from_db(OPTIONS.NEUT_SQLITE3_DB, antibody, dna=OPTIONS.DNA)
     alignment, refseq_offs = generate_alignment(seqrecords, alignment_basename, is_HXB2, OPTIONS)
     colfilter = None
     if OPTIONS.PHYLOFILTER:
@@ -496,7 +495,7 @@ def main(argv=sys.argv):
 
             if sim is None:
                 yextractor = ClassExtractor(
-                    id_to_float,
+                    seqrecord_to_ic50s,
                     lambda row: is_HXB2(row) or False, # TODO: again filtration function
                     lambda x: x < OPTIONS.IC50LT if target == 'lt' else x > OPTIONS.IC50GT
                 )

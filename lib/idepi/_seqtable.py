@@ -83,11 +83,11 @@ class SeqTable(object):
             if isinstance(func, list):
                 for f in func:
                     for i, row in enumerate(self.__alignment):
-                        if f(*(row.id,)):
+                        if f(row):
                             idxs.add(i)
             else:
                 for i, row in enumerate(self.__alignment):
-                    if func(*(row.id,)):
+                    if func(row):
                         idxs.add(i)
         return idxs
 

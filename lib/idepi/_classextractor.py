@@ -1,7 +1,8 @@
 
+from collections import Iterable
 from sys import maxsize
 
-from numpy import zeros
+from numpy import sum as np_sum, zeros
 
 
 __all__ = ['ClassExtractor']
@@ -33,20 +34,44 @@ class ClassExtractor(object):
             skip = lambda _: False
         else:
             for i, row in enumerate(alignment):
-                if skip(*(row.id,)) or i > count:
+                if skip(row) or i >= count:
                     skipped += 1
 
-        i = 0
-        y = zeros((len(alignment) - skipped,), dtype=dtype)
+        size = len(alignment) - skipped
+        y = zeros((size,), dtype=dtype)
 
-        off = 0
-        for i, row in enumerate(alignment):
-            if skip(*(row.id,)):
-                off += 1
-                pass
-            else:
-                y[i - off] = discretize(*(extract(*(row.id,)),))
-            if i > count:
-                break
+        # try to balance the data
+        if isinstance(extract(alignment[0]), Iterable):
+            ambigs = {}
+            off = 0
+            for i, row in enumerate(alignment):
+                if skip(row) or i >= count:
+                    off += 1
+                else:
+                    values = [(x, discretize(x)) for x in sorted(extract(row), reverse=True)]
+                    classes = set(v for k, v in values)
+                    if len(classes) > 1:
+                        ambigs[i] = off, values
+                    else:
+                        y[i - off] = classes.pop()
+                if i >= count:
+                    break
+            classavg = np_sum(y) / (size - len(ambigs))
+            pos = max(int((0.5 - classavg) * len(ambigs) + 0.5), 0)
+            for i in range(pos):
+                # kv is key-value, so kv[1] is value,
+                # kv[1][1] is the revsorted list [(ic50, klass), ...],
+                # and kv[1][1][0][0] is the largest ic50 value for key k
+                kv = max(ambigs.items(), key=lambda kv: kv[1][1][0][0])
+                idx, off = kv[0], kv[1][0]
+                y[idx - off] = True
+            # remaining are to be left at 0
+        else:
+            off = 0
+            for i, row in enumerate(alignment):
+                if skip(row) or i >= count:
+                    off += 1
+                else:
+                    y[i - off] = discretize(extract(row))
 
         return y

@@ -26,7 +26,7 @@ def main(argv=sys_argv):
 
     refseq = None
     for i, r in enumerate(seqrecords):
-        if is_HXB2(r.id):
+        if is_HXB2(r):
             refseq = str(seqrecords[i].seq).upper()
             del seqrecords[i]
             break
