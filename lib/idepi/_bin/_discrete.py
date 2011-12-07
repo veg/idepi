@@ -124,6 +124,7 @@ def setup_option_parser():
     parser.add_option('--maxrel',        action='store_true',                                                    dest='MAXREL')
     parser.add_option('--normalizemrmr', action='store_true',                                                    dest='MRMR_NORMALIZE')
     parser.add_option('--filter',        action='callback',    callback=optparse_csv,    type='string',          dest='FILTER')
+    parser.add_option('--clonal',        action='store_true',                                                    dest='CLONAL')
     parser.add_option('--numfeats',                                                      type='int',             dest='NUM_FEATURES')
     parser.add_option('--forward',       action='store_true',                                                    dest='FORWARD_SELECT')
     parser.add_option('--subtypes',      action='callback',    callback=optparse_csv,    type='string',          dest='SUBTYPES')
@@ -173,6 +174,7 @@ def setup_option_parser():
     parser.set_defaults(MRMR_NORMALIZE     = False)
     parser.set_defaults(MAXREL             = False)
     parser.set_defaults(FILTER             = [])
+    parser.set_defaults(CLONAL             = False)
     parser.set_defaults(NUM_FEATURES       = -1)
     parser.set_defaults(FORWARD_SELECT     = False)
     parser.set_defaults(SUBTYPES           = [])
@@ -279,9 +281,13 @@ def run_tests():
                 yextractor = ClassExtractor(
                     seqrecord_to_ic50s,
                     lambda row: is_HXB2(row) or False, # TODO: again filtration function
-                    lambda x: x < OPTIONS.IC50LT if target == 'lt' else x > OPTIONS.IC50GT
+                    lambda x: (x <= OPTIONS.IC50LT if target == 'le' else
+                               x <  OPTIONS.IC50LT if target == 'lt' else
+                               x >= OPTIONS.IC50GT if target == 'ge' else
+                               x >  OPTIONS.IC50GT),
+                    False
                 )
-                y = yextractor.extract(alignment)
+                y, ic50gt = yextractor.extract(alignment)
 
                 assert(np.all(_TEST_Y == y))
 
@@ -357,8 +363,13 @@ def main(argv=sys.argv):
     if len(args) != 2:
         option_parser.error('ANTIBODY is a required argument')
 
-    if not set(OPTIONS.TARGETS).issubset(set(['lt', 'gt'])):
-        option_parser.error('option --targets takes either or both: lt gt')
+    autobalance = False
+    if OPTIONS.TARGETS == ['auto']:
+        OPTIONS.TARGETS = ['ge']
+        autobalance = True
+
+    if not set(OPTIONS.TARGETS).issubset(set(['le', 'lt', 'ge', 'gt'])):
+        option_parser.error('option --targets takes either `auto` or any combination of: le, lt, ge, gt')
 
     if not OPTIONS.MRMR_METHOD in ('MIQ', 'MID'):
         option_parser.error('option --mrmrmethod takes either MIQ or MID')
@@ -411,6 +422,12 @@ def main(argv=sys.argv):
     if OPTIONS.SIM_EPI_PERCENTILE < 0. or OPTIONS.SIM_EPI_PERCENTILE > 1.:
         option_parser.error('--simepiperc must be betweeen 0.0 and 1.0')
 
+    if OPTIONS.IC50GT <= 0.:
+        option_parser.error('--ic50lt values must be >0, ic50 values are in [0, 25]')
+
+    if OPTIONS.IC50GT >= 25.:
+        option_parser.error('--ic50gt values must be <25, ic50 values are in [0, 25]')
+
     if len(OPTIONS.FILTER) != 0:
         if OPTIONS.NUM_FEATURES > len(OPTIONS.FILTER):
             OPTIONS.NUM_FEATURES = len(OPTIONS.FILTER)
@@ -449,14 +466,28 @@ def main(argv=sys.argv):
         else:
             raise ValueError('Unknown simulation type `%s\'' % OPTIONS.SIM)
 
-    ab_basename = '%s%s_%s' % (antibody, '_randseq' if sim is not None and sim.mode == Simulation.SEQUENCE else '', 'dna' if OPTIONS.DNA else 'amino')
-
-    alignment_basename = '%s_%s_%s' % (ab_basename, splitext(basename(OPTIONS.NEUT_SQLITE3_DB))[0], __VERSION__)
+    ab_basename = ''.join((
+        antibody,
+        '_randseq' if sim is not None and sim.mode == Simulation.SEQUENCE else '',
+        '_dna' if OPTIONS.DNA else '_amino',
+        '_clonal' if OPTIONS.CLONAL else ''
+    ))
+    alignment_basename = '_'.join((
+        ab_basename,
+        splitext(basename(OPTIONS.NEUT_SQLITE3_DB))[0],
+        __VERSION__
+    ))
 
     # grab the relevant antibody from the SQLITE3 data
     # format as SeqRecord so we can output as FASTA
     # and generate an alignment using HMMER if it doesn't already exist
-    seqrecords = collect_seqrecords_from_db(OPTIONS.NEUT_SQLITE3_DB, antibody, dna=OPTIONS.DNA)
+    seqrecords, clonal = collect_seqrecords_from_db(OPTIONS.NEUT_SQLITE3_DB, antibody, OPTIONS.CLONAL, OPTIONS.DNA)
+
+    # if clonal isn't supported, fallback to default
+    if clonal != OPTIONS.CLONAL:
+        ab_basename = ''.join(ab_basename.rsplit('_clonal', 1))
+        alignment_basename = ''.join(alignment_basename.rsplit('_clonal', 1))
+
     alignment, refseq_offs = generate_alignment(seqrecords, alignment_basename, is_HXB2, OPTIONS)
     colfilter = None
     if OPTIONS.PHYLOFILTER:
@@ -497,9 +528,19 @@ def main(argv=sys.argv):
                 yextractor = ClassExtractor(
                     seqrecord_to_ic50s,
                     lambda row: is_HXB2(row) or False, # TODO: again filtration function
-                    lambda x: x < OPTIONS.IC50LT if target == 'lt' else x > OPTIONS.IC50GT
+                    lambda x: (x <= OPTIONS.IC50LT if target == 'le' else
+                               x <  OPTIONS.IC50LT if target == 'lt' else
+                               x >= OPTIONS.IC50GT if target == 'ge' else
+                               x >  OPTIONS.IC50GT),
+                    autobalance
                 )
-                y = yextractor.extract(alignment)
+                y, ic50gt = yextractor.extract(alignment)
+                assert(
+                    (ic50gt is None and not autobalance) or
+                    (ic50gt is not None and autobalance)
+                )
+                if autobalance:
+                    OPTIONS.IC50GT = ic50gt
 
 #             if OPTIONS.PHYLOFILTER:
 #                 np.savez('phylo.y.npz', {'data': y})
@@ -593,8 +634,8 @@ def main(argv=sys.argv):
                 forward_select = num_features
 
         # the alignment reflects the number of sequences either naturally,
-        # or through SIM_EPI_N, which reflects the natural number anyway.
-        meta = make_output_meta(OPTIONS, len(alignment), target, antibody, forward_select)
+        # or through SIM_EPI_N, which reflects the natural number anyway, less the refseq
+        meta = make_output_meta(OPTIONS, len(alignment)-1, np.mean(y), target, antibody, forward_select)
         ret = cv_results_to_output(results, colnames, meta)
 
         if isinstance(OPTIONS.OUTPUT, str):

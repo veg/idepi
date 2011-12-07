@@ -22,8 +22,6 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
-import logging
-
 from os import close, environ
 from os.path import exists, join
 from subprocess import Popen, PIPE

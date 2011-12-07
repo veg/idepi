@@ -22,6 +22,7 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
+from logging import getLogger
 from operator import itemgetter
 from os import close, remove, rename
 from random import random
@@ -37,6 +38,7 @@ from Bio.SeqRecord import SeqRecord
 
 from ._alphabet import Alphabet
 from ._hmmer import Hmmer
+from ._logging import IDEPI_LOGGER
 from ._orflist import OrfList
 from ._smldata import SmlData
 
@@ -66,6 +68,13 @@ __IC50LT = None
 __IC50GT = None
 
 BASE_ALPH = 26
+
+__equivalencies = {}
+for k, v in [('PG9', 'NAC17'), ('PG16', 'NAC18')]:
+    __equivalencies[k] = [v]
+    __equivalencies[v] = [k]
+
+
 
 
 def set_util_params(hxb2_ids, ic50gt=None, ic50lt=None):
@@ -106,7 +115,7 @@ def seqrecord_to_ic50s(seqrecord):
     # cap ic50s to 25
     try:
         ic50s = [
-            min(float(ic50.strip('<>')), 25.) for ic50 in seqrecord.description.rsplit('|', 2)[2].split(',')
+            min(float(ic50.strip().strip('<>')), 25.) for ic50 in seqrecord.description.rsplit('|', 2)[2].split(',')
         ] # subtype | ab | ic50
     except:
         raise ValueError('Cannot parse `%s\' for IC50 value' % seqrecord.description)
@@ -312,30 +321,39 @@ def get_valid_antibodies_from_db(dbpath):
 
     return valid_antibodies
 
-def collect_seqrecords_from_db(dbpath, antibody, dna):
+def collect_seqrecords_from_db(dbpath, antibody, clonal=False, dna=False):
     conn = connect(dbpath)
-    curr = conn.cursor()
+    cur = conn.cursor()
+
+    if antibody in __equivalencies:
+        antibodies = tuple([antibody, antibody] + __equivalencies[antibody])
+        ab_clause = ' OR '.join(['ANTIBODY = ?'] * len(antibodies[1:]))
+    else:
+        antibodies = (antibody, antibody,)
+        ab_clause = 'ANTIBODY = ?'
 
     try:
-        curr.execute('''
-        select distinct S.NO as NO, S.ID as ID, S.SEQ as SEQ, G.SUBTYPE as SUBTYPE, N.AB as AB, N.IC50 as IC50 from
-        (select SEQUENCE_NO as NO, SEQUENCE_ID as ID, RAW_SEQ as SEQ from SEQUENCE group by SEQUENCE_ID) as S join
-        (select SEQUENCE_ID as ID, SUBTYPE from GENO_REPORT group by SEQUENCE_ID) as G join
-        (select SEQUENCE_ID as ID, ANTIBODY as AB, group_concat(IC50, ',') as IC50 from NEUT where ANTIBODY = ? group by ID, AB) as N
+        cur.execute('''
+        select distinct S.NO as NO, S.ID as ID, S.SEQ as SEQ, G.SUBTYPE as SUBTYPE, ? as AB, N.IC50 as IC50 from
+        (select SEQUENCE_NO as NO, SEQUENCE_ID as ID, RAW_SEQ as SEQ from SEQUENCE %s group by ID) as S join
+        (select SEQUENCE_ID as ID, SUBTYPE from GENO_REPORT group by ID) as G join
+        (select SEQUENCE_ID as ID, ANTIBODY as AB, group_concat(IC50, ',') as IC50 from NEUT where %s group by ID) as N
         on N.ID = S.ID and G.ID = S.ID order by S.ID;
-        ''', (antibody,))
+        ''' % ('where IS_CLONAL = 1' if clonal else '', ab_clause), antibodies) 
     except OperationalError:
-        curr.execute('''
-        select distinct S.NO as NO, S.ID as ID, S.SEQ as SEQ, G.SUBTYPE as SUBTYPE, N.AB as AB, N.IC50 as IC50 from
-        (select SEQUENCE_NO as NO, ACCESSION_ID as ID, RAW_SEQ as SEQ from SEQUENCE group by ACCESSION_ID) as S join
-        (select ACCESSION_ID as ID, SUBTYPE from GENO_REPORT group by ACCESSION_ID) as G join
-        (select ACCESSION_ID as ID, ANTIBODY as AB, group_concat(IC50_STRING, ',') as IC50 from NEUT where ANTIBODY = ? group by ID, AB) as N
+        getLogger(IDEPI_LOGGER).debug('falling back to older database format, CLONAL feature is unsupported')
+        clonal = None
+        cur.execute('''
+        select distinct S.NO as NO, S.ID as ID, S.SEQ as SEQ, G.SUBTYPE as SUBTYPE, ? as AB, N.IC50 as IC50 from
+        (select SEQUENCE_NO as NO, ACCESSION_ID as ID, RAW_SEQ as SEQ from SEQUENCE group by ID) as S join
+        (select ACCESSION_ID as ID, SUBTYPE from GENO_REPORT group by ID) as G join
+        (select ACCESSION_ID as ID, ANTIBODY as AB, group_concat(IC50_STRING, ',') as IC50 from NEUT where %s group by ID) as N
         on N.ID = S.ID and G.ID = S.ID order by S.ID;
-        ''', (antibody,))
+        ''' % ab_clause, antibodies) 
 
     ids = {}
     seqrecords = []
-    for row in curr:
+    for row in cur:
         try:
             nno, sid, seq = row[:3]
             dnaseq, aminoseq = OrfList(seq)[0]
@@ -355,7 +373,7 @@ def collect_seqrecords_from_db(dbpath, antibody, dna):
 
     conn.close()
 
-    return seqrecords
+    return seqrecords, clonal
 
 
 def clamp(x):

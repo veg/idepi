@@ -1,8 +1,9 @@
 
-import logging, re
+import re
 
 from collections import namedtuple
 from io import StringIO
+from logging import getLogger
 from math import copysign, sqrt
 from operator import itemgetter
 from os import close, remove, rename
@@ -69,12 +70,12 @@ def crude_sto_read(filename, ref_id_func=None, dna=False):
         for line in (line.strip() for line in fh):
             if notrel.match(line) or line == '':
                 # don't print the GR lines, they won't match anymore after trimming
-                if not line.startswith('#=GR'):
+                if not line.startswith('#=GR') and not line.startswith('#=GC'):
                     print(line, file=tmp)
             else:
                 padlen = 1
                 for i in range(line.find(' ') + 1, len(line)):
-                    if line != ' ':
+                    if line[i] != ' ':
                         break
                     padlen += 1
                 pad = ' ' * padlen
@@ -99,7 +100,7 @@ def generate_alignment_from_seqrecords(seq_records, my_basename, opts):
     fd, sto_filename = mkstemp(); close(fd)
     finished = False
 
-    log = logging.getLogger(IDEPI_LOGGER)
+    log = getLogger(IDEPI_LOGGER)
 
     try:
         # get the FASTA format file so we can HMMER it
@@ -194,7 +195,7 @@ def cv_results_to_output(results, colnames, meta=None):
         val = NormalValue(int, weights)
         weightsdict[colnames[idx]] = val
 
-    log = logging.getLogger(MRMR_LOGGER)
+    log = getLogger(MRMR_LOGGER)
     log.debug('mrmr index to name map: {%s}' % ', '.join(
         "%d: '%s'" % (
             idx, colnames[idx]
@@ -215,10 +216,11 @@ def cv_results_to_output(results, colnames, meta=None):
     return ret
 
 
-def make_output_meta(opts, N, target, antibody, forward_select=None):
-    cutoff = opts.IC50LT if target == 'lt' else opts.IC50GT
+def make_output_meta(opts, N, balance, target, antibody, forward_select=None):
+    cutoff = opts.IC50LT if target in ('le', 'lt') else opts.IC50GT
     return {
         'sequences': N,
+        'balance': balance,
         'features': opts.NUM_FEATURES if forward_select is None else forward_select,
         'discriminator': { 'orientation': target, 'cutoff': cutoff },
         'antibody': antibody,
@@ -286,9 +288,12 @@ def pretty_fmt_meta(meta, ident=0):
         ' { %s }' % ', '.join(
             ('"%s": %s' % (
                 k,
-                '%s' % v if isinstance(v, (float, int)) else '"%s"' % v
+                '"%s"' % v if isinstance(v, str) else
+                '%.6g' % v if isinstance(v, float) else
+                '%s' % str(v)
             ) for k, v in v.items())
         ) if isinstance(v, dict) else \
+        ' %.6g' % v if isinstance(v, float) else \
         ' %s' % str(v)
     ) for k, v in sorted(meta.items(), key=itemgetter(0)))
 

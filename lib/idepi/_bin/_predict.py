@@ -127,6 +127,7 @@ def setup_option_parser():
     parser.add_option('--maxrel',        action='store_true',                                                    dest='MAXREL')
     parser.add_option('--normalizemrmr', action='store_true',                                                    dest='MRMR_NORMALIZE')
     parser.add_option('--filter',        action='callback',    callback=optparse_csv,    type='string',          dest='FILTER')
+    parser.add_option('--clonal',        action='store_true',                                                    dest='CLONAL')
     parser.add_option('--numfeats',                                                      type='int',             dest='NUM_FEATURES')
     parser.add_option('--subtypes',      action='callback',    callback=optparse_csv,    type='string',          dest='SUBTYPES')
     parser.add_option('--nested',        action='store_true',                                                    dest='NESTED')
@@ -167,6 +168,7 @@ def setup_option_parser():
     parser.set_defaults(MRMR_NORMALIZE     = False)
     parser.set_defaults(MAXREL             = False)
     parser.set_defaults(FILTER             = [])
+    parser.set_defaults(CLONAL             = False)
     parser.set_defaults(NUM_FEATURES       = -1)
     parser.set_defaults(SUBTYPES           = [])
     parser.set_defaults(NESTED             = True)
@@ -265,9 +267,13 @@ def run_tests():
                 yextractor = ClassExtractor(
                     seqrecord_to_ic50s,
                     lambda row: is_HXB2(row) or False, # TODO: again filtration function
-                    lambda x: x < OPTIONS.IC50LT if target == 'lt' else x > OPTIONS.IC50GT
+                    lambda x: (x <= OPTIONS.IC50LT if target == 'le' else
+                               x <  OPTIONS.IC50LT if target == 'lt' else
+                               x >= OPTIONS.IC50GT if target == 'ge' else
+                               x >  OPTIONS.IC50GT),
+                    False
                 )
-                y = yextractor.extract(alignment)
+                y, ic50gt = yextractor.extract(alignment)
 
                 assert(np.all(_TEST_Y == y))
 
@@ -333,8 +339,13 @@ def main(argv=sys.argv):
     if len(args) < 3:
         option_parser.error('FASTA is a required argument')
 
-    if not set(OPTIONS.TARGETS).issubset(set(['lt', 'gt'])):
-        option_parser.error('option --targets takes either or both: lt gt')
+    autobalance = False
+    if OPTIONS.TARGETS == ['auto']:
+        OPTIONS.TARGETS = ['ge']
+        autobalance = True
+
+    if not set(OPTIONS.TARGETS).issubset(set(['le', 'lt', 'ge', 'gt'])):
+        option_parser.error('option --targets takes either `auto` or any combination of: le, lt, ge, gt')
 
     if not OPTIONS.MRMR_METHOD in ('MIQ', 'MID'):
         option_parser.error('option --mrmrmethod takes either MIQ or MID')
@@ -391,15 +402,33 @@ def main(argv=sys.argv):
     # fetch the alphabet, we'll probably need it later
     alph = Alphabet(mode=Alphabet.STANFEL if OPTIONS.STANFEL else Alphabet.DNA if OPTIONS.DNA else Alphabet.AMINO)
 
-    ab_basename = '%s_%s' % (antibody, 'dna' if OPTIONS.DNA else 'amino')
-
-    alignment_basename = '%s_%s_%s' % (ab_basename, splitext(basename(OPTIONS.NEUT_SQLITE3_DB))[0], __VERSION__)
-    fasta_basename = '%s_%s_%s_%s' % (ab_basename, splitext(basename(OPTIONS.NEUT_SQLITE3_DB))[0], splitext(basename(fasta))[0], __VERSION__)
+    ab_basename = ''.join((
+        antibody,
+        '_dna' if OPTIONS.DNA else '_amino',
+        '_clonal' if OPTIONS.CLONAL else ''
+    ))
+    alignment_basename = '_'.join((
+        ab_basename,
+        splitext(basename(OPTIONS.NEUT_SQLITE3_DB))[0],
+        __VERSION__
+    ))
+    fasta_basename = '_'.join((
+        ab_basename,
+        splitext(basename(OPTIONS.NEUT_SQLITE3_DB))[0],
+        splitext(basename(fasta))[0],
+        __VERSION__
+    ))
 
     # grab the relevant antibody from the SQLITE3 data
     # format as SeqRecord so we can output as FASTA
     # and generate an alignment using HMMER if it doesn't already exist
-    seqrecords = collect_seqrecords_from_db(OPTIONS.NEUT_SQLITE3_DB, antibody, OPTIONS.DNA)
+    seqrecords, clonal = collect_seqrecords_from_db(OPTIONS.NEUT_SQLITE3_DB, antibody, OPTIONS.CLONAL, OPTIONS.DNA)
+
+    # if clonal isn't supported, fallback to default
+    if clonal != OPTIONS.CLONAL:
+        ab_basename = ''.join(ab_basename.rsplit('_clonal', 1))
+        alignment_basename = ''.join(alignment_basename.rsplit('_clonal', 1))
+
     alignment, refseq_offs = generate_alignment(seqrecords, alignment_basename, is_HXB2, OPTIONS)
 
     fasta_stofile = fasta_basename + '.sto'
@@ -444,9 +473,13 @@ def main(argv=sys.argv):
         yextractor = ClassExtractor(
             seqrecord_to_ic50s,
             lambda row: is_HXB2(row) or False, # TODO: again filtration function
-            lambda x: x < OPTIONS.IC50LT if target == 'lt' else x > OPTIONS.IC50GT
+            lambda x: (x <= OPTIONS.IC50LT if target == 'le' else
+                       x <  OPTIONS.IC50LT if target == 'lt' else
+                       x >= OPTIONS.IC50GT if target == 'ge' else
+                       x >  OPTIONS.IC50GT),
+            autobalance
         )
-        yt = yextractor.extract(alignment)
+        yt, ic50gt = yextractor.extract(alignment)
 
         optstat = DiscretePerfStats.MINSTAT
         if OPTIONS.ACCURACY:
@@ -507,11 +540,11 @@ def main(argv=sys.argv):
         meta = {
             'meta': {
                 'antibody': antibody,
-                'target': {
-                    'operator': target,
-                    'threshold': OPTIONS.IC50GT if target == 'gt' else OPTIONS.IC50LT
+                'discriminator': {
+                    'orientation': target,
+                    'threshold': OPTIONS.IC50LT if target in ('le', 'lt') else OPTIONS.IC50GT
                 },
-                'fraction+': np.mean(yp)
+                'balance': np.mean(yp)
             }
         }
 
@@ -519,10 +552,10 @@ def main(argv=sys.argv):
 
         print('''{
     "meta": {
-        "antibody":  "%s",
-        "fraction+": %g,
-        "target":    { "operator": "%s", "threshold": %g }
-    },''' % (antibody, np.mean(yp), target, OPTIONS.IC50GT if target == 'gt' else OPTIONS.IC50LT), file=output)
+        "antibody":      "%s",
+        "balance":        %g,
+        "discriminator":  { "operator": "%s", "threshold": %g }
+    },''' % (antibody, np.mean(yp), target, OPTIONS.IC50LT if target in ('le', 'lt') else OPTIONS.IC50GT), file=output)
 
         print('    "predictions": {', file=output)
         rowlen = max([len(row.id) + 3 for row in fasta_aln])

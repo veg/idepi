@@ -115,6 +115,7 @@ def setup_option_parser():
     parser.add_option('--hmmiter',                                                          type = 'int',               dest = 'HMMER_ITER')
     parser.add_option('--method',                                                           type = 'string',            dest = 'REGRESSOR_METHOD')
     parser.add_option('--filter',       action = 'callback',    callback = optparse_csv,    type = 'string',            dest = 'FILTER')
+    parser.add_option('--clonal',       action = 'store_true',                                                          dest = 'CLONAL')
     parser.add_option('--numfeats',                                                         type = 'int',               dest = 'NUM_FEATURES')
     parser.add_option('--subtypes',     action = 'callback',    callback = optparse_csv,    type = 'string',            dest = 'SUBTYPES')
     parser.add_option('--weighting',    action = 'store_true',                                                          dest = 'WEIGHTING')
@@ -139,6 +140,7 @@ def setup_option_parser():
     parser.set_defaults(HMMER_ITER         = 8)
     parser.set_defaults(REGRESSOR_METHOD   = 'ridgelar')
     parser.set_defaults(FILTER             = [])
+    parser.set_defaults(CLONAL             = False)
     parser.set_defaults(NUM_FEATURES       = -1)
     parser.set_defaults(SUBTYPES           = [])
     parser.set_defaults(WEIGHTING          = False)
@@ -223,7 +225,7 @@ def run_tests():
                 seqrecord_to_ic50s,
                 lambda row: is_HXB2(row) or False, # TODO: again filtration function
             )
-            y = yextractor.extract(alignment)
+            y, ic50gt = yextractor.extract(alignment)
 
             assert(np.all(_TEST_Y == y))
 
@@ -320,14 +322,27 @@ def main(argv=sys.argv):
     # fetch the alphabet, we'll probably need it later
     alph = Alphabet(mode=Alphabet.STANFEL if OPTIONS.STANFEL else Alphabet.DNA if OPTIONS.DNA else Alphabet.AMINO)
 
-    ab_basename = '%s_%s' % (antibody, 'dna' if OPTIONS.DNA else 'amino')
-
-    alignment_basename = '%s_%s_%s' % (ab_basename, splitext(basename(OPTIONS.NEUT_SQLITE3_DB))[0], __VERSION__)
+    ab_basename = ''.join((
+        antibody,
+        '_dna' if OPTIONS.DNA else '_amino',
+        '_clonal' if OPTIONS.CLONAL else ''
+    ))
+    alignment_basename = '_'.join((
+        ab_basename,
+        splitext(basename(OPTIONS.NEUT_SQLITE3_DB))[0],
+        __VERSION__
+    ))
 
     # grab the relevant antibody from the SQLITE3 data
     # format as SeqRecord so we can output as FASTA
     # and generate an alignment using HMMER if it doesn't already exist
-    seqrecords = collect_seqrecords_from_db(OPTIONS.NEUT_SQLITE3_DB, antibody, OPTIONS.DNA)
+    seqrecords, clonal = collect_seqrecords_from_db(OPTIONS.NEUT_SQLITE3_DB, antibody, OPTIONS.CLONAL, OPTIONS.DNA)
+
+    # if clonal isn't supported, fallback to default
+    if clonal != OPTIONS.CLONAL:
+        ab_basename = ''.join(ab_basename.rsplit('_clonal', 1))
+        alignment_basename = ''.join(alignment_basename.rsplit('_clonal', 1))
+
     alignment, refseq_offs = generate_alignment(seqrecords, alignment_basename, is_HXB2, OPTIONS)
     colfilter = None
     if OPTIONS.PHYLOFILTER:
@@ -356,7 +371,7 @@ def main(argv=sys.argv):
         seqrecord_to_ic50s,
         lambda row: is_HXB2(row) or False, # TODO: again filtration function
     )
-    y = yextractor.extract(alignment)
+    y, ic50gt = yextractor.extract(alignment)
 
     crossvalidator = CrossValidator(
         classifier_cls=Regressor,

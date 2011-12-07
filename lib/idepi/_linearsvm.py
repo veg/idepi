@@ -94,9 +94,8 @@ class LinearSvmModel(object):
             # if the labels are reversed, that means that libsvm switched the labelling internally, fix this
             if line[:5] == 'LABEL':
                 arr = [float(v) for v in line[6:].split()]
-                assert(len(arr) == 2)
                 # if label 0 1 then things are backwards, so flip them
-                if arr[0] < arr[1]:
+                if len(arr) == 2 and arr[0] < arr[1]:
                     rev = -1
 
             if line[:11] == 'KERNEL_TYPE':
