@@ -58,13 +58,14 @@ class ClassExtractor(object):
                     break
             classavg = np_sum(y) / (size - len(ambigs))
             pos = max(int((0.5 - classavg) * len(ambigs) + 0.5), 0)
-            for i in range(pos):
+            for i in range(min(pos, len(ambigs))):
                 # kv is key-value, so kv[1] is value,
                 # kv[1][1] is the revsorted list [(ic50, klass), ...],
                 # and kv[1][1][0][0] is the largest ic50 value for key k
                 kv = max(ambigs.items(), key=lambda kv: kv[1][1][0][0])
-                idx, off = kv[0], kv[1][0]
-                y[idx - off] = True
+                idx, off, klass = kv[0], kv[1][0], kv[1][1][0][1]
+                y[idx - off] = klass
+                del ambigs[idx]
             # remaining are to be left at 0
         else:
             off = 0
