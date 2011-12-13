@@ -85,7 +85,11 @@ def crude_sto_read(filename, ref_id_func=None, dna=False):
                 seq = trim.sub('', seq)
                 print(pad.join((acc, seq)), file=tmp)
         tmp.seek(0)
-        alignment = AlignIO.read(tmp, 'stockholm', alphabet=alph)
+        try:
+            alignment = AlignIO.read(tmp, 'stockholm', alphabet=alph)
+        except ValueError:
+            print(tmp.getvalue(), file=stderr)
+            raise
 
     if refseq is None and ref_id_func is not None:
         raise RuntimeError('Unable to find the reference sequence to compute an offset!')

@@ -78,7 +78,7 @@ class ClassExtractor(object):
 
             # only do this ten thousand times at most
             iteration = 0
-            while iteration < 10000:
+            while iteration < 1000:
                 iteration += 1
                 vals = [[(x, x >= median) for x, c in row] for row in vals]
                 classes = [set(c for x, c in row) for row in vals]
