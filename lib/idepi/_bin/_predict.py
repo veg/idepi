@@ -436,7 +436,7 @@ def main(argv=sys.argv):
 
     alignment, refseq_offs = generate_alignment(seqrecords, alignment_basename, is_HXB2, OPTIONS)
 
-    seqfiletype = 'stockholm' if splitext(oldseq)[1].find('sto') == 0 else 'fasta'
+    seqfiletype = 'stockholm' if splitext(oldseq)[1].find('sto') == 1 else 'fasta'
 
     # create a temporary file wherein space characters have been removed
     try:
@@ -457,6 +457,7 @@ def main(argv=sys.argv):
             alphabet=Hmmer.DNA if OPTIONS.DNA else Hmmer.AMINO,
             outformat=Hmmer.PFAM
         )
+
     finally:
         if exists(tmpseq):
             remove(tmpseq)
