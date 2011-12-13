@@ -287,7 +287,7 @@ def run_tests():
                                x >  OPTIONS.IC50GT),
                     False
                 )
-                y, ic50gt = yextractor.extract(alignment)
+                y, ic50ge = yextractor.extract(alignment)
 
                 assert(np.all(_TEST_Y == y))
 
@@ -534,13 +534,13 @@ def main(argv=sys.argv):
                                x >  OPTIONS.IC50GT),
                     autobalance
                 )
-                y, ic50gt = yextractor.extract(alignment)
+                y, ic50ge = yextractor.extract(alignment)
                 assert(
-                    (ic50gt is None and not autobalance) or
-                    (ic50gt is not None and autobalance)
+                    (ic50ge is None and not autobalance) or
+                    (ic50ge is not None and autobalance)
                 )
                 if autobalance:
-                    OPTIONS.IC50GT = ic50gt
+                    OPTIONS.IC50GT = ic50ge
 
 #             if OPTIONS.PHYLOFILTER:
 #                 np.savez('phylo.y.npz', {'data': y})

@@ -32,6 +32,7 @@ __all__ = [
     'crude_sto_read',
     'generate_alignment_from_seqrecords',
     'generate_alignment',
+    'pretty_fmt_meta',
     'pretty_fmt_results',
     'pretty_fmt_stats',
     'pretty_fmt_weights',
@@ -263,17 +264,27 @@ def pretty_fmt_weights(weights, ident=0):
 
     if len(weights) > 0:
         name_len = max(len(v['position']) for v in weights) + 3
-        mean_len = max(len('% .6f' % v['value']['mean']) for v in weights)
-        std_len = max(len('%.6f' % v['value']['std']) for v in weights)
-        N_len = max(len('%d' % v['value']['N']) for v in weights)
-        fmt = '{ "mean": %%%d.6f, "std": %%%d.6f, "N": %%%dd }' % (mean_len, std_len, N_len)
+        if isinstance(weights[0]['value'], dict):
+            mean_len = max(len('% .6f' % v['value']['mean']) for v in weights)
+            std_len = max(len('%.6f' % v['value']['std']) for v in weights)
+            N_len = max(len('%d' % v['value']['N']) for v in weights)
+            fmt = '{ "mean": %%%d.6f, "std": %%%d.6f, "N": %%%dd }' % (mean_len, std_len, N_len)
+        elif isinstance(weights[0]['value'], int):
+            val_len = max(len('% d' % v['value']) for v in weights)
+            fmt = '%% %dd' % val_len
+        else:
+            raise RuntimeError('someone is fucking with us')
         output = (prefix + '  { "position": %-*s "value": %s }' % (
             name_len, '"%s",' % v['position'],
             fmt % (
-                v['value']['mean'],
-                v['value']['std'],
-                v['value']['N']
-            ),
+                (
+                    v['value']['mean'],
+                    v['value']['std'],
+                    v['value']['N']
+                ) if isinstance(v['value'], dict) else (
+                    v['value']
+                )
+            )
         ) for v in sorted(weights, key=lambda x: int(re.sub(r'[a-zA-Z\[\]]+', '', x['position']))))
 
     return buf + ',\n'.join(output) + '\n' + prefix + ']'
@@ -310,6 +321,7 @@ def pretty_fmt_results(results):
     ret += pretty_fmt_stats(results['statistics'], 1) + ',\n'
     ret += pretty_fmt_weights(results['weights'], 1) + '\n}'
     return ret
+
 
 def extract_feature_weights(instance):
     return {

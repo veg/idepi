@@ -33,7 +33,7 @@ from optparse import OptionParser
 from os import close, remove, rename
 from os.path import abspath, basename, exists, join, split, splitext
 from random import gauss, random, seed
-from re import sub, match
+from re import compile as re_compile
 from tempfile import mkstemp
 
 import numpy as np
@@ -44,10 +44,11 @@ from Bio.SeqRecord import SeqRecord
 
 from idepi import (Alphabet, ClassExtractor, DumbSimulation, Hmmer, LinearSvm,
                    MarkovSimulation, NaiveFilter, NormalValue, PhyloFilter,
-                   SeqTable, Simulation, collect_seqrecords_from_db, crude_sto_read, cv_results_to_output,
-                   generate_alignment, get_valid_antibodies_from_db, IDEPI_LOGGER,
-                   get_valid_subtypes_from_db, is_HXB2, pretty_fmt_results, seqrecord_to_ic50s,
-                   set_util_params, __file__ as _idepi_file, __version__ as _idepi_version)
+                   SeqTable, Simulation, collect_seqrecords_from_db, crude_sto_read,
+                   cv_results_to_output, generate_alignment, get_valid_antibodies_from_db,
+                   IDEPI_LOGGER, get_valid_subtypes_from_db, is_HXB2, make_output_meta,
+                   pretty_fmt_meta, pretty_fmt_weights, seqrecord_to_ic50s, set_util_params,
+                   __file__ as _idepi_file, __version__ as _idepi_version)
 
 from mrmr import MRMR_LOGGER, DiscreteMrmr, PhyloMrmr
 
@@ -273,7 +274,7 @@ def run_tests():
                                x >  OPTIONS.IC50GT),
                     False
                 )
-                y, ic50gt = yextractor.extract(alignment)
+                y, ic50ge = yextractor.extract(alignment)
 
                 assert(np.all(_TEST_Y == y))
 
@@ -368,7 +369,8 @@ def main(argv=sys.argv):
 
     # validate the antibody argument, currently a hack exists to make PG9/PG16 work
     # TODO: Fix pg9/16 hax
-    antibody, fasta = args[1:]
+    antibody, oldseq = args[1:]
+
     valid_antibodies = sorted(get_valid_antibodies_from_db(OPTIONS.NEUT_SQLITE3_DB), key = lambda x: x.strip())
     if antibody not in valid_antibodies:
         if ' ' + antibody not in valid_antibodies:
@@ -415,7 +417,7 @@ def main(argv=sys.argv):
     fasta_basename = '_'.join((
         ab_basename,
         splitext(basename(OPTIONS.NEUT_SQLITE3_DB))[0],
-        splitext(basename(fasta))[0],
+        splitext(basename(oldseq))[0],
         __VERSION__
     ))
 
@@ -431,16 +433,32 @@ def main(argv=sys.argv):
 
     alignment, refseq_offs = generate_alignment(seqrecords, alignment_basename, is_HXB2, OPTIONS)
 
-    fasta_stofile = fasta_basename + '.sto'
-    if not exists(fasta_stofile):
-        hmmer = Hmmer(OPTIONS.HMMER_ALIGN_BIN, OPTIONS.HMMER_BUILD_BIN)
-        hmmer.align(
-            alignment_basename + '.hmm',
-            fasta,
-            output=fasta_stofile,
-            alphabet=Hmmer.DNA if OPTIONS.DNA else Hmmer.AMINO,
-            outformat=Hmmer.PFAM
-        )
+    seqfiletype = 'stockholm' if splitext(oldseq)[1].find('sto') == 0 else 'fasta'
+
+    # create a temporary file wherein space characters have been removed
+    try:
+        fd, tmpseq = mkstemp(); close(fd)
+        with open(oldseq) as oldfh, open(tmpseq, 'w') as tmpfh:
+            def spaceless_seqrecord(record):
+                spaces = re_compile(r'[-._]+')
+                record.seq = Seq(spaces.sub('', str(record.seq)), record.seq.alphabet)
+                return record
+            SeqIO.write((spaceless_seqrecord(record) for record in SeqIO.parse(oldfh, seqfiletype)), tmpfh, 'fasta')
+
+        fasta_stofile = fasta_basename + '.sto'
+        if not exists(fasta_stofile):
+            hmmer = Hmmer(OPTIONS.HMMER_ALIGN_BIN, OPTIONS.HMMER_BUILD_BIN)
+            hmmer.align(
+                alignment_basename + '.hmm',
+                tmpseq,
+                output=fasta_stofile,
+                alphabet=Hmmer.DNA if OPTIONS.DNA else Hmmer.AMINO,
+                outformat=Hmmer.PFAM
+            )
+    finally:
+        if exists(tmpseq):
+            remove(tmpseq)
+
     fasta_aln, _ = crude_sto_read(fasta_stofile, None, OPTIONS.DNA)
 
     assert(alignment.get_alignment_length() == fasta_aln.get_alignment_length())
@@ -479,7 +497,13 @@ def main(argv=sys.argv):
                        x >  OPTIONS.IC50GT),
             autobalance
         )
-        yt, ic50gt = yextractor.extract(alignment)
+        yt, ic50ge = yextractor.extract(alignment)
+        assert(
+            (ic50ge is None and not autobalance) or
+            (ic50ge is not None and autobalance)
+        )
+        if autobalance:
+            OPTIONS.IC50GT = ic50ge
 
         optstat = DiscretePerfStats.MINSTAT
         if OPTIONS.ACCURACY:
@@ -522,11 +546,20 @@ def main(argv=sys.argv):
                 'folds': OPTIONS.CV_FOLDS-1,
                 'scorer_cls': DiscretePerfStats,
                 'scorer_kwargs': { 'optstat': optstat }
-            }
+            },
+            weights_func='weights' # we MUST specify this or it will be set to lambda: None
         )
 
         sgs.learn(xt, yt)
         yp = sgs.predict(xp).astype(int)
+
+        sgs_weights = sgs.weights()
+        sgs_features = sgs.features()
+
+        weights = [{
+            'position': colnames[featidx],
+            'value': int(copysign(1, sgs_weights[idx])) if idx < len(sgs_weights) else 0
+        } for idx, featidx in enumerate(sgs_features)]
 
         # print stats and results:
 #         print('********************* REPORT FOR ANTIBODY %s IC50 %s *********************' % \
@@ -537,31 +570,22 @@ def main(argv=sys.argv):
 #         else:
 #             fmt = ('%d-run ' % OPTIONS.SIM_RUNS, OPTIONS.CV_FOLDS, ' per run')
 
-        meta = {
-            'meta': {
-                'antibody': antibody,
-                'discriminator': {
-                    'orientation': target,
-                    'threshold': OPTIONS.IC50LT if target in ('le', 'lt') else OPTIONS.IC50GT
-                },
-                'balance': np.mean(yp)
-            }
-        }
+        meta = make_output_meta(OPTIONS, len(alignment)-1, np.mean(yt), target, antibody)
 
         output = StringIO()
 
-        print('''{
-    "meta": {
-        "antibody":      "%s",
-        "balance":        %g,
-        "discriminator":  { "operator": "%s", "threshold": %g }
-    },''' % (antibody, np.mean(yp), target, OPTIONS.IC50LT if target in ('le', 'lt') else OPTIONS.IC50GT), file=output)
+        print('{\n' + pretty_fmt_meta(meta, 1) + ',', file=output)
+        print(pretty_fmt_weights(weights, 1) + ',', file=output)
 
-        print('    "predictions": {', file=output)
-        rowlen = max([len(row.id) + 3 for row in fasta_aln])
-        for i, row in enumerate(fasta_aln):
-            print('        %-*s %d' % (rowlen, '"%s":' % row.id, yp[i]) + (',' if i+1 < len(fasta_aln) else ''), file=output) # +1 to prevent trailing commas
-        print('    }\n}', file=output)
+        print('  "predictions": {', file=output)
+        rowlen = max([len(row.id) + 3 for row in fasta_aln if not is_HXB2(row)])
+        i = 0
+        for row in fasta_aln:
+            if is_HXB2(row):
+                continue
+            print('    %-*s %d' % (rowlen, '"%s":' % row.id, yp[i]) + (',' if i+1 < len(fasta_aln) else ''), file=output) # +1 to prevent trailing commas
+            i += 1
+        print('  }\n}', end='', file=output)
 
         if OPTIONS.OUTPUT is None:
             print(output.getvalue())

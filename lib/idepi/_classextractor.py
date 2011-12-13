@@ -73,17 +73,25 @@ class ClassExtractor(object):
         # try to balance the data
         if autobalance:
             vals = allvals
+            classes = old_classes = None
             median = np_median([row[0][0] for row in vals if len(row) == 1])
-            classes, old_classes = None, None
+            ratio = old_ratio = None
 
             # only do this ten thousand times at most
             iteration = 0
             while iteration < 1000:
                 iteration += 1
                 vals = [[(x, x >= median) for x, c in row] for row in vals]
-                classes = [set(c for x, c in row) for row in vals]
-                # break if we stop making new classes for things
+                classes = [set(c for _, c in row) for row in vals]
+                ratio = sum(1. if True in s else 0. for s in classes if len(s) == 1)
+                # break if we stop changing class evaluation
                 if old_classes is not None and classes == old_classes:
+                    break
+                # if the old ratio resulted in a better partitioning,
+                # then keep that result and terminate, otherwise keep trying.
+                elif old_ratio is not None and abs(0.5 - old_ratio) < abs(0.5 - ratio):
+                    classes = old_classes
+                    ratio = old_ratio
                     break
                 else:
                     old_classes = classes
@@ -134,7 +142,7 @@ class ClassExtractor(object):
                 # so kv[1] is the revsorted list [(ic50, klass), ...],
                 # and kv[1][0][0] is the largest ic50 value for key k
                 kv = max(ambigs.items(), key=lambda kv: kv[1][0][0])
-                idx, klass = kv[0], kv[1], kv[1][0][1]
+                idx, klass = kv[0], kv[1][0][1]
                 y[idx] = klass
                 del ambigs[idx]
             # remaining are to be left at 0
