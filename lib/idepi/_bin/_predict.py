@@ -442,22 +442,21 @@ def main(argv=sys.argv):
     try:
         fd, tmpseq = mkstemp(); close(fd)
         with open(oldseq) as oldfh, open(tmpseq, 'w') as tmpfh:
+            re_spaces = re_compile(r'[-._]+')
             def spaceless_seqrecord(record):
-                spaces = re_compile(r'[-._]+')
-                record.seq = Seq(spaces.sub('', str(record.seq)), record.seq.alphabet)
+                record.seq = Seq(re_spaces.sub('', str(record.seq)), record.seq.alphabet)
                 return record
-            SeqIO.write((spaceless_seqrecord(record) for record in SeqIO.parse(oldfh, seqfiletype)), tmpfh, 'fasta')
+            SeqIO.write([spaceless_seqrecord(record) for record in SeqIO.parse(oldfh, seqfiletype)], tmpfh, 'fasta')
 
         fasta_stofile = fasta_basename + '.sto'
-        if not exists(fasta_stofile):
-            hmmer = Hmmer(OPTIONS.HMMER_ALIGN_BIN, OPTIONS.HMMER_BUILD_BIN)
-            hmmer.align(
-                alignment_basename + '.hmm',
-                tmpseq,
-                output=fasta_stofile,
-                alphabet=Hmmer.DNA if OPTIONS.DNA else Hmmer.AMINO,
-                outformat=Hmmer.PFAM
-            )
+        hmmer = Hmmer(OPTIONS.HMMER_ALIGN_BIN, OPTIONS.HMMER_BUILD_BIN)
+        hmmer.align(
+            alignment_basename + '.hmm',
+            tmpseq,
+            output=fasta_stofile,
+            alphabet=Hmmer.DNA if OPTIONS.DNA else Hmmer.AMINO,
+            outformat=Hmmer.PFAM
+        )
     finally:
         if exists(tmpseq):
             remove(tmpseq)
@@ -583,10 +582,12 @@ def main(argv=sys.argv):
         print('  "predictions": {', file=output)
         rowlen = max([len(row.id) + 3 for row in fasta_aln if not is_HXB2(row)])
         i = 0
+        off = 0
         for row in fasta_aln:
             if is_HXB2(row):
+                off += 1
                 continue
-            print('    %-*s %d' % (rowlen, '"%s":' % row.id, yp[i]) + (',' if i+1 < len(fasta_aln) else ''), file=output) # +1 to prevent trailing commas
+            print('    %-*s %d' % (rowlen, '"%s":' % row.id, yp[i]) + (',' if (i + off + 1) < len(fasta_aln) else ''), file=output) # +1 to prevent trailing commas
             i += 1
         print('  }\n}', end='', file=output)
 
