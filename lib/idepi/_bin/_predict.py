@@ -115,7 +115,7 @@ def optparse_csv(option, opt_str, value, parser):
 
 def setup_option_parser():
 
-    parser = OptionParser(usage = '%prog [options] ANTIBODY FASTA')
+    parser = OptionParser(usage = '%prog [options] ANTIBODY SEQUENCES')
 
     #                 option             action = 'store'      callback                  type           nargs=1  dest
     parser.add_option('--hmmalign',                                                      type='string',          dest='HMMER_ALIGN_BIN')
@@ -336,9 +336,9 @@ def main(argv=sys.argv):
         seed(OPTIONS.RAND_SEED)
 
     if len(args) < 2 or len(args) > 3:
-        option_parser.error('ANTIBODY and FASTA are%srequired arguments' % (' the only ' if len(args) > 3 else ' '))
+        option_parser.error('ANTIBODY and SEQUENCES are%srequired arguments' % (' the only ' if len(args) > 3 else ' '))
     if len(args) < 3:
-        option_parser.error('FASTA is a required argument')
+        option_parser.error('SEQUENCES is a required argument')
 
     autobalance = False
     if OPTIONS.TARGETS == ['auto']:
@@ -377,6 +377,9 @@ def main(argv=sys.argv):
             option_parser.error('%s not in the list of permitted antibodies: \n  %s' % (antibody, '\n  '.join([ab.strip() for ab in valid_antibodies])))
         else:
             antibody = ' ' + antibody
+
+    if not exists(oldseq):
+        option_parser.error('SEQUENCES file "%s" does not exist!' % oldseq)
 
     # validate the subtype option
     valid_subtypes = sorted(get_valid_subtypes_from_db(OPTIONS.NEUT_SQLITE3_DB), key = lambda x: x.strip().upper())
