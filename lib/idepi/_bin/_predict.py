@@ -53,7 +53,7 @@ from idepi import (Alphabet, ClassExtractor, DumbSimulation, Hmmer, LinearSvm,
 
 from mrmr import MRMR_LOGGER, DiscreteMrmr, PhyloMrmr
 
-from pyxval import CrossValidator, DiscretePerfStats, SelectingGridSearcher
+from pyxval import PYXVAL_LOGGER, CrossValidator, DiscretePerfStats, SelectingGridSearcher
 
 
 __VERSION__ = _idepi_version
