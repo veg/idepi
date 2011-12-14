@@ -5,9 +5,6 @@ from ._alphabet import Alphabet
 from ._util import BASE_ALPH, base_10_to_n, base_26_to_alph
 
 
-__all__ = ['BaseFilter']
-
-
 class BaseFilter(object):
 
     def __init__(self):
@@ -16,7 +13,7 @@ class BaseFilter(object):
     # refseq_offs has for keys 0-indexed positions into the trimmed refseq
     # and for values the number of trimmed positions occuring immediately
     # before the key-index. This so the colfilter can properly name the
-    # positions according to the full reference sequence 
+    # positions according to the full reference sequence
     @staticmethod
     def _colnames(alignment, alphabet, ref_id_func, refseq_offs, ignore_idxs):
         ref = None

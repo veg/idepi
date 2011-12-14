@@ -44,7 +44,7 @@ from Bio.SeqRecord import SeqRecord
 from idepi import (Alphabet, ClassExtractor, NaiveFilter, PhyloFilter, Regressor,
                    collect_seqrecords_from_db, extract_feature_weights, cv_results_to_output,
                    generate_alignment, get_valid_antibodies_from_db, get_valid_subtypes_from_db,
-                   is_HXB2, regressor_classes, pretty_fmt_results, seqrecord_to_ic50s,
+                   is_HXB2, regressor_classes, pretty_fmt_results, seqrecord_get_ic50s,
                    set_util_params, __file__ as _idepi_file, __version__ as _idepi_version)
 
 from pyxval import ContinuousPerfStats, CrossValidator
@@ -222,7 +222,7 @@ def run_tests():
 
             # test mRMR and LSVM file generation
             yextractor = ClassExtractor(
-                seqrecord_to_ic50s,
+                seqrecord_get_ic50s,
                 lambda row: is_HXB2(row) or False, # TODO: again filtration function
             )
             y, ic50gt = yextractor.extract(alignment)
@@ -368,7 +368,7 @@ def main(argv=sys.argv):
     colnames, x = colfilter.learn(alignment, refseq_offs)
 
     yextractor = ClassExtractor(
-        seqrecord_to_ic50s,
+        seqrecord_get_ic50s,
         lambda row: is_HXB2(row) or False, # TODO: again filtration function
     )
     y, ic50gt = yextractor.extract(alignment)

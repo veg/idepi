@@ -48,8 +48,9 @@ __all__ = [
     'set_util_params',
     'is_testdata',
     'is_HXB2',
-    'seqrecord_to_ic50s',
-    'seqrecord_to_subtype',
+    'seqrecord_get_ic50s',
+    'seqrecord_get_subtype',
+    'seqrecord_set_ic50',
     'get_noise',
     'get_valid_antibodies_from_db',
     'get_valid_subtypes_from_db',
@@ -111,7 +112,7 @@ def is_HXB2(seqrecord):
     return False
 
 
-def seqrecord_to_ic50s(seqrecord):
+def seqrecord_get_ic50s(seqrecord):
     # cap ic50s to 25
     try:
         ic50s = [
@@ -122,7 +123,7 @@ def seqrecord_to_ic50s(seqrecord):
     return ic50s
 
 
-def seqrecord_to_subtype(seqrecord):
+def seqrecord_get_subtype(seqrecord):
     try:
         subtype = seqrecord.description.rsplit('|', 2)[0].upper()
     except ValueError:
@@ -130,9 +131,18 @@ def seqrecord_to_subtype(seqrecord):
     return subtype
 
 
+def seqrecord_set_ic50(seqrecord, ic50):
+    vals = seqrecord.description.rsplit('|', 2)
+    while len(vals) < 3:
+        vals.append('')
+    vals[2] = str(ic50)
+    seqrecord.description = '|'.join(vals)
+    return seqrecord
+
+
 def get_noise(seqrecord):
     # just return the "mean" as noise
-    return np.mean(seqrecord_to_ic50s(seqrecord.description))
+    return np.mean(seqrecord_get_ic50s(seqrecord.description))
 
 
 def base_10_to_n(n, N):

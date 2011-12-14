@@ -36,7 +36,8 @@ __all__ = [
     'pretty_fmt_results',
     'pretty_fmt_stats',
     'pretty_fmt_weights',
-    'extract_feature_weights'
+    'extract_feature_weights',
+    'column_labels'
 ]
 
 
@@ -328,3 +329,20 @@ def extract_feature_weights(instance):
         'features': instance.features(),
         'weights': instance.classifier.weights()
     }
+
+
+def column_labels(refseq, refseq_offs={}):
+    if isinstance(refseq, str):
+        ref = refseq
+    elif isinstance(refseq, SeqRecord):
+        ref = str(refseq.seq)
+    colnames = []
+    colnum = 1
+    for i, p in enumerate(ref):
+        if i in refseq_offs:
+            colnum += refseq_offs[i]
+        if ref[i] not in '._-':
+            colname = p + str(colnum)
+            colnames.append(colname)
+            colnum += 1
+    return colnames

@@ -7,9 +7,7 @@ from re import compile as re_compile
 from sys import argv as sys_argv, exit as sys_exit, stderr, stdout
 
 
-from Bio import SeqIO
-
-from idepi import Phylo, is_HXB2
+from idepi import Alphabet, Phylo, PhyloGzFile, column_labels, crude_sto_read, is_HXB2
 
 
 def main(argv=sys_argv):
@@ -21,27 +19,18 @@ def main(argv=sys_argv):
         print('usage: %s ALIGNMENT OUTPUT' % name, file=stderr)
         sys_exit(-1)
 
-    with open(argv[0]) as fh:
-        seqrecords = [r for r in SeqIO.parse(fh, 'stockholm')]
+    msa, refseq_offs = crude_sto_read(argv[0], is_HXB2)
 
-    refseq = None
-    for i, r in enumerate(seqrecords):
-        if is_HXB2(r):
-            refseq = str(seqrecords[i].seq).upper()
-            del seqrecords[i]
-            break
+    try:
+        refseq = [r for r in msa if is_HXB2(r)][0]
+    except IndexError:
+        raise RuntimeError('No reference sequence found!')
 
-    if refseq is None:
-        raise RuntimeError('no reference sequence was found in the alignment, aborting')
+    seqrecords = [r for r in msa if not is_HXB2(r)]
 
     tree, alignment = Phylo()(seqrecords)
 
-    with GzipFile(argv[1], 'wb') as fh:
-        fh.write(bytes('\n'.join(['BEGIN NEWICK', tree, 'END NEWICK', 'BEGIN FASTA', '']), 'utf-8'))
-        with StringIO() as fh2:
-            SeqIO.write(alignment, fh2, 'fasta')
-            fh.write(bytes(fh2.getvalue().strip(), 'utf-8'))
-        fh.write(bytes('\n'.join(['', 'END FASTA', 'BEGIN REFSEQ', refseq, 'END REFSEQ']), 'utf-8'))
+    PhyloGzFile.write(argv[1], tree, alignment, column_labels(refseq, refseq_offs))
 
     return 0
 

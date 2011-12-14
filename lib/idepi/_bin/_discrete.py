@@ -44,7 +44,7 @@ from idepi import (Alphabet, ClassExtractor, DumbSimulation, LinearSvm, MarkovSi
                    PhyloFilter, SeqTable, Simulation, collect_seqrecords_from_db, cv_results_to_output,
                    extract_feature_weights, generate_alignment, get_valid_antibodies_from_db, IDEPI_LOGGER,
                    get_valid_subtypes_from_db, is_HXB2, make_output_meta, pretty_fmt_results,
-                   seqrecord_to_ic50s, set_util_params, __file__ as _idepi_file,
+                   seqrecord_get_ic50s, set_util_params, __file__ as _idepi_file,
                    __version__ as _idepi_version)
 
 from mrmr import MRMR_LOGGER, DiscreteMrmr, PhyloMrmr
@@ -279,7 +279,7 @@ def run_tests():
             # test mRMR and LSVM file generation
             for target in OPTIONS.TARGETS:
                 yextractor = ClassExtractor(
-                    seqrecord_to_ic50s,
+                    seqrecord_get_ic50s,
                     lambda row: is_HXB2(row) or False, # TODO: again filtration function
                     lambda x: (x <= OPTIONS.IC50LT if target == 'le' else
                                x <  OPTIONS.IC50LT if target == 'lt' else
@@ -526,7 +526,7 @@ def main(argv=sys.argv):
 
             if sim is None:
                 yextractor = ClassExtractor(
-                    seqrecord_to_ic50s,
+                    seqrecord_get_ic50s,
                     lambda row: is_HXB2(row) or False, # TODO: again filtration function
                     lambda x: (x <= OPTIONS.IC50LT if target == 'le' else
                                x <  OPTIONS.IC50LT if target == 'lt' else

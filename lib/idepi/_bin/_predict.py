@@ -43,11 +43,12 @@ from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
 from idepi import (Alphabet, ClassExtractor, DumbSimulation, Hmmer, LinearSvm,
-                   MarkovSimulation, NaiveFilter, NormalValue, PhyloFilter,
-                   SeqTable, Simulation, collect_seqrecords_from_db, crude_sto_read,
-                   cv_results_to_output, generate_alignment, get_valid_antibodies_from_db,
-                   IDEPI_LOGGER, get_valid_subtypes_from_db, is_HXB2, make_output_meta,
-                   pretty_fmt_meta, pretty_fmt_weights, seqrecord_to_ic50s, set_util_params,
+                   MarkovSimulation, NaiveFilter, NormalValue, Phylo, PhyloFilter,
+                   PhyloGzFile, SeqTable, Simulation, collect_seqrecords_from_db,
+                   column_labels, crude_sto_read, cv_results_to_output, generate_alignment,
+                   get_valid_antibodies_from_db, IDEPI_LOGGER, get_valid_subtypes_from_db,
+                   is_HXB2, make_output_meta, pretty_fmt_meta, pretty_fmt_weights,
+                   seqrecord_get_ic50s, seqrecord_set_ic50, set_util_params,
                    __file__ as _idepi_file, __version__ as _idepi_version)
 
 from mrmr import MRMR_LOGGER, DiscreteMrmr, PhyloMrmr
@@ -160,6 +161,7 @@ def setup_option_parser():
     parser.add_option('--test',          action='store_true',                                                    dest='TEST')
     parser.add_option('--seed',                                                          type='int',             dest='RAND_SEED')
     parser.add_option('--phylofilt',     action='store_true',                                                    dest='PHYLOFILTER')
+    parser.add_option('--tree',                                                          type='string',          dest='TREE')
     parser.add_option('-o', '--output',                                                  type='string',          dest='OUTPUT')
 
     parser.set_defaults(HMMER_ALIGN_BIN    = 'hmmalign')
@@ -197,6 +199,7 @@ def setup_option_parser():
     parser.set_defaults(HXB2_IDS           = ['9629357', '9629363'])
     parser.set_defaults(RAND_SEED          = 42) # magic number for determinism
     parser.set_defaults(PHYLOFILTER        = False)
+    parser.set_defaults(TREE               = None)
     parser.set_defaults(OUTPUT             = None)
 
     return parser
@@ -266,7 +269,7 @@ def run_tests():
             # test mRMR and LSVM file generation
             for target in OPTIONS.TARGETS:
                 yextractor = ClassExtractor(
-                    seqrecord_to_ic50s,
+                    seqrecord_get_ic50s,
                     lambda row: is_HXB2(row) or False, # TODO: again filtration function
                     lambda x: (x <= OPTIONS.IC50LT if target == 'le' else
                                x <  OPTIONS.IC50LT if target == 'lt' else
@@ -488,13 +491,16 @@ def main(argv=sys.argv):
         )
 
     colnames, xt = colfilter.learn(alignment, refseq_offs)
+    fasta_len = sum(1 for r in fasta_aln if not is_HXB2(r))
+    if OPTIONS.TREE is not None:
+        tree, fasta_aln = Phylo()([r for r in fasta_aln if not is_HXB2(r)])
     xp = colfilter.filter(fasta_aln)
 
     # compute features
     for target in OPTIONS.TARGETS:
 
         yextractor = ClassExtractor(
-            seqrecord_to_ic50s,
+            seqrecord_get_ic50s,
             lambda row: is_HXB2(row) or False, # TODO: again filtration function
             lambda x: (x <= OPTIONS.IC50LT if target == 'le' else
                        x <  OPTIONS.IC50LT if target == 'lt' else
@@ -577,20 +583,28 @@ def main(argv=sys.argv):
 
         meta = make_output_meta(OPTIONS, len(alignment)-1, np.mean(yt), target, antibody)
 
+        if OPTIONS.TREE is not None:
+            try:
+                refseq = [r for r in alignment if is_HXB2(r)][0]
+            except IndexError:
+                raise RuntimeError('Reference sequence not found!')
+            tree_seqrecords = [seqrecord_set_ic50(r, yp[i]) for i, r in enumerate(fasta_aln)]
+            PhyloGzFile.write(OPTIONS.TREE, tree, tree_seqrecords, column_labels(refseq, refseq_offs), meta)
+
         output = StringIO()
 
         print('{\n' + pretty_fmt_meta(meta, 1) + ',', file=output)
         print(pretty_fmt_weights(weights, 1) + ',', file=output)
 
         print('  "predictions": {', file=output)
-        rowlen = max([len(row.id) + 3 for row in fasta_aln if not is_HXB2(row)])
+        rowlen = max([len(row.id) + 3 for i, row in enumerate(r for r in fasta_aln if not is_HXB2(r)) if i < fasta_len])
         i = 0
-        off = 0
         for row in fasta_aln:
+            if i >= fasta_len:
+                break
             if is_HXB2(row):
-                off += 1
                 continue
-            print('    %-*s %d' % (rowlen, '"%s":' % row.id, yp[i]) + (',' if (i + off + 1) < len(fasta_aln) else ''), file=output) # +1 to prevent trailing commas
+            print('    %-*s %d' % (rowlen, '"%s":' % row.id, yp[i]) + (',' if (i + 1) < fasta_len else ''), file=output) # +1 to prevent trailing commas
             i += 1
         print('  }\n}', end='', file=output)
 

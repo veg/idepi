@@ -8,7 +8,7 @@ from re import compile as re_compile, I as re_I
 from sys import stderr
 from tempfile import mkstemp
 
-from Bio import SeqIO
+from Bio import AlignIO, SeqIO
 
 from hypy import HyphyInterface
 
@@ -44,11 +44,13 @@ class Phylo(HyphyInterface):
         with open(self.__inputfile, 'w') as fh:
             SeqIO.write(seqs, fh, 'fasta')
 
-        ids = {}
+        newick_mangle = re_compile(r'[()]')
+
+        id_descs = {}
         mangle = re_compile(r'[^a-zA-Z0-9]+', re_I)
         for r in seqs:
-            newid = mangle.sub('_', r.id).rstrip('_')
-            ids[newid] = r.id
+            newid = mangle.sub('_', '_'.join((r.id, r.description))).rstrip('_')
+            id_descs[newid] = (newick_mangle.sub('_', r.id).strip('_'), r.description)
 
         self.queuevar('_inputFile', self.__inputfile)
         self.runqueue()
@@ -65,14 +67,21 @@ class Phylo(HyphyInterface):
         tree = self.getvar('tree', HyphyInterface.STRING)
         with closing(StringIO(self.getvar('ancestors', HyphyInterface.STRING))) as fh:
             fh.seek(0)
-            ancestors = [r for r in SeqIO.parse(fh, 'fasta')]
+            ancestors = AlignIO.read(fh, 'fasta')
+
+        hyphymangling = re_compile(r'_[0-9]+$')
 
         for r in ancestors:
             key = r.id.rstrip('_unknown_description_').rstrip('_')
-            if key in ids:
-                newid = ids[key]
-                tree = tree.replace(r.id, newid)
-                r.id = newid
+            if key not in id_descs:
+                key = hyphymangling.sub('', key)
+                if key not in id_descs:
+                    continue
+            # if the key exists, replace
+            oldid, olddesc = id_descs[key]
+            tree = tree.replace(r.id, oldid)
+            r.id = oldid
+            r.description = olddesc
 
         if tree[-1] != ';':
             tree += ';'
