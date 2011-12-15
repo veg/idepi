@@ -24,6 +24,7 @@ from ._hmmer import Hmmer
 from ._logging import IDEPI_LOGGER
 from ._normalvalue import NormalValue
 from ._simulation import Simulation
+from ._util import BASE_ALPH, base_10_to_n, base_26_to_alph
 
 
 __all__ = [
@@ -337,12 +338,16 @@ def column_labels(refseq, refseq_offs={}):
     elif isinstance(refseq, SeqRecord):
         ref = str(refseq.seq)
     colnames = []
-    colnum = 1
+    colnum = 0
+    insert = 0
     for i, p in enumerate(ref):
         if i in refseq_offs:
             colnum += refseq_offs[i]
         if ref[i] not in '._-':
-            colname = p + str(colnum)
-            colnames.append(colname)
             colnum += 1
+            insert = 0
+        else:
+            insert += 1
+        colname = '%s%d%s' % (p if insert == 0 else '', colnum, base_26_to_alph(base_10_to_n(insert, BASE_ALPH)))
+        colnames.append(colname)
     return colnames

@@ -45,7 +45,7 @@ def main(argv=sys_argv):
                 print(r)
             labels.pop(0)
         # include the ':' here to make sure we grab the end of the label
-        tree = re_sub(r.id + r'(?:_[0-9]+)?:', '_'.join(labels) + ':', tree)
+        tree = re_sub(r'([,()])' + r.id + r'(?:_[0-9]+)?:', r'\g<1>' + '_'.join(labels) + ':', tree)
 
     print(tree)
 
