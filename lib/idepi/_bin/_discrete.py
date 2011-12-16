@@ -42,10 +42,10 @@ from Bio.SeqRecord import SeqRecord
 
 from idepi import (Alphabet, ClassExtractor, DumbSimulation, LinearSvm, MarkovSimulation, NaiveFilter,
                    PhyloFilter, SeqTable, Simulation, collect_seqrecords_from_db, cv_results_to_output,
-                   extract_feature_weights, generate_alignment, get_valid_antibodies_from_db, IDEPI_LOGGER,
-                   get_valid_subtypes_from_db, is_HXB2, make_output_meta, pretty_fmt_results,
-                   seqrecord_get_ic50s, set_util_params, __file__ as _idepi_file,
-                   __version__ as _idepi_version)
+                   extract_feature_weights, extract_feature_weights_similar, generate_alignment,
+                   get_valid_antibodies_from_db, IDEPI_LOGGER, get_valid_subtypes_from_db, is_HXB2,
+                   make_output_meta, pretty_fmt_results, seqrecord_get_ic50s, set_util_params,
+                   __file__ as _idepi_file, __version__ as _idepi_version)
 
 from mrmr import MRMR_LOGGER, DiscreteMrmr, PhyloMrmr
 
@@ -360,6 +360,10 @@ def main(argv=sys.argv):
     if OPTIONS.RAND_SEED is not None:
         seed(OPTIONS.RAND_SEED)
 
+    similar = True
+    if OPTIONS.MAXREL:
+        similar = False
+
     if len(args) != 2:
         option_parser.error('ANTIBODY is a required argument')
 
@@ -625,7 +629,11 @@ def main(argv=sys.argv):
                     weights_func='weights' # we MUST specify this or it will be set to lambda: None
                 )
 
-                new_results = crossvalidator.crossvalidate(x, y, classifier_kwargs={}, extra=extract_feature_weights)
+                new_results = crossvalidator.crossvalidate(
+                    x, y,
+                    classifier_kwargs={},
+                    extra=extract_feature_weights_similar if similar else extract_feature_weights
+                )
 
                 if results is not None and new_results.stats.get() <= results.stats.get():
                     break
@@ -636,13 +644,13 @@ def main(argv=sys.argv):
         # the alignment reflects the number of sequences either naturally,
         # or through SIM_EPI_N, which reflects the natural number anyway, less the refseq
         meta = make_output_meta(OPTIONS, len(alignment)-1, np.mean(y), target, antibody, forward_select)
-        ret = cv_results_to_output(results, colnames, meta)
+        ret = cv_results_to_output(results, colnames, meta, similar)
 
         if isinstance(OPTIONS.OUTPUT, str):
             with open(OPTIONS.OUTPUT, 'w') as fh:
-                print(pretty_fmt_results(ret), file=fh)
+                print(pretty_fmt_results(ret, similar), file=fh)
         else:
-            print(pretty_fmt_results(ret))
+            print(pretty_fmt_results(ret, similar))
 
     return 0
 

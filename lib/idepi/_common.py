@@ -1,6 +1,4 @@
 
-import re
-
 from collections import namedtuple
 from io import StringIO
 from logging import getLogger
@@ -8,6 +6,7 @@ from math import copysign, sqrt
 from operator import itemgetter
 from os import close, remove, rename
 from os.path import exists
+from re import compile as re_compile, sub as re_sub
 from shutil import copyfile
 from sys import stderr, stdout
 from tempfile import mkstemp
@@ -37,6 +36,7 @@ __all__ = [
     'pretty_fmt_results',
     'pretty_fmt_stats',
     'pretty_fmt_weights',
+    'extract_feature_weights_similar',
     'extract_feature_weights',
     'column_labels'
 ]
@@ -68,8 +68,8 @@ def crude_sto_read(filename, ref_id_func=None, dna=False):
     alph = Gapped(generic_nucleotide if dna else generic_protein)
     refseq = None
     with open(filename) as fh, StringIO() as tmp:
-        notrel = re.compile(r'^(?:#|#=|//)')
-        trim = re.compile(r'[^-A-Z]')
+        notrel = re_compile(r'^(?:#|#=|//)')
+        trim = re_compile(r'[^-A-Z]')
         for line in (line.strip() for line in fh):
             if notrel.match(line) or line == '':
                 # don't print the GR lines, they won't match anymore after trimming
@@ -178,7 +178,7 @@ def generate_alignment(seqrecords, my_basename, ref_id_func, opts):
     return crude_sto_read(sto_filename, ref_id_func, opts.DNA)
 
 
-def cv_results_to_output(results, colnames, meta=None):
+def cv_results_to_output(results, colnames, meta=None, similar=True):
 
     statsdict = results.stats.todict()
 
@@ -186,27 +186,27 @@ def cv_results_to_output(results, colnames, meta=None):
     if 'Minstat' in statsdict:
         del statsdict['Minstat']
 
-    featureweights = {}
+    idxnames = {}
+    weightsdict = {}
 
     for i in range(len(results.extra)):
         assert(len(results.extra[i]['features']) >= len(results.extra[i]['weights']))
         for j in range(len(results.extra[i]['features'])):
             v = results.extra[i]['weights'][j] if j < len(results.extra[i]['weights']) else 0.
             k = results.extra[i]['features'][j]
-            if k not in featureweights:
-                featureweights[k] = []
-            featureweights[k].append(int(copysign(1, v)))
-
-    weightsdict = {}
-    for idx, weights in featureweights.items():
-        val = NormalValue(int, weights)
-        weightsdict[colnames[idx]] = val
+            r = set(results.extra[i]['similar'][k]) if similar else None
+            name = colnames[k]
+            idxnames[k] = name
+            if name not in weightsdict:
+                weightsdict[name] = (NormalValue(int), set())
+            weightsdict[name][0].append(int(copysign(1, v)))
+            weightsdict[name][1].update(r)
 
     log = getLogger(MRMR_LOGGER)
     log.debug('mrmr index to name map: {%s}' % ', '.join(
         "%d: '%s'" % (
             idx, colnames[idx]
-        ) for idx in sorted(featureweights.keys())
+        ) for idx, name in sorted(idxnames.items(), key=itemgetter(0))
     ))
 
     ret = {}
@@ -214,11 +214,18 @@ def cv_results_to_output(results, colnames, meta=None):
     if meta is not None:
         ret['meta'] = meta
 
+    numeric = re_compile(r'[^0-9]+')
+
     ret['statistics'] = dict((k, { 'mean': v.mu, 'std': sqrt(v.sigma) }) for k, v in statsdict.items())
-    ret['weights'] = [{ 'position': k, 'value': { 'mean': v.mu, 'std': sqrt(v.sigma), 'N': len(v) } } for k, v in sorted(
+    ret['weights'] = [{ 'position': k, 'value': { 'mean': v[0].mu, 'std': sqrt(v[0].sigma), 'N': len(v[0]) } } for k, v in sorted(
         weightsdict.items(),
-        key=lambda x: int(re.sub(r'[a-zA-Z\[\]]+', '', x[0]))
+        key=lambda x: int(numeric.sub('', x[0]))
     )]
+
+    if similar:
+        for i, kv in enumerate(sorted(weightsdict.items(), key=lambda x: int(numeric.sub('', x[0])))):
+            _, v = kv
+            ret['weights'][i]['similar'] = [colnames[j] for j in v[1]]
 
     return ret
 
@@ -259,12 +266,17 @@ def pretty_fmt_stats(stats, ident=0):
     return buf + ',\n'.join(output) + '\n' + prefix + '}'
 
 
-def pretty_fmt_weights(weights, ident=0):
+def pretty_fmt_weights(weights, ident=0, similar=True):
+    numeric = re_compile(r'[^0-9]+')
+    def weightkey(v):
+        return int(numeric.sub('', v['position']))
+
     prefix = ' ' * 2 * ident
 
     buf = prefix + '"weights": [\n'
 
     if len(weights) > 0:
+        similar = False if 'similar' not in weights[0] else similar
         name_len = max(len(v['position']) for v in weights) + 3
         if isinstance(weights[0]['value'], dict):
             mean_len = max(len('% .6f' % v['value']['mean']) for v in weights)
@@ -276,18 +288,34 @@ def pretty_fmt_weights(weights, ident=0):
             fmt = '%% %dd' % val_len
         else:
             raise RuntimeError('someone is fucking with us')
-        output = (prefix + '  { "position": %-*s "value": %s }' % (
-            name_len, '"%s",' % v['position'],
-            fmt % (
-                (
-                    v['value']['mean'],
-                    v['value']['std'],
-                    v['value']['N']
-                ) if isinstance(v['value'], dict) else (
-                    v['value']
+        if similar:
+            similar_len = max(len(', '.join('"%s"' % r for r in v['similar'])) for v in weights)
+            output = (prefix + '  { "position": %-*s "value": %s, "similar": [ %-*s ] }' % (
+                name_len, '"%s",' % v['position'],
+                fmt % (
+                    (
+                        v['value']['mean'],
+                        v['value']['std'],
+                        v['value']['N']
+                    ) if isinstance(v['value'], dict) else (
+                        v['value']
+                    )
+                ),
+                similar_len, ', '.join('"%s"' % r for r in sorted(v['similar'], key=weightkey))
+            ) for v in sorted(weights, key=weightkey))
+        else:
+            output = (prefix + '  { "position": %-*s "value": %s }' % (
+                name_len, '"%s",' % v['position'],
+                fmt % (
+                    (
+                        v['value']['mean'],
+                        v['value']['std'],
+                        v['value']['N']
+                    ) if isinstance(v['value'], dict) else (
+                        v['value']
+                    )
                 )
-            )
-        ) for v in sorted(weights, key=lambda x: int(re.sub(r'[a-zA-Z\[\]]+', '', x['position']))))
+            ) for v in sorted(weights, key=weightkey))
 
     return buf + ',\n'.join(output) + '\n' + prefix + ']'
 
@@ -317,19 +345,26 @@ def pretty_fmt_meta(meta, ident=0):
     return buf + ',\n'.join(output) + '\n' + prefix + '}'
 
 
-def pretty_fmt_results(results):
+def pretty_fmt_results(results, similar=True):
     ret = '{\n'
     ret += pretty_fmt_meta(results['meta'], 1) + ',\n' if 'meta' in results else ''
     ret += pretty_fmt_stats(results['statistics'], 1) + ',\n'
-    ret += pretty_fmt_weights(results['weights'], 1) + '\n}'
+    ret += pretty_fmt_weights(results['weights'], 1, similar) + '\n}'
+    return ret
+
+
+def extract_feature_weights_similar(instance, similar=True):
+    ret = {
+        'features': instance.features(),
+        'weights':  instance.classifier.weights()
+    }
+    if similar:
+        ret['similar'] = instance.selector.related()
     return ret
 
 
 def extract_feature_weights(instance):
-    return {
-        'features': instance.features(),
-        'weights': instance.classifier.weights()
-    }
+    return extract_feature_weights_similar(instance, False)
 
 
 def column_labels(refseq, refseq_offs={}):
