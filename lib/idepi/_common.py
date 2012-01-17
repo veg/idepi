@@ -194,7 +194,7 @@ def cv_results_to_output(results, colnames, meta=None, similar=True):
         for j in range(len(results.extra[i]['features'])):
             v = results.extra[i]['weights'][j] if j < len(results.extra[i]['weights']) else 0.
             k = results.extra[i]['features'][j]
-            r = set(results.extra[i]['similar'][k]) if similar else None
+            r = set([idx for idx, _ in results.extra[i]['similar'][k]]) if similar else None
             name = colnames[k]
             idxnames[k] = name
             if name not in weightsdict:
@@ -301,7 +301,7 @@ def pretty_fmt_weights(weights, ident=0, similar=True):
                         v['value']
                     )
                 ),
-                similar_len, ', '.join('"%s"' % r for r in sorted(v['similar'], key=weightkey))
+                similar_len, ', '.join('"%s"' % r for r in sorted(v['similar'], key=lambda v: int(numeric.sub('', v))))
             ) for v in sorted(weights, key=weightkey))
         else:
             output = (prefix + '  { "position": %-*s "value": %s }' % (
