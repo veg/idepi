@@ -74,7 +74,10 @@ class LinearSvm(object):
     def __del__(self):
         if self.__modelfile is not None:
             if exists(self.__modelfile):
-                remove(self.__modelfile)
+                try:
+                    remove(self.__modelfile)
+                except:
+                    print(self.__modelfile, file=stderr)
 
 
 class LinearSvmModel(object):
