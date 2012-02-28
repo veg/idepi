@@ -462,14 +462,17 @@ def main(argv=sys.argv):
             alphabet=Hmmer.DNA if OPTIONS.DNA else Hmmer.AMINO,
             outformat=Hmmer.PFAM
         )
-
     finally:
         if exists(tmpseq):
             remove(tmpseq)
 
     fasta_aln, _ = crude_sto_read(fasta_stofile, None, OPTIONS.DNA)
 
-    assert(alignment.get_alignment_length() == fasta_aln.get_alignment_length())
+    try:
+        assert(alignment.get_alignment_length() == fasta_aln.get_alignment_length())
+    except AssertionError:
+        print(alignment.get_alignment_length(), fasta_aln.get_alignment_length())
+        raise
 
     colfilter = None
     if OPTIONS.PHYLOFILTER:

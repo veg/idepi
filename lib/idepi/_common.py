@@ -1,6 +1,5 @@
 
 from collections import namedtuple
-from io import StringIO
 from logging import getLogger
 from math import copysign, sqrt
 from operator import itemgetter
@@ -11,8 +10,10 @@ from shutil import copyfile
 from sys import stderr, stdout
 from tempfile import mkstemp
 from unicodedata import combining
+from warnings import warn
 
 from Bio import AlignIO, SeqIO
+from Bio.Align import MultipleSeqAlignment
 from Bio.Alphabet import Gapped, generic_nucleotide, generic_protein
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
@@ -67,38 +68,41 @@ def crude_sto_read(filename, ref_id_func=None, dna=False):
     Fake = namedtuple('FakeSeqRecord', ['id'])
     alph = Gapped(generic_nucleotide if dna else generic_protein)
     refseq = None
-    with open(filename) as fh, StringIO() as tmp:
-        notrel = re_compile(r'^(?:#|#=|//)')
-        trim = re_compile(r'[^-A-Z]')
-        for line in (line.strip() for line in fh):
-            if notrel.match(line) or line == '':
-                # don't print the GR lines, they won't match anymore after trimming
-                if not line.startswith('#=GR') and not line.startswith('#=GC'):
-                    print(line, file=tmp)
+    msa = MultipleSeqAlignment([], alphabet=alph)
+    with open(filename) as fh:
+        notrel = re_compile(r'^(?://|#=G[CR])')
+        descr = re_compile(r'^#=GS')
+        trim = re_compile(r'[^-A-Z]+')
+        descriptions = {}
+        for line in fh:
+            line = line.strip()
+            if line == '' or notrel.match(line):
+                continue
+            elif descr.match(line):
+                elems = line.split(None, 3)
+                if len(elems) > 3 and elems[2] == 'DE':
+                    if elems[1] in descriptions:
+                        warn("duplicate sequence names detected! The stockholm specification doesn't allow this!")
+                    descriptions[elems[1]] = elems[3]
             else:
-                padlen = 1
-                for i in range(line.find(' ') + 1, len(line)):
-                    if line[i] != ' ':
-                        break
-                    padlen += 1
-                pad = ' ' * padlen
-                acc, seq = line.split()
+                try:
+                    acc, seq = line.split(None, 1)
+                except ValueError:
+                    warn("skipping line '%s', doesn't seem to contain a sequence" % line)
+                    continue
                 if ref_id_func is not None and ref_id_func(Fake(acc)):
                     refseq = seq
-                seq = trim.sub('', seq)
-                print(pad.join((acc, seq)), file=tmp)
-        tmp.seek(0)
-        try:
-            alignment = AlignIO.read(tmp, 'stockholm', alphabet=alph)
-        except ValueError:
-            print(tmp.getvalue(), file=stderr)
-            raise
+                try:
+                    desc = descriptions[acc] if acc in descriptions else acc
+                    msa.append(SeqRecord(Seq(trim.sub('', seq)), id=acc, description=desc))
+                except ValueError:
+                    warn("skipping sequence '%s', it doesn't match the length of the MSA" % acc)
 
     if refseq is None and ref_id_func is not None:
         raise RuntimeError('Unable to find the reference sequence to compute an offset!')
 
     offs = None if ref_id_func is None else refseq_off(refseq)
-    return alignment, offs
+    return msa, offs
 
 
 def generate_alignment_from_seqrecords(seq_records, my_basename, opts):
