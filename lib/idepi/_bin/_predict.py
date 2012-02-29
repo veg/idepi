@@ -454,14 +454,15 @@ def main(argv=sys.argv):
             SeqIO.write([spaceless_seqrecord(record) for record in SeqIO.parse(oldfh, seqfiletype)], tmpfh, 'fasta')
 
         fasta_stofile = fasta_basename + '.sto'
-        hmmer = Hmmer(OPTIONS.HMMER_ALIGN_BIN, OPTIONS.HMMER_BUILD_BIN)
-        hmmer.align(
-            alignment_basename + '.hmm',
-            tmpseq,
-            output=fasta_stofile,
-            alphabet=Hmmer.DNA if OPTIONS.DNA else Hmmer.AMINO,
-            outformat=Hmmer.PFAM
-        )
+        if not exists(fasta_stofile):
+            hmmer = Hmmer(OPTIONS.HMMER_ALIGN_BIN, OPTIONS.HMMER_BUILD_BIN)
+            hmmer.align(
+                alignment_basename + '.hmm',
+                tmpseq,
+                output=fasta_stofile,
+                alphabet=Hmmer.DNA if OPTIONS.DNA else Hmmer.AMINO,
+                outformat=Hmmer.PFAM
+            )
     finally:
         if exists(tmpseq):
             remove(tmpseq)

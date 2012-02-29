@@ -19,7 +19,7 @@ def main(argv=sys_argv):
         print('usage: %s ALIGNMENT OUTPUT' % name, file=stderr)
         sys_exit(-1)
 
-    msa, refseq_offs = crude_sto_read(argv[0], is_HXB2)
+    msa, refseq_offs = crude_sto_read(argv[0], is_HXB2, description=True)
 
     try:
         refseq = [r for r in msa if is_HXB2(r)][0]

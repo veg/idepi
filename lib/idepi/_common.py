@@ -64,26 +64,30 @@ def refseq_off(refseq):
     return offs
 
 
-def crude_sto_read(filename, ref_id_func=None, dna=False):
+def crude_sto_read(filename, ref_id_func=None, dna=False, description=False):
     Fake = namedtuple('FakeSeqRecord', ['id'])
     alph = Gapped(generic_nucleotide if dna else generic_protein)
     refseq = None
     msa = MultipleSeqAlignment([], alphabet=alph)
     with open(filename) as fh:
-        notrel = re_compile(r'^(?://|#=G[CR])')
-        descr = re_compile(r'^#=GS')
+        notrel = re_compile(r'^(?://|#(?!=GS))')
+        isdesc = re_compile(r'^#=GS')
         trim = re_compile(r'[^-A-Z]+')
-        descriptions = {}
+        descs = {}
         for line in fh:
             line = line.strip()
             if line == '' or notrel.match(line):
                 continue
-            elif descr.match(line):
-                elems = line.split(None, 3)
-                if len(elems) > 3 and elems[2] == 'DE':
-                    if elems[1] in descriptions:
-                        warn("duplicate sequence names detected! The stockholm specification doesn't allow this!")
-                    descriptions[elems[1]] = elems[3]
+            elif isdesc.match(line):
+                if description:
+                    elems = line.split(None, 3)
+                    if len(elems) > 3 and elems[2] == 'DE':
+                        acc, desc = elems[1], elems[3]
+                        if acc in descs:
+                            warn("duplicate sequence name '%s' detected! The stockholm specification doesn't allow this!" % acc)
+                        descs[acc] = desc
+                else:
+                     continue
             else:
                 try:
                     acc, seq = line.split(None, 1)
@@ -93,10 +97,11 @@ def crude_sto_read(filename, ref_id_func=None, dna=False):
                 if ref_id_func is not None and ref_id_func(Fake(acc)):
                     refseq = seq
                 try:
-                    desc = descriptions[acc] if acc in descriptions else acc
-                    msa.append(SeqRecord(Seq(trim.sub('', seq)), id=acc, description=desc))
+                    seq = trim.sub('', seq)
+                    desc = descs[acc] if acc in descs else acc
+                    msa.append(SeqRecord(Seq(seq), id=acc, description=desc))
                 except ValueError:
-                    warn("skipping sequence '%s', it doesn't match the length of the MSA" % acc)
+                    warn("skipping sequence '%s', it doesn't match the length of the MSA (%d vs %d)" % (acc, len(seq), msa.get_alignment_length()))
 
     if refseq is None and ref_id_func is not None:
         raise RuntimeError('Unable to find the reference sequence to compute an offset!')
@@ -179,7 +184,8 @@ def generate_alignment(seqrecords, my_basename, ref_id_func, opts):
         hmmer = Hmmer(opts.HMMER_ALIGN_BIN, opts.HMMER_BUILD_BIN)
         hmmer.build(hmm_filename, sto_filename)
 
-    return crude_sto_read(sto_filename, ref_id_func, opts.DNA)
+    # we store the antibody information in the description, so grab it
+    return crude_sto_read(sto_filename, ref_id_func, opts.DNA, description=True)
 
 
 def cv_results_to_output(results, colnames, meta=None, similar=True):
