@@ -1,9 +1,10 @@
 
+from collections import Counter
+
 import numpy as np
 
 from ._alphabet import Alphabet
 from ._basefilter import BaseFilter
-from ._seqtable import SeqTable
 from ._util import is_HXB2
 
 
@@ -37,70 +38,72 @@ class NaiveFilter(BaseFilter):
         self.__maxgap = maxgap
         self.__rfn = ref_id_func
         self.__sfn = skip_func
-        self.__ignore_idxs = None
+        self.__aln_len = None
+        self.__ign_idxs = None
 #         self.__run, self.__data, self.__colnames = False, None, None
 
     @staticmethod
     def __compute(alignment, alphabet, mincons, maxcons, maxgap,
                   ref_id_func, refseq_offs, skip_func):
 
-        seqtable = SeqTable(alignment, alphabet, ref_id_func, skip_func)
-
-        ignore_idxs = set()
-
+        aln_len = alignment.get_alignment_length()
+        ign_idxs = set()
         stride = len(alphabet)
-        assert(len(seqtable.cols[0]) == stride)
-
-        for i in range(seqtable.ncol):
-            col = seqtable.cols[i]
-            colsum = float(np.sum(col))
+        for i in range(aln_len):
+            counts = Counter(alignment[:, i])
+            col = [v for k, v in counts if k != Alphabet.SPACE]
+            colsum = sum(col)
+            gapdiv = colsum + (counts[Alphabet.SPACE] if Alphabet.SPACE in counts else 0)
             idx = stride * i
             # kill perfectly conserved or empty columns 
-            if colsum == 0. or \
-               float(min(col)) / colsum > mincons or \
-               float(max(col)) / colsum > maxcons or \
-               float(max(col)) / colsum >= 1. or \
-               float(col[alphabet['-']]) / colsum > maxgap:
-                ignore_idxs.update(range(idx, idx + stride))
+            if (colsum == 0. or
+                min(col) / colsum > mincons or
+                max(col) / colsum > maxcons or
+                max(col) / colsum >= 1. or
+                (Alphabet.SPACE in counts and counts[Alphabet.SPACE] / gapdiv > maxgap)):
+                ign_idxs.update(range(idx, idx + stride))
             else:
-                ignore_idxs.update(idx + j for j in range(stride) if col[j] == 0.)
+                ign_idxs.update(idx + j for j in range(stride) if col[j] == 0.)
 
-        colnames = BaseFilter._colnames(alignment, alphabet, ref_id_func, refseq_offs, ignore_idxs)
-        data = NaiveFilter._filter(seqtable, ignore_idxs)
+        colnames = BaseFilter._colnames(alignment, alphabet, ref_id_func, refseq_offs, ign_idxs)
+        data = NaiveFilter._filter(alignment, alphabet, ign_idxs)
 
-        return colnames, data, ignore_idxs
+        assert(len(colnames) == data.shape[1])
+
+        return colnames, data, aln_len, ign_idxs
 
     @staticmethod
-    def _filter(seqtable, ignore_idxs):
-        stride = len(seqtable.cols[0])
-        ncol = seqtable.ncol * stride - len(ignore_idxs)
-        data = np.zeros((seqtable.nrow, ncol), dtype=bool)
+    def _filter(alignment, alphabet, ign_idxs):
+        aln_len = alignment.get_alignment_length()
+        stride = len(alphabet)
+        ncol = aln_len * stride - len(ign_idxs)
+        data = np.zeros((len(alignment), ncol), dtype=bool)
 
         k = 0
-        for i in range(seqtable.ncol):
-            for j in range(stride):
+        for i in range(aln_len):
+            col = alignment[:, i]
+            for j, char in enumerate(alphabet):
                 idx = i * stride + j
-                if idx in ignore_idxs:
+                if idx in ign_idxs:
                     continue
-                data[:, k] = seqtable.data[:, i, j]
+                data[:, k] = (p == char for p in col)
                 k += 1
 
         return data
 
     def learn(self, alignment, refseq_offs):
-        colnames, data, self.__ignore_idxs = NaiveFilter.__compute(
+        colnames, data, self.__aln_len, self.__ign_idxs = NaiveFilter.__compute(
             alignment, self.__alph, self.__mincons, self.__maxcons,
             self.__maxgap, self.__rfn, refseq_offs, self.__sfn
         )
         return colnames, data
 
     def filter(self, alignment):
-        if not self.__ignore_idxs:
+        if self.__aln_len is None or self.__ign_idxs is None:
             raise RuntimeError('No NaiveFilter model computed')
 
-        seqtable = SeqTable(alignment, self.__alph, self.__rfn, self.__sfn)
-        assert(len(self.__alph) == len(seqtable.cols[0]))
-        return NaiveFilter._filter(seqtable, self.__ignore_idxs)
+        assert(alignment.get_alignment_length() == self.__aln_len)
+        return NaiveFilter._filter(alignment, self.__alph, self.__ign_idxs)
 
 #     @property
 #     def data(self):
