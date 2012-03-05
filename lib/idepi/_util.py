@@ -349,7 +349,7 @@ def collect_seqrecords_from_db(dbpath, antibody, clonal=False, dna=False):
         (select SEQUENCE_ID as ID, SUBTYPE from GENO_REPORT group by ID) as G join
         (select SEQUENCE_ID as ID, ANTIBODY as AB, group_concat(IC50, ',') as IC50 from NEUT where %s group by ID) as N
         on N.ID = S.ID and G.ID = S.ID order by S.ID;
-        ''' % ('where IS_CLONAL = 1' if clonal else '', ab_clause), antibodies) 
+        ''' % ('where IS_CLONAL = 1' if clonal else '', ab_clause), antibodies)
     except OperationalError:
         getLogger(IDEPI_LOGGER).debug('falling back to older database format, CLONAL feature is unsupported')
         clonal = None
@@ -359,7 +359,7 @@ def collect_seqrecords_from_db(dbpath, antibody, clonal=False, dna=False):
         (select ACCESSION_ID as ID, SUBTYPE from GENO_REPORT group by ID) as G join
         (select ACCESSION_ID as ID, ANTIBODY as AB, group_concat(IC50_STRING, ',') as IC50 from NEUT where %s group by ID) as N
         on N.ID = S.ID and G.ID = S.ID order by S.ID;
-        ''' % ab_clause, antibodies) 
+        ''' % ab_clause, antibodies)
 
     ids = {}
     seqrecords = []

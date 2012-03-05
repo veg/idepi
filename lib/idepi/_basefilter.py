@@ -33,7 +33,9 @@ class BaseFilter(object):
             else:
                 ins += 1
             if i in refseq_offs:
+                # if we're in refseq_offs, then skip
                 c += refseq_offs[i]
+                continue
             for j in range(len(alphabet)):
                 if col in ignore_idxs:
                     pass
