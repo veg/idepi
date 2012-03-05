@@ -1,7 +1,11 @@
 
+from logging import getLogger
+from time import clock
+
 from numpy import zeros
 
 from ._alphabet import Alphabet
+from ._logging import IDEPI_LOGGER
 from ._util import BASE_ALPH, base_10_to_n, base_26_to_alph
 
 
@@ -24,6 +28,7 @@ class BaseFilter(object):
         if ref is None:
             raise RuntimeError('No reference sequence found, aborting')
 
+        b = clock()
         colnames = []
         c, col, ins = 0, 0, 0
         for i, p in enumerate(ref):
@@ -35,7 +40,6 @@ class BaseFilter(object):
             if i in refseq_offs:
                 # if we're in refseq_offs, then skip
                 c += refseq_offs[i]
-                continue
             for j in range(len(alphabet)):
                 if col in ignore_idxs:
                     pass
@@ -43,5 +47,7 @@ class BaseFilter(object):
                     insert = base_26_to_alph(base_10_to_n(ins, BASE_ALPH))
                     colnames.append('%s%d%s%s' % ('' if insert != '' else p.upper(), c, insert, alphabet[j]))
                 col += 1
+
+        getLogger(IDEPI_LOGGER).debug('finished labeling columns, took %.3f' % (clock() - b))
 
         return colnames

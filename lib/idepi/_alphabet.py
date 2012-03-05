@@ -71,7 +71,10 @@ class Alphabet(object):
         return d, l
 
     def todict(self):
-        return deepcopy(self.__dict)
+        # return a manual deepcopy, as deepcopy is currently barfing
+        d = defaultdict(repeat(self.__dict['X']).__next__)
+        d.update(self.__dict)
+        return d
 
     def tolist(self):
         return deepcopy(self.__list)

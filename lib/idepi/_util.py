@@ -30,6 +30,7 @@ from re import sub, match
 from sqlite3 import OperationalError, connect
 from sys import stderr
 from tempfile import mkstemp
+from warnings import warn
 
 import numpy as np
 
@@ -116,7 +117,7 @@ def seqrecord_get_ic50s(seqrecord):
     # cap ic50s to 25
     try:
         ic50s = [
-            min(float(ic50.strip().strip('<>')), 25.) for ic50 in seqrecord.description.rsplit('|', 2)[2].split(',')
+            min(float(ic50.strip().lstrip('<>')), 25.) for ic50 in seqrecord.description.rsplit('|', 2)[2].split(',')
         ] # subtype | ab | ic50
     except:
         raise ValueError('Cannot parse `%s\' for IC50 value' % seqrecord.description)
@@ -364,22 +365,28 @@ def collect_seqrecords_from_db(dbpath, antibody, clonal=False, dna=False):
     ids = {}
     seqrecords = []
     for row in cur:
-        try:
-            nno, sid, seq = row[:3]
-            dnaseq, aminoseq = OrfList(seq)[0]
-            record = SeqRecord(
-                dnaseq if dna else aminoseq,
-                id=sid,
-                description='|'.join(row[3:])
-            )
-            if sid in ids:
-                record.id += str(-ids[sid])
-                ids[sid] += 1
-            else:
-                ids[sid] = 1
-            seqrecords.append(record)
-        except ValueError:
+        nno, sid, seq, subtype, ab, ic50s = row[:6]
+        cln_ic50s = []
+        for ic50 in ic50s.split(','):
+            try:
+                cln_ic50s.append(str(min(float(ic50.strip().lstrip('<>')), 25.)))
+            except ValueError:
+                pass
+        if len(cln_ic50s) == 0:
+            warn("skipping sequence '%s', invalid IC50s '%s'" % (sid, ic50s))
             continue
+        dnaseq, aminoseq = OrfList(seq)[0]
+        record = SeqRecord(
+            dnaseq if dna else aminoseq,
+            id=sid,
+            description='|'.join((subtype, ab, ','.join(cln_ic50s)))
+        )
+        if sid in ids:
+            record.id += str(-ids[sid])
+            ids[sid] += 1
+        else:
+            ids[sid] = 1
+        seqrecords.append(record)
 
     conn.close()
 

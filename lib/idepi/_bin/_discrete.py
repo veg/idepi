@@ -164,7 +164,7 @@ def setup_option_parser():
     parser.add_option('--simepiperc',                                                    type='float',           dest='SIM_EPI_PERCENTILE')
     parser.add_option('--seed',                                                          type='int',             dest='RAND_SEED')
     parser.add_option('--phylofilt',     action='store_true',                                                    dest='PHYLOFILTER')
-    parser.add_option('--output',                                                        type='string',          dest='OUTPUT')
+    parser.add_option('-o', '--output',                                                  type='string',          dest='OUTPUT')
 
     parser.set_defaults(LOGGING            = False)
     parser.set_defaults(HMMER_ALIGN_BIN    = 'hmmalign')
@@ -539,6 +539,7 @@ def main(argv=sys.argv):
                     autobalance
                 )
                 y, ic50ge = yextractor.extract(alignment)
+                assert y.shape[0] == x.shape[0], "number of classes doesn't match the data: %d vs %d" % (y.shape[0], x.shape[0])
                 assert(
                     (ic50ge is None and not autobalance) or
                     (ic50ge is not None and autobalance)

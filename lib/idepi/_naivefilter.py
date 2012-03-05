@@ -1,10 +1,14 @@
 
 from collections import Counter
+from logging import getLogger
+from operator import itemgetter
+from time import clock
 
 import numpy as np
 
 from ._alphabet import Alphabet
 from ._basefilter import BaseFilter
+from ._logging import IDEPI_LOGGER
 from ._util import is_HXB2
 
 
@@ -46,12 +50,19 @@ class NaiveFilter(BaseFilter):
     def __compute(alignment, alphabet, mincons, maxcons, maxgap,
                   ref_id_func, refseq_offs, skip_func):
 
+        msg = 'we assume the reference is the last sequence in the alignment, this is somehow false'
+        assert ref_id_func(alignment[-1]) is True, msg
+
+        alignment_noref = alignment[:-1]
+
+        b = clock()
         aln_len = alignment.get_alignment_length()
         ign_idxs = set()
         stride = len(alphabet)
+        idx_chars = sorted(((v, k) for k, v in alphabet.todict().items()), key=itemgetter(0))
         for i in range(aln_len):
-            counts = Counter(alignment[:, i])
-            col = [v for k, v in counts if k != Alphabet.SPACE]
+            counts = Counter(alignment_noref[:, i])
+            col = [v for k, v in counts.items() if k != Alphabet.SPACE]
             colsum = sum(col)
             gapdiv = colsum + (counts[Alphabet.SPACE] if Alphabet.SPACE in counts else 0)
             idx = stride * i
@@ -63,12 +74,15 @@ class NaiveFilter(BaseFilter):
                 (Alphabet.SPACE in counts and counts[Alphabet.SPACE] / gapdiv > maxgap)):
                 ign_idxs.update(range(idx, idx + stride))
             else:
-                ign_idxs.update(idx + j for j in range(stride) if col[j] == 0.)
+                ign_idxs.update(idx + j for j, char in idx_chars if char not in counts or counts[char] == 0)
+
+        getLogger(IDEPI_LOGGER).debug('finished learning a filter, took %.3f' % (clock() - b))
 
         colnames = BaseFilter._colnames(alignment, alphabet, ref_id_func, refseq_offs, ign_idxs)
-        data = NaiveFilter._filter(alignment, alphabet, ign_idxs)
+        data = NaiveFilter._filter(alignment_noref, alphabet, ign_idxs)
 
-        assert(len(colnames) == data.shape[1])
+        msg = "column labels don't equal number of columns: %d vs %d" % (len(colnames), data.shape[1])
+        assert len(colnames) == data.shape[1], msg
 
         return colnames, data, aln_len, ign_idxs
 
@@ -79,15 +93,23 @@ class NaiveFilter(BaseFilter):
         ncol = aln_len * stride - len(ign_idxs)
         data = np.zeros((len(alignment), ncol), dtype=bool)
 
-        k = 0
-        for i in range(aln_len):
-            col = alignment[:, i]
-            for j, char in enumerate(alphabet):
-                idx = i * stride + j
+        # build and save a list of offsets for each potential index
+        offs = {}
+        for i in range(aln_len * stride):
+            offs[i] = sum(1 for j in ign_idxs if j < i)
+
+        numseqs = len(alignment)
+        b = clock()
+        for j in range(aln_len):
+            col = alignment[:, j]
+            for i, char in enumerate(col):
+                idx = j * stride + alphabet[char]
                 if idx in ign_idxs:
                     continue
-                data[:, k] = (p == char for p in col)
-                k += 1
+                k = idx - offs[idx]
+                data[i, k] = True
+
+        getLogger(IDEPI_LOGGER).debug('finished building a data matrix, took %.3fs' % (clock() - b))
 
         return data
 
