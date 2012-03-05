@@ -41,7 +41,7 @@ from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
 from idepi import (Alphabet, ClassExtractor, DumbSimulation, LinearSvm, MarkovSimulation, NaiveFilter,
-                   PhyloFilter, SeqTable, Simulation, collect_seqrecords_from_db, cv_results_to_output,
+                   PhyloFilter, Simulation, collect_seqrecords_from_db, cv_results_to_output,
                    extract_feature_weights, extract_feature_weights_similar, generate_alignment,
                    get_valid_antibodies_from_db, IDEPI_LOGGER, get_valid_subtypes_from_db, is_HXB2,
                    make_output_meta, pretty_fmt_results, seqrecord_get_ic50s, set_util_params,

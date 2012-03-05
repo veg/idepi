@@ -44,7 +44,7 @@ from Bio.SeqRecord import SeqRecord
 
 from idepi import (Alphabet, ClassExtractor, DumbSimulation, Hmmer, LinearSvm,
                    MarkovSimulation, NaiveFilter, NormalValue, Phylo, PhyloFilter,
-                   PhyloGzFile, SeqTable, Simulation, collect_seqrecords_from_db,
+                   PhyloGzFile, Simulation, collect_seqrecords_from_db,
                    column_labels, crude_sto_read, cv_results_to_output, generate_alignment,
                    get_valid_antibodies_from_db, IDEPI_LOGGER, get_valid_subtypes_from_db,
                    is_HXB2, make_output_meta, pretty_fmt_meta, pretty_fmt_weights,

@@ -41,7 +41,6 @@ from ._orflist import *
 from ._phylo import *
 from ._phylofilter import *
 from ._randomsequences import *
-from ._seqtable import *
 # from _simulatedepitope import *
 from ._simulation import *
 from ._smldata import *
@@ -65,7 +64,6 @@ __all__ += _orflist.__all__
 __all__ += _phylo.__all__
 __all__ += _phylofilter.__all__
 __all__ += _randomsequences.__all__
-__all__ += _seqtable.__all__
 # __all__ += _simulatedepitope.__all__
 __all__ += _simulation.__all__
 __all__ += _smldata.__all__
