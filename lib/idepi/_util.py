@@ -35,12 +35,15 @@ from warnings import warn
 import numpy as np
 
 from Bio import SeqIO
+from Bio.Alphabet import Gapped, generic_nucleotide
+from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
+
+from BioExt import OrfList
 
 from ._alphabet import Alphabet
 from ._hmmer import Hmmer
 from ._logging import IDEPI_LOGGER
-from ._orflist import OrfList
 from ._smldata import SmlData
 
 
@@ -375,9 +378,9 @@ def collect_seqrecords_from_db(dbpath, antibody, clonal=False, dna=False):
         if len(cln_ic50s) == 0:
             warn("skipping sequence '%s', invalid IC50s '%s'" % (sid, ic50s))
             continue
-        dnaseq, aminoseq = OrfList(seq)[0]
+        dnaseq = Seq(OrfList(seq, include_stops=False)[0], Gapped(generic_nucleotide))
         record = SeqRecord(
-            dnaseq if dna else aminoseq,
+            dnaseq if dna else dnaseq.translate(),
             id=sid,
             description='|'.join((subtype, ab, ','.join(cln_ic50s)))
         )

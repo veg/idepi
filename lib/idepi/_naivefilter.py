@@ -95,8 +95,12 @@ class NaiveFilter(BaseFilter):
 
         # build and save a list of offsets for each potential index
         offs = {}
+        skipped = 0
         for i in range(aln_len * stride):
-            offs[i] = sum(1 for j in ign_idxs if j < i)
+            if i in ign_idxs:
+                skipped += 1
+            else:
+                offs[i] = skipped
 
         numseqs = len(alignment)
         b = clock()

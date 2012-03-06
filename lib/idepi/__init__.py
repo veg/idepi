@@ -37,7 +37,6 @@ from ._logging import *
 from ._mlpy import *
 from ._naivefilter import *
 from ._normalvalue import *
-from ._orflist import *
 from ._phylo import *
 from ._phylofilter import *
 from ._randomsequences import *
@@ -60,7 +59,6 @@ __all__ += _linearsvm.__all__
 __all__ += _mlpy.__all__
 __all__ += _naivefilter.__all__
 __all__ += _normalvalue.__all__
-__all__ += _orflist.__all__
 __all__ += _phylo.__all__
 __all__ += _phylofilter.__all__
 __all__ += _randomsequences.__all__
