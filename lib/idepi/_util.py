@@ -122,7 +122,7 @@ def seqrecord_get_ic50s(seqrecord):
         ic50s = [
             min(float(ic50.strip().lstrip('<>')), 25.) for ic50 in seqrecord.description.rsplit('|', 2)[2].split(',')
         ] # subtype | ab | ic50
-    except:
+    except ValueError:
         raise ValueError('Cannot parse `%s\' for IC50 value' % seqrecord.description)
     return ic50s
 
