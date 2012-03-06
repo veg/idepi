@@ -372,9 +372,10 @@ def collect_seqrecords_from_db(dbpath, antibody, clonal=False, dna=False):
         cln_ic50s = []
         for ic50 in ic50s.split(','):
             try:
-                cln_ic50s.append(str(min(float(ic50.strip().lstrip('<>')), 25.)))
+                v = min(float(ic50.strip().lstrip('<>')), 25.)
             except ValueError:
-                pass
+                continue
+            cln_ic50s.append(str(v))
         if len(cln_ic50s) == 0:
             warn("skipping sequence '%s', invalid IC50s '%s'" % (sid, ic50s))
             continue
