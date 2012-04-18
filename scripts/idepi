@@ -5,8 +5,8 @@ from __future__ import division, print_function
 from os.path import basename
 from sys import argv as sys_argv, exit as sys_exit, stderr
 
-from idepi._bin import *
-from idepi._bin import __all__ as programs
+from idepi._scripts import *
+from idepi._scripts import __all__ as programs
 
 
 def main(argv=sys_argv):

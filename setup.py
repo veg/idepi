@@ -17,13 +17,13 @@ setup(name='idepi',
       author_email='nlhepler@gmail.com',
       url='http://github.com/veg/idepi',
       license='GNU GPL version 3',
-      packages=['idepi', 'idepi._bin', 'idepi._mlpy'],
+      packages=['idepi', 'idepi._mlpy', 'idepi._scripts'],
       package_dir={
             'idepi': 'lib/idepi',
-            'idepi._bin': 'lib/idepi/_bin',
-            'idepi._mlpy': 'lib/idepi/_mlpy'
+            'idepi._mlpy': 'lib/idepi/_mlpy',
+            'idepi._scripts': 'lib/idepi/_scripts'
       },
       package_data={'idepi': ['data/*', 'hyphy/*.bf']},
-      data_files=[('/usr/local/bin', ['bin/idepi'])],
+      scripts=['scripts/idepi'],
       requires=['Bio', 'BioExt', 'cvxopt', 'fakemp', 'hypy', 'mlpy', 'mrmr', 'numpy', 'pyxval', 'six']
      )

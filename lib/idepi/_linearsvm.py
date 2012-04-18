@@ -30,8 +30,8 @@ from os.path import exists
 from re import sub
 from shutil import copyfile
 from subprocess import Popen, PIPE
-from sys import stderr
 from tempfile import mkstemp
+from warnings import warn
 
 import numpy as np
 
@@ -79,7 +79,7 @@ class LinearSvm(object):
                 try:
                     remove(self.__modelfile)
                 except:
-                    print(self.__modelfile, file=stderr)
+                    warn("file '%s' removed between existence check and call to unlink()" % self.__modelfile)
 
 
 class LinearSvmModel(object):
@@ -123,10 +123,10 @@ class LinearSvmModel(object):
             try:
                 weight = float(vals[0]) * rev
             except ValueError:
-                print('ERROR: broken SVM model, skipping line \'%s\'' % line, file=stderr)
+                lines = None
                 with open(self.__modelfile) as fh:
-                    print(fh.read(), file=stderr)
-                raise ValueError
+                    lines = fh.read().strip()
+                raise ValueError("broken SVM model:  \n%s" % lines.replace('\n', '  \n'))
 
             if mode == 'SV':
                 if len(vals) <= 1:
