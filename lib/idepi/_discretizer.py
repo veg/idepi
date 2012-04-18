@@ -1,4 +1,6 @@
 
+from __future__ import division, print_function
+
 from numpy import (abs as np_abs,
                    add as np_add,
                    divide as np_divide,

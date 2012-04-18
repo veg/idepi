@@ -1,4 +1,6 @@
 
+from __future__ import division, print_function
+
 from math import modf
 from operator import itemgetter
 from random import randint

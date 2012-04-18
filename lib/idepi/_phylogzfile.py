@@ -1,4 +1,6 @@
 
+from __future__ import division, print_function
+
 
 __all__ = ['read', 'write']
 
@@ -6,7 +8,7 @@ __all__ = ['read', 'write']
 def read(filename):
     import json
     from gzip import GzipFile
-    from io import StringIO
+    from six import StringIO
     from Bio import SeqIO
 
     tree = None
@@ -57,4 +59,4 @@ def write(filename, tree, alignment, colnames, xdata={}):
             SeqIO.write(alignment, tmp, 'fasta')
             output_dict['alignment'] = tmp.getvalue().strip()
 
-        fh.write(bytes(json.dumps(output_dict, separators=(',', ':')), 'utf-8'))
+        json.dump(output_dict, fh, separators=(',', ':'))

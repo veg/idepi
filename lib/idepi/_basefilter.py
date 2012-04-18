@@ -1,4 +1,6 @@
 
+from __future__ import division, print_function
+
 from logging import getLogger
 from time import clock
 

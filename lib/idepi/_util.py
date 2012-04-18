@@ -22,28 +22,19 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
-from logging import getLogger
+from __future__ import division, print_function
+
 from operator import itemgetter
 from os import close, remove, rename
-from random import random
 from re import sub, match
 from sqlite3 import OperationalError, connect
 from sys import stderr
 from tempfile import mkstemp
-from warnings import warn
 
 import numpy as np
 
-from Bio import SeqIO
-from Bio.Alphabet import Gapped, generic_nucleotide
-from Bio.Seq import Seq
-from Bio.SeqRecord import SeqRecord
-
-from BioExt import OrfList
-
 from ._alphabet import Alphabet
 from ._hmmer import Hmmer
-from ._logging import IDEPI_LOGGER
 from ._smldata import SmlData
 
 
@@ -56,14 +47,11 @@ __all__ = [
     'seqrecord_get_subtype',
     'seqrecord_set_ic50',
     'get_noise',
-    'get_valid_antibodies_from_db',
-    'get_valid_subtypes_from_db',
     'base_10_to_n',
     'base_26_to_alph',
     'alph_to_base_26',
     'base_n_to_10',
     'ystoconfusionmatrix',
-    'collect_seqrecords_from_db',
     'clamp',
     'sanitize_seq',
 ]
@@ -310,91 +298,6 @@ def ystoconfusionmatrix(truth, preds):
                                                            # true pos    true neg    false pos   false neg
     tp, tn, fp, fn = (np.sum(np.multiply(a, b)) for a, b in ((tps, pps), (tns, pns), (tns, pps), (tps, pns)))
     return tp, tn, fp, fn
-
-def get_valid_subtypes_from_db(dbpath):
-    conn = connect(dbpath)
-    curr = conn.cursor()
-
-    curr.execute('''select distinct SUBTYPE from GENO_REPORT''')
-
-    valid_subtypes = [r[0] for r in curr if r[0].strip() != '']
-
-    conn.close()
-
-    return valid_subtypes
-
-def get_valid_antibodies_from_db(dbpath):
-    conn = connect(dbpath)
-    curr = conn.cursor()
-
-    curr.execute('''select distinct ANTIBODY from NEUT''')
-
-    valid_antibodies = [r[0] for r in curr]
-
-    conn.close()
-
-    return valid_antibodies
-
-def collect_seqrecords_from_db(dbpath, antibody, clonal=False, dna=False):
-    conn = connect(dbpath)
-    cur = conn.cursor()
-
-    if antibody in __equivalencies:
-        antibodies = tuple([antibody, antibody] + __equivalencies[antibody])
-        ab_clause = ' OR '.join(['ANTIBODY = ?'] * len(antibodies[1:]))
-    else:
-        antibodies = (antibody, antibody,)
-        ab_clause = 'ANTIBODY = ?'
-
-    try:
-        cur.execute('''
-        select distinct S.NO as NO, S.ID as ID, S.SEQ as SEQ, G.SUBTYPE as SUBTYPE, ? as AB, N.IC50 as IC50 from
-        (select SEQUENCE_NO as NO, SEQUENCE_ID as ID, RAW_SEQ as SEQ from SEQUENCE %s group by ID) as S join
-        (select SEQUENCE_ID as ID, SUBTYPE from GENO_REPORT group by ID) as G join
-        (select SEQUENCE_ID as ID, ANTIBODY as AB, group_concat(IC50, ',') as IC50 from NEUT where %s group by ID) as N
-        on N.ID = S.ID and G.ID = S.ID order by S.ID;
-        ''' % ('where IS_CLONAL = 1' if clonal else '', ab_clause), antibodies)
-    except OperationalError:
-        getLogger(IDEPI_LOGGER).debug('falling back to older database format, CLONAL feature is unsupported')
-        clonal = None
-        cur.execute('''
-        select distinct S.NO as NO, S.ID as ID, S.SEQ as SEQ, G.SUBTYPE as SUBTYPE, ? as AB, N.IC50 as IC50 from
-        (select SEQUENCE_NO as NO, ACCESSION_ID as ID, RAW_SEQ as SEQ from SEQUENCE group by ID) as S join
-        (select ACCESSION_ID as ID, SUBTYPE from GENO_REPORT group by ID) as G join
-        (select ACCESSION_ID as ID, ANTIBODY as AB, group_concat(IC50_STRING, ',') as IC50 from NEUT where %s group by ID) as N
-        on N.ID = S.ID and G.ID = S.ID order by S.ID;
-        ''' % ab_clause, antibodies)
-
-    ids = {}
-    seqrecords = []
-    for row in cur:
-        nno, sid, seq, subtype, ab, ic50s = row[:6]
-        cln_ic50s = []
-        for ic50 in ic50s.split(','):
-            try:
-                v = min(float(ic50.strip().lstrip('<>')), 25.)
-            except ValueError:
-                continue
-            cln_ic50s.append(str(v))
-        if len(cln_ic50s) == 0:
-            warn("skipping sequence '%s', invalid IC50s '%s'" % (sid, ic50s))
-            continue
-        dnaseq = Seq(OrfList(seq, include_stops=False)[0], Gapped(generic_nucleotide))
-        record = SeqRecord(
-            dnaseq if dna else dnaseq.translate(),
-            id=sid,
-            description='|'.join((subtype, ab, ','.join(cln_ic50s)))
-        )
-        if sid in ids:
-            record.id += str(-ids[sid])
-            ids[sid] += 1
-        else:
-            ids[sid] = 1
-        seqrecords.append(record)
-
-    conn.close()
-
-    return seqrecords, clonal
 
 
 def clamp(x):

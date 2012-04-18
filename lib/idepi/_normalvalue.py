@@ -22,6 +22,8 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
+from __future__ import division, print_function
+
 from collections import Iterable
 from math import sqrt
 from numpy import mean, nan_to_num, var

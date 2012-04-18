@@ -1,4 +1,4 @@
-#!/usr/bin/env python2.7
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 #
@@ -23,6 +23,8 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
+from __future__ import division, print_function
+
 import sqlite3, sys
 
 from math import ceil, log10
@@ -42,9 +44,8 @@ from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
 from idepi import (Alphabet, ClassExtractor, NaiveFilter, PhyloFilter, Regressor,
-                   collect_seqrecords_from_db, extract_feature_weights, cv_results_to_output,
-                   generate_alignment, get_valid_antibodies_from_db, get_valid_subtypes_from_db,
-                   is_HXB2, regressor_classes, pretty_fmt_results, seqrecord_get_ic50s,
+                   extract_feature_weights, cv_results_to_output, generate_alignment,
+                   input_data, is_HXB2, regressor_classes, pretty_fmt_results, seqrecord_get_ic50s,
                    set_util_params, __file__ as _idepi_file, __version__ as _idepi_version)
 
 from pyxval import ContinuousPerfStats, CrossValidator
@@ -105,35 +106,39 @@ def optparse_csv(option, opt_str, value, parser):
     setattr(parser.values, option.dest, value.split(','))
 
 
+def optparse_data(option, _, value, parser):
+    setattr(parser.values, option.dest, input_data(value))
+
+
 def setup_option_parser():
 
     parser = OptionParser(usage = '%prog [options] ANTIBODY')
 
-    #                 option            action = 'store'        callback                    type             nargs = 1  dest
-    parser.add_option('--hmmalign',                                                         type = 'string',            dest = 'HMMER_ALIGN_BIN')
-    parser.add_option('--hmmbuild',                                                         type = 'string',            dest = 'HMMER_BUILD_BIN')
-    parser.add_option('--hmmiter',                                                          type = 'int',               dest = 'HMMER_ITER')
-    parser.add_option('--method',                                                           type = 'string',            dest = 'REGRESSOR_METHOD')
-    parser.add_option('--filter',       action = 'callback',    callback = optparse_csv,    type = 'string',            dest = 'FILTER')
-    parser.add_option('--clonal',       action = 'store_true',                                                          dest = 'CLONAL')
-    parser.add_option('--numfeats',                                                         type = 'int',               dest = 'NUM_FEATURES')
-    parser.add_option('--subtypes',     action = 'callback',    callback = optparse_csv,    type = 'string',            dest = 'SUBTYPES')
-    parser.add_option('--weighting',    action = 'store_true',                                                          dest = 'WEIGHTING')
-    parser.add_option('--amino',        action = 'store_true',                                                          dest = 'AMINO')
-    parser.add_option('--dna',          action = 'store_true',                                                          dest = 'DNA')
-    parser.add_option('--stanfel',      action = 'store_true',                                                          dest = 'STANFEL')
-    parser.add_option('--cv',                                                               type = 'int',               dest = 'CV_FOLDS')
-    parser.add_option('--loocv',        action = 'store_true',                                                          dest = 'LOOCV')
-    parser.add_option('--maxcon',                                                           type = 'float',             dest = 'MAX_CONSERVATION')
-    parser.add_option('--maxgap',                                                           type = 'float',             dest = 'MAX_GAP_RATIO')
-    parser.add_option('--mincon',                                                           type = 'float',             dest = 'MIN_CONSERVATION')
-    parser.add_option('--neuts',                                                            type = 'string',            dest = 'NEUT_SQLITE3_DB')
-    parser.add_option('--hxb2',                                                             type = 'string',            dest = 'REFSEQ_FASTA')
-    parser.add_option('--ids',          action = 'callback',    callback = optparse_csv,    type = 'string',            dest = 'HXB2_IDS')
-    parser.add_option('--test',         action = 'store_true',                                                          dest = 'TEST')
-    parser.add_option('--seed',                                                             type = 'int',               dest = 'RAND_SEED')
-    parser.add_option('--phylofilt',    action = 'store_true',                                                          dest = 'PHYLOFILTER')
-    parser.add_option('--logspace',     action = 'store_true',                                                          dest = 'LOGSPACE')
+    #                 option            action='store'        callback                 type             nargs=1  dest
+    parser.add_option('--hmmalign',                                                    type='string',            dest='HMMER_ALIGN_BIN')
+    parser.add_option('--hmmbuild',                                                    type='string',            dest='HMMER_BUILD_BIN')
+    parser.add_option('--hmmiter',                                                     type='int',               dest='HMMER_ITER')
+    parser.add_option('--method',                                                      type='string',            dest='REGRESSOR_METHOD')
+    parser.add_option('--filter',       action='callback',    callback=optparse_csv,   type='string',            dest='FILTER')
+    parser.add_option('--clonal',       action='store_true',                                                     dest='CLONAL')
+    parser.add_option('--numfeats',                                                    type='int',               dest='NUM_FEATURES')
+    parser.add_option('--subtypes',     action='callback',    callback=optparse_csv,   type='string',            dest='SUBTYPES')
+    parser.add_option('--weighting',    action='store_true',                                                     dest='WEIGHTING')
+    parser.add_option('--amino',        action='store_true',                                                     dest='AMINO')
+    parser.add_option('--dna',          action='store_true',                                                     dest='DNA')
+    parser.add_option('--stanfel',      action='store_true',                                                     dest='STANFEL')
+    parser.add_option('--cv',                                                          type='int',               dest='CV_FOLDS')
+    parser.add_option('--loocv',        action='store_true',                                                     dest='LOOCV')
+    parser.add_option('--maxcon',                                                      type='float',             dest='MAX_CONSERVATION')
+    parser.add_option('--maxgap',                                                      type='float',             dest='MAX_GAP_RATIO')
+    parser.add_option('--mincon',                                                      type='float',             dest='MIN_CONSERVATION')
+    parser.add_option('--neuts',        action='callback',    callback=optparse_data,  type='string',            dest='DATA')
+    parser.add_option('--hxb2',                                                        type='string',            dest='REFSEQ_FASTA')
+    parser.add_option('--ids',          action='callback',    callback=optparse_csv,   type='string',            dest='HXB2_IDS')
+    parser.add_option('--test',         action='store_true',                                                     dest='TEST')
+    parser.add_option('--seed',                                                        type='int',               dest='RAND_SEED')
+    parser.add_option('--phylofilt',    action='store_true',                                                     dest='PHYLOFILTER')
+    parser.add_option('--logspace',     action='store_true',                                                     dest='LOGSPACE')
 
     parser.set_defaults(HMMER_ALIGN_BIN    = 'hmmalign')
     parser.set_defaults(HMMER_BUILD_BIN    = 'hmmbuild')
@@ -152,8 +157,8 @@ def setup_option_parser():
     parser.set_defaults(MAX_CONSERVATION   = 1. ) # 93.)
     parser.set_defaults(MAX_GAP_RATIO      = 0.1 ) # 93.)
     parser.set_defaults(MIN_CONSERVATION   = 1. ) # 33.)
-    parser.set_defaults(NEUT_SQLITE3_DB    = join(_IDEPI_PATH, 'data', 'allneuts.sqlite3'))
-    parser.set_defaults(REFSEQ_FASTA         = _HXB2_AMINO_FASTA)
+    parser.set_defaults(DATA               = input_data(join(_IDEPI_PATH, 'data', 'allneuts.sqlite3')))
+    parser.set_defaults(REFSEQ_FASTA       = _HXB2_AMINO_FASTA)
     parser.set_defaults(HXB2_IDS           = ['9629357', '9629363'])
     parser.set_defaults(RAND_SEED          = 42) # make the behavior deterministic for now
     parser.set_defaults(PHYLOFILTER        = False)
@@ -287,8 +292,8 @@ def main(argv=sys.argv):
 
     # validate the antibody argument, currently a hack exists to make PG9/PG16 work
     # TODO: Fix pg9/16 hax
-    antibody = args[1]
-    valid_antibodies = sorted(get_valid_antibodies_from_db(OPTIONS.NEUT_SQLITE3_DB), key=lambda x: x.strip())
+    antibody = args[1].strip()
+    valid_antibodies = sorted(OPTIONS.DATA.antibodies, key=lambda x: x.strip())
     if antibody not in valid_antibodies:
         if ' ' + antibody not in valid_antibodies:
             option_parser.error('%s not in the list of permitted antibodies: \n  %s' % (antibody, '\n  '.join([ab.strip() for ab in valid_antibodies])))
@@ -296,7 +301,7 @@ def main(argv=sys.argv):
             antibody = ' ' + antibody
 
     # validate the subtype option
-    valid_subtypes = sorted(get_valid_subtypes_from_db(OPTIONS.NEUT_SQLITE3_DB), key=lambda x: x.strip().upper())
+    valid_subtypes = sorted(OPTIONS.DATA.subtypes, key=lambda x: x.strip().upper())
     for subtype in OPTIONS.SUBTYPES:
         if subtype not in valid_subtypes:
             option_parser.error('%s not in the list of permitted subtypes: \n  %s' % (subtype, '\n  '.join([st.strip() for st in valid_subtypes])))
@@ -329,14 +334,14 @@ def main(argv=sys.argv):
     ))
     alignment_basename = '_'.join((
         ab_basename,
-        splitext(basename(OPTIONS.NEUT_SQLITE3_DB))[0],
+        OPTIONS.DATA.basename_root,
         __VERSION__
     ))
 
     # grab the relevant antibody from the SQLITE3 data
     # format as SeqRecord so we can output as FASTA
     # and generate an alignment using HMMER if it doesn't already exist
-    seqrecords, clonal = collect_seqrecords_from_db(OPTIONS.NEUT_SQLITE3_DB, antibody, OPTIONS.CLONAL, OPTIONS.DNA)
+    seqrecords, clonal = OPTIONS.DATA.seqrecords(antibody, OPTIONS.CLONAL, OPTIONS.DNA)
 
     # if clonal isn't supported, fallback to default
     if clonal != OPTIONS.CLONAL:

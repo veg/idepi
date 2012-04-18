@@ -22,6 +22,8 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
+from __future__ import division, print_function
+
 from os import close, environ
 from os.path import exists, join
 from subprocess import Popen, PIPE

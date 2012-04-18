@@ -1,4 +1,6 @@
 
+from __future__ import division, print_function
+
 from collections import namedtuple
 from logging import getLogger
 from math import copysign, sqrt
@@ -7,6 +9,7 @@ from os import close, remove, rename
 from os.path import exists
 from re import compile as re_compile, sub as re_sub
 from shutil import copyfile
+from six import u
 from sys import stderr, stdout
 from tempfile import mkstemp
 from unicodedata import combining
@@ -41,6 +44,12 @@ __all__ = [
     'extract_feature_weights',
     'column_labels'
 ]
+
+
+try:
+    unicode is not None
+except NameError:
+    unicode = str
 
 
 # refseq_offs has for keys 0-indexed positions into the trimmed refseq
@@ -261,7 +270,7 @@ def pretty_fmt_stats(stats, ident=0):
 
     stat_prefixes = {}
     for k in stats.keys():
-        stat_prefixes[k] = sum([1 for c in k if combining(c) == 0])
+        stat_prefixes[k] = sum([1 for c in u(k) if combining(c) == 0])
 
     stat_len = max(stat_prefixes.values())
     mean_len = max(len('%.6f' % v['mean']) for v in stats.values())

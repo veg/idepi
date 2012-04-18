@@ -29,6 +29,7 @@ from . import _phylogzfile as PhyloGzFile
 from ._alphabet import *
 from ._classextractor import *
 from ._common import *
+from ._data import *
 from ._discretizer import *
 from ._hmmer import *
 from ._hyphy import *
@@ -51,6 +52,7 @@ __all__ = ['IDEPI_LOGGER', 'PhyloGzFile']
 __all__ += _alphabet.__all__
 __all__ += _classextractor.__all__
 __all__ += _common.__all__
+__all__ += _data.__all__
 __all__ += _discretizer.__all__
 __all__ += _hmmer.__all__
 __all__ += _hyphy.__all__

@@ -1,12 +1,14 @@
 
+from __future__ import division, print_function
+
 import bz2
 import json
 import sqlite3
 
 from datetime import datetime
-from io import StringIO
 from os import close
 from os.path import exists
+from six import StringIO
 from tempfile import mkstemp
 
 import numpy as np

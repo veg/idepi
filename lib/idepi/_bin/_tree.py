@@ -1,9 +1,11 @@
-#!/usr/bin/env python2.7
+#!/usr/bin/env python
+
+from __future__ import division, print_function
 
 from gzip import GzipFile
-from io import StringIO
 from os.path import basename, exists
 from re import compile as re_compile, sub as re_sub
+from six import StringIO
 from sys import argv as sys_argv, exit as sys_exit, stderr
 
 from numpy import mean

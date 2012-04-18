@@ -1,12 +1,17 @@
 
+from __future__ import division, print_function
+
 from collections import defaultdict
 from copy import deepcopy
-from itertools import repeat
 
 from numpy import dtype
 
 
 __all__ = ['Alphabet']
+
+
+def constant_factory(value):
+    return lambda: value
 
 
 class Alphabet(object):
@@ -50,7 +55,7 @@ class Alphabet(object):
         else:
             raise ValueError('mode must be one of Alphabet.AMINO, Alphabet.DNA, Alphabet.STANFEL, or Alphabet.CUSTOM')
 
-        self.__dict = defaultdict(repeat(d['X']).__next__)
+        self.__dict = defaultdict(constant_factory(d['X']))
         self.__dict.update(d)
         self.__list = l
 
@@ -72,7 +77,7 @@ class Alphabet(object):
 
     def todict(self):
         # return a manual deepcopy, as deepcopy is currently barfing
-        d = defaultdict(repeat(self.__dict['X']).__next__)
+        d = defaultdict(constant_factory(self.__dict['X']))
         d.update(self.__dict)
         return d
 

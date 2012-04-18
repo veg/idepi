@@ -1,4 +1,6 @@
 
+from __future__ import division, print_function
+
 from re import sub
 
 from ._util import clamp, sanitize_seq

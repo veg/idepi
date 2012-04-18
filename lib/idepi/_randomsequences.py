@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 #
 # idepi :: (IDentify EPItope) python libraries containing some useful machine
 # learning interfaces for regression and discrete analysis (including
@@ -21,13 +22,14 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
-#!/usr/bin/env python
+
+from __future__ import division, print_function
 
 import sys
 
-from io import StringIO
 from operator import itemgetter
 from random import gauss, randint, random
+from six import StringIO
 
 from Bio import AlignIO, SeqIO
 from Bio.Seq import Seq

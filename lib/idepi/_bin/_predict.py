@@ -1,4 +1,4 @@
-#!/usr/bin/env python2.7
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 #
@@ -23,9 +23,10 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
+from __future__ import division, print_function
+
 import logging, sqlite3, sys
 
-from io import StringIO
 from json import dumps as json_dumps
 from math import ceil, copysign, log10, sqrt
 from operator import itemgetter
@@ -34,6 +35,7 @@ from os import close, remove, rename
 from os.path import abspath, basename, exists, join, split, splitext
 from random import gauss, random, seed
 from re import compile as re_compile
+from six import StringIO
 from tempfile import mkstemp
 
 import numpy as np
@@ -44,10 +46,9 @@ from Bio.SeqRecord import SeqRecord
 
 from idepi import (Alphabet, ClassExtractor, DumbSimulation, Hmmer, LinearSvm,
                    MarkovSimulation, NaiveFilter, NormalValue, Phylo, PhyloFilter,
-                   PhyloGzFile, Simulation, collect_seqrecords_from_db,
-                   column_labels, crude_sto_read, cv_results_to_output, generate_alignment,
-                   get_valid_antibodies_from_db, IDEPI_LOGGER, get_valid_subtypes_from_db,
-                   is_HXB2, make_output_meta, pretty_fmt_meta, pretty_fmt_weights,
+                   PhyloGzFile, Simulation, input_data, column_labels, crude_sto_read,
+                   cv_results_to_output, generate_alignment, IDEPI_LOGGER, is_HXB2,
+                   make_output_meta, pretty_fmt_meta, pretty_fmt_weights,
                    seqrecord_get_ic50s, seqrecord_set_ic50, set_util_params,
                    __file__ as _idepi_file, __version__ as _idepi_version)
 
@@ -114,6 +115,17 @@ def optparse_csv(option, opt_str, value, parser):
     setattr(parser.values, option.dest, value.split(','))
 
 
+def optparse_data(option, _, value, parser):
+    setattr(parser.values, option.dest, input_data(value))
+
+
+def optparse_log(option, opt_str, value, parser):
+    loggers = set(v.lower() for v in value.split(','))
+    if 'all' in loggers:
+        loggers |= set(['idepi', 'mrmr', 'pyxval', 'fakemp'])
+    setattr(parser.values, option.dest, loggers)
+
+
 def setup_option_parser():
 
     parser = OptionParser(usage = '%prog [options] ANTIBODY SEQUENCES')
@@ -132,7 +144,6 @@ def setup_option_parser():
     parser.add_option('--clonal',        action='store_true',                                                    dest='CLONAL')
     parser.add_option('--numfeats',                                                      type='int',             dest='NUM_FEATURES')
     parser.add_option('--subtypes',      action='callback',    callback=optparse_csv,    type='string',          dest='SUBTYPES')
-    parser.add_option('--nested',        action='store_true',                                                    dest='NESTED')
     parser.add_option('--log2c',         action='callback',    callback=optparse_csv,    type='string',          dest='LOG2C')
     parser.add_option('--weighting',     action='store_true',                                                    dest='WEIGHTING')
     parser.add_option('--accuracy',      action='store_true',                                                    dest='ACCURACY')
@@ -155,7 +166,7 @@ def setup_option_parser():
     parser.add_option('--mincon',                                                        type='float',           dest='MIN_CONSERVATION')
     parser.add_option('--ic50gt',                                                        type='float',           dest='IC50GT')
     parser.add_option('--ic50lt',                                                        type='float',           dest='IC50LT')
-    parser.add_option('--neuts',                                                         type='string',          dest='NEUT_SQLITE3_DB')
+    parser.add_option('--neuts',         action='callback',    callback=optparse_data,   type='string',          dest='DATA')
     parser.add_option('--refseq',                                                        type='string',          dest='REFSEQ_FASTA')
     parser.add_option('--ids',           action='callback',    callback=optparse_csv,    type='string',          dest='HXB2_IDS')
     parser.add_option('--test',          action='store_true',                                                    dest='TEST')
@@ -164,6 +175,7 @@ def setup_option_parser():
     parser.add_option('--tree',                                                          type='string',          dest='TREE')
     parser.add_option('-o', '--output',                                                  type='string',          dest='OUTPUT')
 
+    parser.set_defaults(LOGGING            = None)
     parser.set_defaults(HMMER_ALIGN_BIN    = 'hmmalign')
     parser.set_defaults(HMMER_BUILD_BIN    = 'hmmbuild')
     parser.set_defaults(HMMER_ITER         = 8)
@@ -174,7 +186,6 @@ def setup_option_parser():
     parser.set_defaults(CLONAL             = False)
     parser.set_defaults(NUM_FEATURES       = -1)
     parser.set_defaults(SUBTYPES           = [])
-    parser.set_defaults(NESTED             = True)
     parser.set_defaults(WEIGHTING          = False)
     parser.set_defaults(LOG2C              = ['-5', '15', '0.25'])
     parser.set_defaults(ACCURACY           = False)
@@ -194,7 +205,7 @@ def setup_option_parser():
     parser.set_defaults(MIN_CONSERVATION   = 1. ) # 33.)
     parser.set_defaults(IC50GT             = 20.)
     parser.set_defaults(IC50LT             = 2.)
-    parser.set_defaults(NEUT_SQLITE3_DB    = join(_IDEPI_PATH, 'data', 'allneuts.sqlite3'))
+    parser.set_defaults(DATA               = input_data(join(_IDEPI_PATH, 'data', 'allneuts.sqlite3')))
     parser.set_defaults(REFSEQ_FASTA       = _HXB2_AMINO_FASTA)
     parser.set_defaults(HXB2_IDS           = ['9629357', '9629363'])
     parser.set_defaults(RAND_SEED          = 42) # magic number for determinism
@@ -320,15 +331,19 @@ def main(argv=sys.argv):
     option_parser = setup_option_parser()
     (OPTIONS, args) = option_parser.parse_args(argv)
 
-    if OPTIONS.LOGGING:
-        logging.getLogger(IDEPI_LOGGER).setLevel(logging.DEBUG)
-        logging.getLogger(MRMR_LOGGER).setLevel(logging.DEBUG)
-        logging.getLogger(PYXVAL_LOGGER).setLevel(logging.DEBUG)
-        try:
-            from fakemp import FAKEMP_LOGGER
-            logging.getLogger(FAKEMP_LOGGER).setLevel(logging.DEBUG)
-        except ImportError:
-            pass
+    if OPTIONS.LOGGING is not None:
+        if 'idepi' in OPTIONS.LOGGING:
+            logging.getLogger(IDEPI_LOGGER).setLevel(logging.DEBUG)
+        if 'mrmr' in OPTIONS.LOGGING:
+            logging.getLogger(MRMR_LOGGER).setLevel(logging.DEBUG)
+        if 'pyxval' in OPTIONS.LOGGING:
+            logging.getLogger(PYXVAL_LOGGER).setLevel(logging.DEBUG)
+        if 'fakemp' in OPTIONS.LOGGING:
+            try:
+                from fakemp import FAKEMP_LOGGER
+                logging.getLogger(FAKEMP_LOGGER).setLevel(logging.DEBUG)
+            except ImportError:
+                warn('fakemp logger not found')
 
     # do some argument parsing
     if OPTIONS.TEST:
@@ -372,9 +387,9 @@ def main(argv=sys.argv):
 
     # validate the antibody argument, currently a hack exists to make PG9/PG16 work
     # TODO: Fix pg9/16 hax
-    antibody, oldseq = args[1:]
+    antibody, oldseq = [r.strip() for r in args[1:]]
 
-    valid_antibodies = sorted(get_valid_antibodies_from_db(OPTIONS.NEUT_SQLITE3_DB), key = lambda x: x.strip())
+    valid_antibodies = sorted(OPTIONS.DATA.antibodies, key = lambda x: x.strip())
     if antibody not in valid_antibodies:
         if ' ' + antibody not in valid_antibodies:
             option_parser.error('%s not in the list of permitted antibodies: \n  %s' % (antibody, '\n  '.join([ab.strip() for ab in valid_antibodies])))
@@ -385,7 +400,7 @@ def main(argv=sys.argv):
         option_parser.error('SEQUENCES file "%s" does not exist!' % oldseq)
 
     # validate the subtype option
-    valid_subtypes = sorted(get_valid_subtypes_from_db(OPTIONS.NEUT_SQLITE3_DB), key = lambda x: x.strip().upper())
+    valid_subtypes = sorted(OPTIONS.DATA.subtypes, key = lambda x: x.strip().upper())
     for subtype in OPTIONS.SUBTYPES:
         if subtype not in valid_subtypes:
             option_parser.error('%s not in the list of permitted subtypes: \n  %s' % (subtype, '\n  '.join([st.strip() for st in valid_subtypes])))
@@ -417,12 +432,12 @@ def main(argv=sys.argv):
     ))
     alignment_basename = '_'.join((
         ab_basename,
-        splitext(basename(OPTIONS.NEUT_SQLITE3_DB))[0],
+        OPTIONS.DATA.basename_root,
         __VERSION__
     ))
     fasta_basename = '_'.join((
         ab_basename,
-        splitext(basename(OPTIONS.NEUT_SQLITE3_DB))[0],
+        OPTIONS.DATA.basename_root,
         splitext(basename(oldseq))[0],
         __VERSION__
     ))
@@ -430,7 +445,7 @@ def main(argv=sys.argv):
     # grab the relevant antibody from the SQLITE3 data
     # format as SeqRecord so we can output as FASTA
     # and generate an alignment using HMMER if it doesn't already exist
-    seqrecords, clonal = collect_seqrecords_from_db(OPTIONS.NEUT_SQLITE3_DB, antibody, OPTIONS.CLONAL, OPTIONS.DNA)
+    seqrecords, clonal = OPTIONS.DATA.seqrecords(antibody, OPTIONS.CLONAL, OPTIONS.DNA)
 
     # if clonal isn't supported, fallback to default
     if clonal != OPTIONS.CLONAL:
