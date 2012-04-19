@@ -459,14 +459,15 @@ def main(argv=sys.argv):
     # create a temporary file wherein space characters have been removed
     try:
         fd, tmpseq = mkstemp(); close(fd)
-        with open(oldseq) as oldfh, open(tmpseq, 'w') as tmpfh:
-            re_spaces = re_compile(r'[-._]+')
-            def spaceless_seqrecord(record):
-                # you must clear the letter annotations before altering seq or BioPython barfs
-                record.letter_annotations.clear()
-                record.seq = Seq(re_spaces.sub('', str(record.seq)), record.seq.alphabet)
-                return record
-            SeqIO.write([spaceless_seqrecord(record) for record in SeqIO.parse(oldfh, seqfiletype)], tmpfh, 'fasta')
+        with open(oldseq) as oldfh:
+            with open(tmpseq, 'w') as tmpfh:
+                re_spaces = re_compile(r'[-._]+')
+                def spaceless_seqrecord(record):
+                    # you must clear the letter annotations before altering seq or BioPython barfs
+                    record.letter_annotations.clear()
+                    record.seq = Seq(re_spaces.sub('', str(record.seq)), record.seq.alphabet)
+                    return record
+                SeqIO.write([spaceless_seqrecord(record) for record in SeqIO.parse(oldfh, seqfiletype)], tmpfh, 'fasta')
 
         fasta_stofile = fasta_basename + '.sto'
         if not exists(fasta_stofile):

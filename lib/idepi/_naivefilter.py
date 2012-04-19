@@ -1,10 +1,14 @@
 
 from __future__ import division, print_function
 
-from collections import Counter
 from logging import getLogger
 from operator import itemgetter
 from time import clock
+
+try:
+    from collections import Counter
+except ImportError:
+    from ._counter import Counter
 
 import numpy as np
 
