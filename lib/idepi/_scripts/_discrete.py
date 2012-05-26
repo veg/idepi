@@ -627,7 +627,7 @@ def main(argv=sys.argv):
                     selector_cls=PhyloMrmr if OPTIONS.PHYLOFILTER else DiscreteMrmr,
                     folds=OPTIONS.CV_FOLDS,
                     gridsearch_kwargs={ 'C': C_range },
-                    classifier_kwargs={},
+                    classifier_kwargs={ 'bias': True },
                     selector_kwargs={
                         'num_features': num_features,
                         'method': DiscreteMrmr.MAXREL if OPTIONS.MAXREL else \

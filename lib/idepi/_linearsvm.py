@@ -41,28 +41,36 @@ from mlpy import LibSvm
 __all__ = ['LinearSvm']
 
 
+def bias_func(x):
+    return np.hstack((x, np.ones((x.shape[0], 1), dtype=float)))
+
+def nobias_func(x):
+    return x.astype(float)
+
+
 class LinearSvm(object):
 
     def __init__(self, svm_type='c_svc', degree=3, gamma=0.001, coef0=0,
                  C=1, nu=0.5, eps=0.001, p=0.1, cache_size=100, shrinking=True,
-                 probability=False, weight={}):
+                 probability=False, weight={}, bias=False):
         self.__lsvm = LibSvm(svm_type, 'linear', degree, gamma, coef0, C, nu,
                              eps, p, cache_size, shrinking, probability,
                              weight)
+        self.__bias = bias_func if bias else nobias_func
         self.__modelfile = None
         self.__computed = False
 
     def learn(self, x, y):
-        ret = self.__lsvm.learn(x.astype(float), y.astype(float))
+        ret = self.__lsvm.learn(self.__bias(x), y.astype(float))
         self.__computed = True
         if ret is not None:
             return ret
 
     def predict(self, x):
-        return self.__lsvm.pred(x.astype(float))
+        return self.__lsvm.pred(self.__bias(x))
 
     def predict_probabilities(self, x):
-        return self.__lsvm.pred_probability(x.astype(float))
+        return self.__lsvm.pred_probability(self.__bias(x))
 
     def weights(self):
         if self.__computed == False:

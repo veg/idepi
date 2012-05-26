@@ -209,7 +209,10 @@ def cv_results_to_output(results, colnames, meta=None, similar=True):
     weightsdict = {}
 
     for i in range(len(results.extra)):
-        assert(len(results.extra[i]['features']) >= len(results.extra[i]['weights']))
+        # weights - 1 to account for bias term we added in LinearSvm.__bias
+        assert(len(results.extra[i]['features']) >= len(results.extra[i]['weights']) - 1)
+        # we only ever go up to the # of features selected by mRMR,
+        # so the last weight (of the bias term) is ignored here, intentionally
         for j in range(len(results.extra[i]['features'])):
             v = results.extra[i]['weights'][j] if j < len(results.extra[i]['weights']) else 0.
             k = results.extra[i]['features'][j]
