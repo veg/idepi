@@ -27,6 +27,7 @@ from __future__ import division, print_function
 
 import logging, sqlite3, sys
 
+from json import dumps as json_dumps
 from math import ceil, copysign, log10, sqrt
 from operator import itemgetter
 from optparse import OptionParser
@@ -43,11 +44,13 @@ from Bio import AlignIO, SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
+from BioExt import hxb2
+
 from idepi import (Alphabet, ClassExtractor, DumbSimulation, LinearSvm, MarkovSimulation, NaiveFilter,
                    PhyloFilter, Simulation, cv_results_to_output, extract_feature_weights,
-                   extract_feature_weights_similar, generate_alignment, IDEPI_LOGGER, input_data,
-                   is_HXB2, make_output_meta, pretty_fmt_results, seqrecord_get_ic50s, set_util_params,
-                   __file__ as _idepi_file, __version__ as _idepi_version)
+                   extract_feature_weights_similar, fasta_json_desc, generate_alignment, IDEPI_LOGGER,
+                   input_data, is_HXB2, make_output_meta, pretty_fmt_results, seqrecord_get_ic50s,
+                   set_util_params, __file__ as _idepi_file, __version__ as _idepi_version)
 
 from mrmr import MRMR_LOGGER, DiscreteMrmr, PhyloMrmr
 
@@ -72,7 +75,7 @@ _TEST_DNA_STO = '''# STOCKHOLM 1.0
 2||A|21      AUGAUUCCCGACUUUAAANNNCAC
 3||A|50      AUGAUUCCCAAANNNCAC
 4||B|0.5     AUGCCCGACUUUAAACAC
-gi|9629357   AUGCCCGACUUUAAACAC
+HXB2_env     AUGCCCGACUUUAAACAC
 //'''.strip()
 
 _TEST_AMINO_STO = '''# STOCKHOLM 1.0
@@ -80,7 +83,7 @@ _TEST_AMINO_STO = '''# STOCKHOLM 1.0
 2||A|21       MIPDFKXH
 3||A|50       MIP--KXH
 4||B|0.5      .MPDFKH-
-gi|9629363    -MPDFKH-
+HXB2_env      -MPDFKH-
 //'''.strip()
 
 _TEST_AMINO_NAMES = ['0aM', '0a[]', 'M1I', 'M1M', 'P2P', 'D3D', 'D3[]', 'F4F', 'F4[]', 'K5K', 'H6H', 'H6X', '6aH', '6a[]']
@@ -164,7 +167,7 @@ def setup_option_parser():
     parser.add_option('--ic50gt',                                                        type='float',           dest='IC50GT')
     parser.add_option('--ic50lt',                                                        type='float',           dest='IC50LT')
     parser.add_option('--data',          action='callback',    callback=optparse_data,   type='string',          dest='DATA')
-    parser.add_option('--refseq',                                                        type='string',          dest='REFSEQ_FASTA')
+    parser.add_option('--refseq',                                                        type='string',          dest='REFSEQ')
     parser.add_option('--ids',           action='callback',    callback=optparse_csv,    type='string',          dest='HXB2_IDS')
     parser.add_option('--test',          action='store_true',                                                    dest='TEST')
     parser.add_option('--sim',                                                           type='string',          dest='SIM')
@@ -210,8 +213,8 @@ def setup_option_parser():
     parser.set_defaults(IC50GT             = 20.)
     parser.set_defaults(IC50LT             = 2.)
     parser.set_defaults(DATA               = input_data(join(_IDEPI_PATH, 'data', 'allneuts.sqlite3')))
-    parser.set_defaults(REFSEQ_FASTA       = _HXB2_AMINO_FASTA)
-    parser.set_defaults(HXB2_IDS           = ['9629357', '9629363'])
+    parser.set_defaults(REFSEQ             = hxb2.env.load())
+    parser.set_defaults(HXB2_IDS           = ['HXB2_env'])
     parser.set_defaults(SIM                = '') # can be 'randtarget' for now
     parser.set_defaults(SIM_RUNS           = 1) # can be 'randtarget' for now
     parser.set_defaults(SIM_EPI_SIZE       = 10)
@@ -268,8 +271,8 @@ def run_tests():
                 OPTIONS.MAX_CONSERVATION,
                 OPTIONS.MIN_CONSERVATION,
                 OPTIONS.MAX_GAP_RATIO,
-                is_HXB2,
-                lambda x: False # TODO: add the appropriate filter function based on the args here
+                ref_id_func=is_HXB2,
+                skip_func=lambda x: False # TODO: add the appropriate filter function based on the args here
             )
             colnames, x = colfilter.learn(alignment, {})
 
@@ -326,10 +329,18 @@ def run_tests():
     print('ALL TESTS PASS', file=sys.stderr)
 
 
-def fix_hxb2_fasta():
-    '''If DNA mode was selected but the AMINO reference sequence is still in place, fix it'''
-    if OPTIONS.DNA == True and OPTIONS.REFSEQ_FASTA == _HXB2_AMINO_FASTA:
-        OPTIONS.REFSEQ_FASTA = _HXB2_DNA_FASTA
+def fix_hxb2_seq():
+    if OPTIONS.DNA == False and str(OPTIONS.REFSEQ.seq) == str(hxb2.env.load().seq):
+        try:
+            OPTIONS.REFSEQ.seq = OPTIONS.REFSEQ.seq.translate()
+            data = fasta_json_desc(OPTIONS.REFSEQ)
+            if isinstance(data, dict) and 'loops' in data:
+                for k in data['loops'].keys():
+                    for i, v in enumerate(data['loops'][k]):
+                        data['loops'][k][i] = int(v // 3)
+                OPTIONS.REFSEQ.description = ' '.join((OPTIONS.REFSEQ.id, json_dumps(data, separators=(',', ':'))))
+        except ValueError:
+            pass # we're already a protein
 
 
 def main(argv=sys.argv):
@@ -462,8 +473,8 @@ def main(argv=sys.argv):
     # destroy the parser because optparse docs recommend it
     option_parser.destroy()
 
-    # use the default DNA HXB2 Reference seq if we define --dna but don't give a new default HXB2 Reference seq
-    fix_hxb2_fasta()
+    # convert the hxb2 reference to amino acid, including loop definitions, if not OPTIONS.DNA
+    fix_hxb2_seq()
 
     # set the util params
     set_util_params(OPTIONS.HXB2_IDS, OPTIONS.IC50GT, OPTIONS.IC50LT)
@@ -474,12 +485,7 @@ def main(argv=sys.argv):
     sim = None
     if OPTIONS.SIM != '':
         if OPTIONS.SIM == Simulation.DUMB:
-            hxb2fh = open(OPTIONS.REFSEQ_FASTA)
-            for record in SeqIO.parse(hxb2fh, 'fasta'):
-                hxb2seq = str(record.seq)
-                break
-            hxb2fh.close()
-            sim = DumbSimulation(OPTIONS.SIM_RUNS, Simulation.EPITOPE, hxb2seq)
+            sim = DumbSimulation(OPTIONS.SIM_RUNS, Simulation.EPITOPE, str(OPTIONS.REFSEQ.seq))
         elif OPTIONS.SIM in (Simulation.EPITOPE, Simulation.SEQUENCE):
             sim = MarkovSimulation(OPTIONS.SIM_RUNS, OPTIONS.SIM, _RAND_SEQ_STOCKHOLM)
         else:
@@ -523,8 +529,9 @@ def main(argv=sys.argv):
             OPTIONS.MAX_CONSERVATION,
             OPTIONS.MIN_CONSERVATION,
             OPTIONS.MAX_GAP_RATIO,
-            is_HXB2,
-            lambda x: False # TODO: add the appropriate filter function based on the args here
+            ref_id_func=is_HXB2,
+            skip_func=lambda x: False, # TODO: add the appropriate filter function based on the args here
+            loop_defs=sorted(fasta_json_desc(OPTIONS.REFSEQ).get('loops', {}).items(), key=itemgetter(0))
         )
 
         if sim is None:

@@ -42,10 +42,10 @@ __all__ = ['LinearSvm']
 
 
 def bias_func(x):
-    return np.hstack((x, np.ones((x.shape[0], 1), dtype=float)))
+    return np.hstack((x, np.ones((x.shape[0], 1), dtype=np.float64)))
 
 def nobias_func(x):
-    return x.astype(float)
+    return x.astype(np.float64)
 
 
 class LinearSvm(object):
@@ -61,7 +61,7 @@ class LinearSvm(object):
         self.__computed = False
 
     def learn(self, x, y):
-        ret = self.__lsvm.learn(self.__bias(x), y.astype(float))
+        ret = self.__lsvm.learn(self.__bias(x), y.astype(np.float64))
         self.__computed = True
         if ret is not None:
             return ret
@@ -156,7 +156,7 @@ class LinearSvmModel(object):
 
     def weights(self):
         numfeats = max(self.__feature_weights.keys()) + 1 if len(self.__feature_weights) else 0
-        features = np.zeros((numfeats,), dtype=float)
+        features = np.zeros((numfeats,), dtype=np.float64)
         for k, v in self.__feature_weights.items():
             features[k] += v
         return features

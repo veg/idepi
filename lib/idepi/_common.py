@@ -130,11 +130,9 @@ def generate_alignment_from_seqrecords(seq_records, my_basename, opts):
     try:
         # get the FASTA format file so we can HMMER it
         fafh = open(ab_fasta_filename, 'w')
-        hxb2fh = open(opts.REFSEQ_FASTA, 'rU')
 
-        # grab the HXB2 Reference Sequence
-        hxb2_record = SeqIO.parse(hxb2fh, 'fasta')
-        seq_records.extend(hxb2_record)
+        # insert the reference sequence
+        seq_records.append(opts.REFSEQ)
 
         # type errors here?
         try:
@@ -145,10 +143,10 @@ def generate_alignment_from_seqrecords(seq_records, my_basename, opts):
 
         # close the handles in this order because BioPython wiki does so
         fafh.close()
-        hxb2fh.close()
 
         # make the tempfiles for the alignments, and close them out after we use them
-        SeqIO.convert(opts.REFSEQ_FASTA, 'fasta', sto_filename, 'stockholm')
+        with open(sto_filename, 'w') as fh:
+            SeqIO.write([opts.REFSEQ], fh, 'stockholm')
 
         hmmer = Hmmer(opts.HMMER_ALIGN_BIN, opts.HMMER_BUILD_BIN)
 
@@ -159,7 +157,13 @@ def generate_alignment_from_seqrecords(seq_records, my_basename, opts):
         for i in range(opts.HMMER_ITER):
             log.debug('aligning %d sequences (%d of %d)' % (numseqs, i+1, opts.HMMER_ITER))
             hmmer.build(hmm_filename, sto_filename)
-            hmmer.align(hmm_filename, ab_fasta_filename, output=sto_filename, alphabet=Hmmer.DNA if opts.DNA else Hmmer.AMINO, outformat=Hmmer.PFAM)
+            hmmer.align(
+                hmm_filename,
+                ab_fasta_filename,
+                output=sto_filename,
+                alphabet=Hmmer.DNA if opts.DNA else Hmmer.AMINO,
+                outformat=Hmmer.PFAM
+            )
 
         # rename the final alignment to its destination
         finished = True

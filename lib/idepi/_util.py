@@ -24,6 +24,7 @@
 
 from __future__ import division, print_function
 
+from json import loads as json_loads
 from operator import itemgetter
 from os import close, remove, rename
 from re import sub, match
@@ -54,9 +55,10 @@ __all__ = [
     'ystoconfusionmatrix',
     'clamp',
     'sanitize_seq',
+    'fasta_json_desc'
 ]
 
-__HXB2_IDS = ('9629357', '9629363')
+__HXB2_IDS = ('HXB2_env',)
 __IC50LT = None
 __IC50GT = None
 
@@ -70,11 +72,14 @@ for k, v in [('PG9', 'NAC17'), ('PG16', 'NAC18')]:
 
 
 
-def set_util_params(hxb2_ids, ic50gt=None, ic50lt=None):
+def set_util_params(hxb2_ids=None, ic50gt=None, ic50lt=None):
     global __HXB2_IDS, __IC50GT, __IC50LT
-    __HXB2_IDS = hxb2_ids
-    __IC50GT = ic50gt
-    __IC50LT = ic50lt
+    if hxb2_ids is not None:
+        __HXB2_IDS = hxb2_ids
+    if ic50gt is not None:
+        __IC50GT = ic50gt
+    if ic50lt is not None:
+        __IC50LT = ic50lt
 
 
 def is_testdata(sid):
@@ -93,9 +98,7 @@ def is_testdata(sid):
 
 def is_HXB2(seqrecord):
     try:
-        sid = seqrecord.id.split('|', 2)[1]
-        sid = sid.split(':', 1)[0]
-        if sid in __HXB2_IDS:
+        if seqrecord.id.strip() in __HXB2_IDS:
             return True
     except IndexError as e:
         pass
@@ -318,3 +321,9 @@ def sanitize_seq(seq, alphabet):
     except TypeError as e:
         raise RuntimeError('something is amiss with things:\n  SPACE = %s\n  seq = %s\n  alphabet = %s\n' % (Alphabet.SPACE, seq, alphdict))
     return seq
+
+def fasta_json_desc(seqrecord):
+    try:
+        return json_loads(seqrecord.description.strip(seqrecord.id).strip())
+    except ValueError:
+        return {}
