@@ -508,6 +508,10 @@ def main(argv=sys.argv):
     # and generate an alignment using HMMER if it doesn't already exist
     seqrecords, clonal = OPTIONS.DATA.seqrecords(antibody, OPTIONS.CLONAL, OPTIONS.DNA)
 
+    # if we're doing LOOCV, make sure we set CV_FOLDS appropriately
+    if OPTIONS.LOOCV:
+        OPTIONS.CV_FOLDS = len(seqrecords)
+
     # if clonal isn't supported, fallback to default
     if clonal != OPTIONS.CLONAL:
         ab_basename = ''.join(ab_basename.rsplit('_clonal', 1))
