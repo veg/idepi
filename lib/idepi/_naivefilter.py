@@ -89,6 +89,8 @@ class NaiveFilter(BaseFilter):
 
         getLogger(IDEPI_LOGGER).debug('finished learning a filter, took %.3f' % (clock() - b))
 
+        # PNGs binding site features: N-*[^PX-]-*[ST]
+
         colnames = BaseFilter._colnames(alignment, alphabet, ref_id_func, refseq_offs, ign_idxs)
         data = NaiveFilter._filter(alignment_noref, alphabet, ign_idxs, loop_defs)
 

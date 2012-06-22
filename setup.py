@@ -25,5 +25,5 @@ setup(name='idepi',
       },
       package_data={'idepi': ['data/*', 'hyphy/*.bf']},
       scripts=['scripts/idepi'],
-      requires=['Bio', 'BioExt', 'cvxopt', 'fakemp', 'hypy', 'mlpy', 'mrmr', 'numpy', 'pyxval', 'six']
+      requires=['Bio', 'BioExt', 'cvxopt', 'fakemp', 'hppy', 'mlpy', 'mrmr', 'numpy', 'pyxval', 'six']
      )

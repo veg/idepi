@@ -44,10 +44,13 @@ from Bio import AlignIO, SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
+from BioExt import hxb2
+
 from idepi import (Alphabet, ClassExtractor, DumbSimulation, Hmmer, LinearSvm,
                    MarkovSimulation, NaiveFilter, NormalValue, Phylo, PhyloFilter,
-                   PhyloGzFile, Simulation, input_data, column_labels, crude_sto_read,
-                   cv_results_to_output, generate_alignment, IDEPI_LOGGER, is_HXB2,
+                   PhyloGzFile, Simulation, column_labels, crude_sto_read,
+                   cv_results_to_output, fix_hxb2_seq, generate_alignment, IDEPI_LOGGER,
+                   input_data, is_HXB2,
                    make_output_meta, pretty_fmt_meta, pretty_fmt_weights,
                    seqrecord_get_ic50s, seqrecord_set_ic50, set_util_params,
                    __file__ as _idepi_file, __version__ as _idepi_version)
@@ -167,7 +170,7 @@ def setup_option_parser():
     parser.add_option('--ic50gt',                                                        type='float',           dest='IC50GT')
     parser.add_option('--ic50lt',                                                        type='float',           dest='IC50LT')
     parser.add_option('--neuts',         action='callback',    callback=optparse_data,   type='string',          dest='DATA')
-    parser.add_option('--refseq',                                                        type='string',          dest='REFSEQ_FASTA')
+    parser.add_option('--refseq',                                                        type='string',          dest='REFSEQ')
     parser.add_option('--ids',           action='callback',    callback=optparse_csv,    type='string',          dest='HXB2_IDS')
     parser.add_option('--test',          action='store_true',                                                    dest='TEST')
     parser.add_option('--seed',                                                          type='int',             dest='RAND_SEED')
@@ -206,8 +209,8 @@ def setup_option_parser():
     parser.set_defaults(IC50GT             = 20.)
     parser.set_defaults(IC50LT             = 2.)
     parser.set_defaults(DATA               = input_data(join(_IDEPI_PATH, 'data', 'allneuts.sqlite3')))
-    parser.set_defaults(REFSEQ_FASTA       = _HXB2_AMINO_FASTA)
-    parser.set_defaults(HXB2_IDS           = ['9629357', '9629363'])
+    parser.set_defaults(REFSEQ             = hxb2.env.load())
+    parser.set_defaults(HXB2_IDS           = ['HXB2_env'])
     parser.set_defaults(RAND_SEED          = 42) # magic number for determinism
     parser.set_defaults(PHYLOFILTER        = False)
     parser.set_defaults(TREE               = None)
@@ -316,12 +319,6 @@ def run_tests():
     print('ALL TESTS PASS', file=sys.stderr)
 
 
-def fix_hxb2_fasta():
-    '''If DNA mode was selected but the AMINO reference sequence is still in place, fix it'''
-    if OPTIONS.DNA == True and OPTIONS.REFSEQ_FASTA == _HXB2_AMINO_FASTA:
-        OPTIONS.REFSEQ_FASTA = _HXB2_DNA_FASTA
-
-
 def main(argv=sys.argv):
     np.seterr(all='raise')
 
@@ -417,7 +414,7 @@ def main(argv=sys.argv):
     option_parser.destroy()
 
     # use the default DNA HXB2 Reference seq if we define --dna but don't give a new default HXB2 Reference seq
-    fix_hxb2_fasta()
+    fix_hxb2_seq(OPTIONS)
 
     # set the util params
     set_util_params(OPTIONS.HXB2_IDS, OPTIONS.IC50GT, OPTIONS.IC50LT)
@@ -574,7 +571,7 @@ def main(argv=sys.argv):
                           DiscreteMrmr.MIQ
             },
             validator_kwargs={
-                'folds': OPTIONS.CV_FOLDS-1,
+                'folds': OPTIONS.CV_FOLDS,
                 'scorer_cls': DiscretePerfStats,
                 'scorer_kwargs': { 'optstat': optstat }
             },

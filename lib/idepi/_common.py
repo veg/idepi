@@ -2,6 +2,7 @@
 from __future__ import division, print_function
 
 from collections import namedtuple
+from json import dumps as json_dumps, loads as json_loads
 from logging import getLogger
 from math import copysign, sqrt
 from operator import itemgetter
@@ -42,7 +43,9 @@ __all__ = [
     'pretty_fmt_weights',
     'extract_feature_weights_similar',
     'extract_feature_weights',
-    'column_labels'
+    'column_labels',
+    'fasta_json_desc',
+    'fix_hxb2_seq'
 ]
 
 
@@ -412,3 +415,25 @@ def column_labels(refseq, refseq_offs={}):
         colname = '%s%d%s' % (p if insert == 0 else '', colnum, base_26_to_alph(base_10_to_n(insert, BASE_ALPH)))
         colnames.append(colname)
     return colnames
+
+
+def fasta_json_desc(seqrecord):
+    try:
+        return json_loads(seqrecord.description.strip(seqrecord.id).strip())
+    except ValueError:
+        return {}
+
+
+def fix_hxb2_seq(opts):
+    from BioExt import hxb2
+    if opts.DNA == False and str(opts.REFSEQ.seq) == str(hxb2.env.load().seq):
+        try:
+            opts.REFSEQ.seq = opts.REFSEQ.seq.translate()
+            data = fasta_json_desc(opts.REFSEQ)
+            if isinstance(data, dict) and 'loops' in data:
+                for k in data['loops'].keys():
+                    for i, v in enumerate(data['loops'][k]):
+                        data['loops'][k][i] = int(v // 3)
+                opts.REFSEQ.description = ' '.join((opts.REFSEQ.id, json_dumps(data, separators=(',', ':'))))
+        except ValueError:
+            pass # we're already a protein

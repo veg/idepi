@@ -48,7 +48,8 @@ from BioExt import hxb2
 
 from idepi import (Alphabet, ClassExtractor, DumbSimulation, LinearSvm, MarkovSimulation, NaiveFilter,
                    PhyloFilter, Simulation, cv_results_to_output, extract_feature_weights,
-                   extract_feature_weights_similar, fasta_json_desc, generate_alignment, IDEPI_LOGGER,
+                   extract_feature_weights_similar, fasta_json_desc, fix_hxb2_seq,
+                   generate_alignment, IDEPI_LOGGER,
                    input_data, is_HXB2, make_output_meta, pretty_fmt_results, seqrecord_get_ic50s,
                    set_util_params, __file__ as _idepi_file, __version__ as _idepi_version)
 
@@ -329,20 +330,6 @@ def run_tests():
     print('ALL TESTS PASS', file=sys.stderr)
 
 
-def fix_hxb2_seq():
-    if OPTIONS.DNA == False and str(OPTIONS.REFSEQ.seq) == str(hxb2.env.load().seq):
-        try:
-            OPTIONS.REFSEQ.seq = OPTIONS.REFSEQ.seq.translate()
-            data = fasta_json_desc(OPTIONS.REFSEQ)
-            if isinstance(data, dict) and 'loops' in data:
-                for k in data['loops'].keys():
-                    for i, v in enumerate(data['loops'][k]):
-                        data['loops'][k][i] = int(v // 3)
-                OPTIONS.REFSEQ.description = ' '.join((OPTIONS.REFSEQ.id, json_dumps(data, separators=(',', ':'))))
-        except ValueError:
-            pass # we're already a protein
-
-
 def main(argv=sys.argv):
     np.seterr(all='raise')
 
@@ -474,7 +461,7 @@ def main(argv=sys.argv):
     option_parser.destroy()
 
     # convert the hxb2 reference to amino acid, including loop definitions, if not OPTIONS.DNA
-    fix_hxb2_seq()
+    fix_hxb2_seq(OPTIONS)
 
     # set the util params
     set_util_params(OPTIONS.HXB2_IDS, OPTIONS.IC50GT, OPTIONS.IC50LT)

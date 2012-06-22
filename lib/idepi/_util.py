@@ -54,8 +54,7 @@ __all__ = [
     'base_n_to_10',
     'ystoconfusionmatrix',
     'clamp',
-    'sanitize_seq',
-    'fasta_json_desc'
+    'sanitize_seq'
 ]
 
 __HXB2_IDS = ('HXB2_env',)
@@ -321,9 +320,3 @@ def sanitize_seq(seq, alphabet):
     except TypeError as e:
         raise RuntimeError('something is amiss with things:\n  SPACE = %s\n  seq = %s\n  alphabet = %s\n' % (Alphabet.SPACE, seq, alphdict))
     return seq
-
-def fasta_json_desc(seqrecord):
-    try:
-        return json_loads(seqrecord.description.strip(seqrecord.id).strip())
-    except ValueError:
-        return {}

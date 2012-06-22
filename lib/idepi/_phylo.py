@@ -12,7 +12,7 @@ from tempfile import mkstemp
 
 from Bio import AlignIO, SeqIO
 
-from hypy import HyphyInterface
+from hppy import HyphyInterface
 
 
 __all__ = ['Phylo']
