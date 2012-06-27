@@ -59,7 +59,8 @@
 %% ** EDIT HERE **
 %% PLEASE INCLUDE ALL MACROS BELOW
 
-\newcommand{\HMIC}{{IC}$_{50}$}
+\newcommand{\hmic}{{IC}$_{50}$}
+\newcommand{\idepi}{{IDEPI}}
 
 %% END MACROS SECTION
 
@@ -68,7 +69,7 @@
 % Title must be 150 characters or less
 \begin{flushleft}
 {\Large
-\textbf{{IDEPI}: rapid prediction of HIV-1 antibody epitopes leveraging mutual information and support vector machines}
+\textbf{\idepi: rapid prediction of HIV-1 antibody epitopes leveraging mutual information and support vector machines}
 }
 % Insert Author names, affiliations and corresponding author email.
 \\
@@ -107,14 +108,15 @@ The advent of highly active antiretroviral therapy ({HAART}) has contributed gre
 Unfortunately, HAART is neither curative, nor uniformly effective, nor widely available.
 These facts have reinforced the need for a preventative and potentially curative vaccine.
 Unfortunately, such a vaccine has remained elusive.
-This is largely due to the combination of HIV-1’s mutational speed,
+This is largely due to the combination of HIV-1's mutational speed,
 its proclivity for genomic recombination events,
 and the unique and heterogeneous structure of its envelope protein (env),
 all of which render HIV-1 infections resistant to immunological attack.
 Recently, the discovery of several broadly neutralizing antibodies (bnAbs) has suggested new routes toward the invention of an effective vaccine.
 
-In order to effectively mimic the activity of these bnAbs,
-we must first characterize their active surface, known as an epitope.
+In order to effectively elicit the specific activity of these bnAbs,
+we must first characterize the structural surface they target,
+known for any given antibody as its epitope.
 This is an open and difficult problem, largely due to the structural nature of nAb epitopes.
 There are several techniques for mapping nAb epitopes, but they often have caveats that limit or restrict their generalizability.
 For example, one such technique is a reverse genetics approach known as “alanine screening”,
@@ -136,11 +138,15 @@ and paradoxically more biologically realistic results.
 <talk about limitations in their approaches, either due to speed or unsimulatability> I propose one such method here, and demonstrate its efficacy on a variety of previously-characterized bnAb epitopes, and validate its performance across a variety of simulated inputs.
 
 For a given neutralizing agent,
-the IDEPI pipeline uses predictive modeling to identify common compensatory mutations between sequences of high sensitivity and low sensitivity.
+the \idepi pipeline uses predictive modeling to identify common compensatory mutations between sequences of high sensitivity and low sensitivity.
 We hypothesize that common compensatory mutations will often lie within the epitope.
 
 % Results and Discussion can be combined.
 \section*{Results}
+
+We demonstrate the effectiveness of the \idepi on the well-characterized b12 and 2F5 bnAbs,
+and demonstrate results for the PG9 and PG16 bnAbs,
+in addition to the recently-discovered PGT-family of bnAbs.
 
 \subsection*{Subsection 1}
 
@@ -153,14 +159,14 @@ We hypothesize that common compensatory mutations will often lie within the epit
 % authors may use "Analysis"
 \section*{Materials and Methods}
 Data were obtained using a Monogram neutralization assay,
-which measures the half-maximal inhibitory concentration (\HMIC)
+which measures the half-maximal inhibitory concentration (\hmic)
 of a neutralizing agent (monoclonal antibody or polyclonal sera) in a model system composed of a chimeric HIV-1 construct expressing a known envelope sequence.
 This assay was performed for 64 distinct neutralizing agents against 9 to 421 envelope sequences per agent (median 116).
 
-The IDEPI pipeline is composed of the following stages:
-1) collate the \HMIC values and corresponding envelope sequences for our neutralizing agent of interest,
+The \idepi pipeline is composed of the following stages:
+1) collate the \hmic values and corresponding envelope sequences for our neutralizing agent of interest,
 2) produce a multiple sequence alignment from the collated sequences using the {HMMER} multiple sequence alignment tool,
-3) binarize the data by thresholding the \HMIC values (at some natural or biologically-relevant value)
+3) binarize the data by thresholding the \hmic values (at some natural or biologically-relevant value)
 and transforming each column of the MSA into a vector of 23 binary states representing the presence (1) or absence (0) of a given amino-acid at any given position,
 4) partition the sequences into $k$ bins,
 5) for each bin $B_i$,

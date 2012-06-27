@@ -1,16 +1,26 @@
-LATEX = latex -interaction=batchmode
 BIBTEX = bibtex -terse
+DVIPDF = dvipdf
+LATEX  = latex -interaction=batchmode
 
-all: plos.pdf
+.PHONY : all clean open
 
-.PHONY: clean
+all : plos.pdf
 
-plos.pdf: plos.tex plos.bib
-	${LATEX} plos.tex
-	-${BIBTEX} plos.aux
-	${LATEX} plos.tex
-	${LATEX} plos.tex
-	dvipdf plos.dvi
+plos.pdf : plos.dvi
+	$(DVIPDF) $<
 
-clean:
+plos.dvi : plos.tex plos.aux plos.bbl
+	$(LATEX) $(firstword $<)
+	$(LATEX) $(firstword $<)
+
+plos.bbl : plos.aux
+	-$(BIBTEX) $<
+
+plos.aux : plos.tex
+	$(LATEX) $<
+
+clean :
 	-rm plos.aux plos.bbl plos.blg plos.dvi plos.log plos.pdf
+
+open : plos.pdf
+	-open $<
