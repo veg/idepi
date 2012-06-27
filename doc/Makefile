@@ -1,30 +1,27 @@
 BIBTEX = bibtex -terse
-DVIPDF = dvipdf
-LATEX = latex -interaction=batchmode
+TEX = pdflatex -file-line-error -interaction=batchmode -shell-escape
 
 BIBFILE = plos
-# FIGUREFILES = 
+# FIGUREFILES =
 LATEXFILE = plos
 
-.PHONY : all clean open
+.INTERMEDIATE : $(LATEXFILE).aux $(LATEXFILE).bbl $(LATEXFILE).blg $(LATEXFILE).log
+.PHONY : all clean view
 
 all : $(LATEXFILE).pdf
 
-$(LATEXFILE).pdf : $(LATEXFILE).dvi
-	$(DVIPDF) $<
+%.pdf %.log : %.tex %.aux %.bbl $(FIGUREFILES)
+	$(TEX) $<
+	$(TEX) $<
 
-$(LATEXFILE).dvi : $(LATEXFILE).tex $(LATEXFILE).aux $(LATEXFILE).bbl
-	$(LATEX) $(firstword $<)
-	$(LATEX) $(firstword $<)
-
-$(LATEXFILE).bbl : $(LATEXFILE).aux $(BIBFILE).bib
+%.bbl %.blg : %.aux $(BIBFILE).bib
 	-$(BIBTEX) $<
 
-$(LATEXFILE).aux : $(LATEXFILE).tex $(FIGUREFILES)
-	$(LATEX) $<
+%.aux %.log : %.tex $(FIGUREFILES)
+	$(TEX) $<
 
 clean :
-	-rm $(LATEXFILE).aux $(LATEXFILE).bbl $(LATEXFILE).blg $(LATEXFILE).dvi $(LATEXFILE).log $(LATEXFILE).pdf
+	@rm -f $(LATEXFILE).aux $(LATEXFILE).bbl $(LATEXFILE).blg $(LATEXFILE).log $(LATEXFILE).pdf
 
-open : $(LATEXFILE).pdf
+view : $(LATEXFILE).pdf
 	-open $<
