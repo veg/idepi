@@ -62,6 +62,9 @@
 \newcommand{\hmic}{{IC}$_{50}$}
 \newcommand{\idepi}{{IDEPI}}
 \newcommand{\hiv}{{HIV}-1}
+\newcommand{\N}{\emph{N}}
+\newcommand{\mrmr}{{mRMR}}
+\newcommand{\svm}{{SVM}}
 
 %% END MACROS SECTION
 
@@ -105,21 +108,21 @@ $\ast$ E-mail: Corresponding nhepler@ucsd.edu
 Introduced in the late 20th century,
 the human immunodeficiency virus type 1 (\hiv{}) has infected approximately 60 million people
 and caused approximately 25 million deaths.
-The advent of highly active antiretroviral therapy ({HAART}) has contributed greatly to the fight against the \hiv{} epidemic.
+The advent of highly active antiretroviral therapy ({HAART}) has contributed greatly to the struggle against the \hiv{} epidemic.
 Unfortunately, HAART is neither curative, nor uniformly effective, nor widely available.
 These facts have reinforced the need for a preventative and potentially curative vaccine.
 Unfortunately, such a vaccine has remained elusive.
 This is largely due to the combination of \hiv{}'s mutational speed,
 its proclivity for genomic recombination events,
 and the unique and heterogeneous structure of its envelope protein (env),
-all of which render \hiv{} infections resistant to immunological attack.
+all of which render \hiv{} infections resistant to immunological suppression.
 Recently, the discovery of several broadly neutralizing antibodies (bnAbs) has suggested new routes toward the invention of an effective vaccine.
 
 In order to effectively elicit the specific activity of these bnAbs,
-we must first characterize the structural surface they target,
+we must first characterize the structural surface they recognize,
 known for any given antibody as its epitope.
 This is an open and difficult problem, largely due to the structural nature of nAb epitopes.
-There are several techniques for mapping nAb epitopes, but they often have caveats that limit or restrict their generalizability.
+There are several techniques for mapping nAb epitopes, but they often come with caveats that limit or restrict their generalizability.
 For example, one such technique is a reverse genetics approach known as “alanine screening”,
 wherein each and every position of the env protein is individually mutated to an alanine,
 which is chemically inert (relative to other amino acids) while retaining chirality (unlike glycine).
@@ -147,13 +150,66 @@ We hypothesize that common compensatory mutations will often lie within the epit
 We demonstrate the effectiveness of the \idepi{} on the well-characterized b12 and 2F5 bnAbs,
 and demonstrate results for the PG9 and PG16 bnAbs and the recently-discovered PGT-family of bnAbs.
 
-\subsection*{Subsection 1}
+\subsection*{\idepi{} epitope predictions}
 
-\subsection*{Subsection 2}
+\subsubsection*{2F5}
+For bnAb 2F5, our data is composed of 241 sequences from a variety of subtypes,
+predominantly subtype B (\N{} = 68) and C (\N{} = 49),
+with a total of 243 independent \hmic{} samplings.
+Of note is that when a sequence has more than a single corresponding \hmic{},
+the largest value is assumed.
+For 101 of the samples, the \hmic{} is considered ``saturated'' with an $\textrm{{IC}}_{50} \ge 25{\mu}g/mL$.
+We threshold the \hmic{}s at $20{\mu}g/mL$,
+so that approximately 43.6\% of the samples are classified resistant.
+Using forward selection, we determine the optimum number of features to choose via \mrmr{} is XXX,
+with 20-fold cross-validation producing the following statistics on average:
+accuracy - XXX,
+specificity - XXX,
+sensitivity - XXX,
+and F-score - XXX.
+Additionally, \idepi{} identifies sequence features XXX and XXX and XXX in more than 80\% of the cross-validation folds,
+suggesting they are robust.
+These positions are within the previously-described, canonical epitope,
+validating \idepi{} capacity for short linear epitopes like 2F5.
+
+\subsubsection*{b12}
+For bnAb b12, our data is composed of 384 sequences from a variety of subtypes,
+predominantly B (\N{} = 84) and C (\N{} = 64),
+with a total of 394 independent \hmic{} samplings.
+
+\subsubsection*{PG9 and PG16}
+For bnAb PG9 and PG16, our data is composed of 
+\subsubsection*{PGT-family}
+
+
+
+\subsection*{Simulation studies}
+
+We also challenged \idepi{} with a variety of simulated data to characterize \idepi{}'s performance.
+We varied the number of samples,
+the ratio of resistant to susceptible samples,
+and the amount of experimental error in the \hmic{} values.
+\idepi{}'s performance in these simulations is measured in two ways:
+by F-score, which is a single measure of \idepi{}'s confidence;
+and by epitope recovery, which measures the ratio of simulated epitope positions identified by \idepi{}.
+
+As shown in figure XXX, \idepi{}'s performance steadily increases with the number of sequences.
+This is unsurprising, as increasing the number of training samples facilitates the discriminating power of \idepi{}'s \mrmr{} and \svm{} stages.
+Figure XXX shows that \idepi{}'s performance declines as the data become less balanced.
+Again, this is unsurprising: oversampling of susceptible or resistant sequences to the exclusion of the other
+hampers \idepi{}'s core machine learning algorithms,
+which are geared toward optimizing over all training data.
+To give an unsimulated example, the {VRC01} antibody is extremely potent,
+and our data reflects this: out of 111 sequences only 9 are resistant.
+The classifier \idepi{} builds for {VRC01} is trivial:
+optimimum performance is obtained by classifying all samples as susceptible (accuracy of 89\%).
+Additionally, it is unsurprising that \idepi{}'s performance also diminishes with increased experimental noise,
+as seen in figure XXX, although \idepi{} appears to be robust to a small amount of noise (approximately $ < \%$).
 
 \section*{Discussion}
 
-The results demonstrate the effectiveness of \idepi{} on 
+I am always confused by these discussion sections. Please help.
+The results demonstrate the effectiveness of \idepi{} on ...
 
 % You may title this section "Methods" or "Models".
 % "Models" is not a valid title for PLoS ONE authors. However, PLoS ONE
@@ -166,15 +222,36 @@ This assay was performed for 64 distinct neutralizing agents against 9 to 421 en
 
 The \idepi{} pipeline is composed of the following stages:
 1) collate the \hmic{} values and corresponding envelope sequences for our neutralizing agent of interest,
-2) produce a multiple sequence alignment from the collated sequences using the {HMMER} multiple sequence alignment tool,
+2) iteratively construct a multiple sequence alignment from the collated sequences using the {HMMER} multiple sequence alignment tool,
 3) binarize the data by thresholding the \hmic{} values (at some natural or biologically-relevant value)
-and transforming each column of the MSA into a vector of 23 binary states representing the presence (1) or absence (0) of a given amino-acid at any given position,
-4) partition the sequences into $k$ bins,
+and transforming each column of the MSA into a vector of 23 binary states representing the presence (1) or absence (0) of a given amino-acid or gap at any given position,
+4) partition the sequences into $k$ approximately equally-sized bins,
 5) for each bin $B_i$,
-5a) set $B_i$ aside to use as test data,
-while using the remaining $k-1$ bins to learn a predictive model,
+5a) set $B_i$ aside to use as test data, while using the remaining $k-1$ bins as training data to learn a predictive model,
 5b) test the performance of the predictive model on the test data in bin $B_i$,
 6) collate and present the predictive model performance and the features chosen by the model as estimations of confidence and inferred epitope positions, respectively.
+
+Predictive models are learned from training data using a feature selection algorithm,
+in this case \mrmr{}, followed by a dot-product (linear) support vector machine.
+The dot-product kernel is used in lieu of the more flexible radial basis function kernel or sigmoid kernel
+due to the interpretability of its model coefficients,
+which are nigh-uninterpretable for other kernels due to their capacity to embed samples in high-dimensional spaces.
+
+The \mrmr{} algorithm is used for its high speed and capacity to greedily select still-informative features.
+The number of features $k$ is either chosen \emph{a priori},
+or more frequently by forward selection,
+which iteratively increments $k$ until cross-validation performance as measured by F-score no longer improves.
+This selects the minimum number of features necessary to achieve good performance.
+
+\idepi{} itself is implemented in the Python programming language,
+and leverages common scientific computing routines implemented in NumPy, SciPy, BioPython,
+and the Python machine-learning library MLPy.
+Functionality not immediately available was implemented in modules that are well-abstracted and reusable,
+all of which are now available via the PyPI package manager:
+mrmr - implements the \mrmr{} feature selection algorithm,
+fakemp - implements concurrent MapReduce-esque functionality and non-concurrent fallback routines,
+pyxval - implements generic cross-validation, nested cross-validation, and grid-searching routines,
+BioExt - implements miscellaneous computational biology routines not provided by BioPython.
 
 % Do NOT remove this, even if you are not including acknowledgments
 \section*{Acknowledgments}

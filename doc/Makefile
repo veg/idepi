@@ -1,26 +1,30 @@
 BIBTEX = bibtex -terse
 DVIPDF = dvipdf
-LATEX  = latex -interaction=batchmode
+LATEX = latex -interaction=batchmode
+
+BIBFILE = plos
+# FIGUREFILES = 
+LATEXFILE = plos
 
 .PHONY : all clean open
 
-all : plos.pdf
+all : $(LATEXFILE).pdf
 
-plos.pdf : plos.dvi
+$(LATEXFILE).pdf : $(LATEXFILE).dvi
 	$(DVIPDF) $<
 
-plos.dvi : plos.tex plos.aux plos.bbl
+$(LATEXFILE).dvi : $(LATEXFILE).tex $(LATEXFILE).aux $(LATEXFILE).bbl
 	$(LATEX) $(firstword $<)
 	$(LATEX) $(firstword $<)
 
-plos.bbl : plos.aux
+$(LATEXFILE).bbl : $(LATEXFILE).aux $(BIBFILE).bib
 	-$(BIBTEX) $<
 
-plos.aux : plos.tex
+$(LATEXFILE).aux : $(LATEXFILE).tex $(FIGUREFILES)
 	$(LATEX) $<
 
 clean :
-	-rm plos.aux plos.bbl plos.blg plos.dvi plos.log plos.pdf
+	-rm $(LATEXFILE).aux $(LATEXFILE).bbl $(LATEXFILE).blg $(LATEXFILE).dvi $(LATEXFILE).log $(LATEXFILE).pdf
 
-open : plos.pdf
+open : $(LATEXFILE).pdf
 	-open $<
