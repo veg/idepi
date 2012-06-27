@@ -1,0 +1,206 @@
+% Template for PLoS
+% Version 1.0 January 2009
+%
+% To compile to pdf, run:
+% latex plos.template
+% bibtex plos.template
+% latex plos.template
+% latex plos.template
+% dvipdf plos.template
+
+\documentclass[10pt]{article}
+
+% amsmath package, useful for mathematical formulas
+\usepackage{amsmath}
+% amssymb package, useful for mathematical symbols
+\usepackage{amssymb}
+
+% graphicx package, useful for including eps and pdf graphics
+% include graphics with the command \includegraphics
+\usepackage{graphicx}
+
+% cite package, to clean up citations in the main text. Do not remove.
+\usepackage{cite}
+
+\usepackage{color}
+
+% Use doublespacing - comment out for single spacing
+\usepackage{setspace}
+\doublespacing
+
+
+% Text layout
+\topmargin 0.0cm
+\oddsidemargin 0.5cm
+\evensidemargin 0.5cm
+\textwidth 16cm
+\textheight 21cm
+
+% Bold the 'Figure #' in the caption and separate it with a period
+% Captions will be left justified
+\usepackage[labelfont=bf,labelsep=period,justification=raggedright]{caption}
+
+% Use the PLoS provided bibtex style
+\bibliographystyle{plos2009}
+
+% Remove brackets from numbering in List of References
+\makeatletter
+\renewcommand{\@biblabel}[1]{\quad#1.}
+\makeatother
+
+
+% Leave date blank
+\date{}
+
+\pagestyle{myheadings}
+%% ** EDIT HERE **
+
+
+%% ** EDIT HERE **
+%% PLEASE INCLUDE ALL MACROS BELOW
+
+\newcommand{\HMIC}{{IC}$_{50}$}
+
+%% END MACROS SECTION
+
+\begin{document}
+
+% Title must be 150 characters or less
+\begin{flushleft}
+{\Large
+\textbf{{IDEPI}: rapid prediction of HIV-1 antibody epitopes leveraging mutual information and support vector machines}
+}
+% Insert Author names, affiliations and corresponding author email.
+\\
+N Lance Hepler$^{1,\ast}$,
+Konrad Scheffler$^{2}$,
+Douglas D Richman$^{2,3}$,
+Dennis R Burton$^{4,5}$,
+Sergei L Kosakovsky Pond$^{2}$
+\\
+\bf{1} Interdisciplinary Bioinformatics and Systems Biology Program, University of California San Diego, La Jolla, CA, USA
+\\
+\bf{2} Department of Medicine, University of California San Diego, La Jolla, CA, USA
+\\
+\bf{3} San Diego Veterans Affairs Healthcare System, San Diego, CA, USA
+\\
+\bf{4} The Scripps Research Institute, La Jolla, CA, USA
+\\
+\bf{5} Ragon Institute of {MGH}, {MIT}, and Harvard, Boston, MA, USA
+\\
+$\ast$ E-mail: Corresponding nhepler@ucsd.edu
+\end{flushleft}
+
+% Please keep the abstract between 250 and 300 words
+\section*{Abstract}
+
+% Please keep the Author Summary between 150 and 200 words
+% Use first person. PLoS ONE authors please skip this step.
+% Author Summary not valid for PLoS ONE submissions.
+\section*{Author Summary}
+
+\section*{Introduction}
+Introduced in the late 20th century,
+the human immunodeficiency virus type 1 (HIV-1) has infected approximately 60 million people
+and caused approximately 25 million deaths.
+The advent of highly active antiretroviral therapy ({HAART}) has contributed greatly to the fight against the HIV-1 epidemic.
+Unfortunately, HAART is neither curative, nor uniformly effective, nor widely available.
+These facts have reinforced the need for a preventative and potentially curative vaccine.
+Unfortunately, such a vaccine has remained elusive.
+This is largely due to the combination of HIV-1’s mutational speed,
+its proclivity for genomic recombination events,
+and the unique and heterogeneous structure of its envelope protein (env),
+all of which render HIV-1 infections resistant to immunological attack.
+Recently, the discovery of several broadly neutralizing antibodies (bnAbs) has suggested new routes toward the invention of an effective vaccine.
+
+In order to effectively mimic the activity of these bnAbs,
+we must first characterize their active surface, known as an epitope.
+This is an open and difficult problem, largely due to the structural nature of nAb epitopes.
+There are several techniques for mapping nAb epitopes, but they often have caveats that limit or restrict their generalizability.
+For example, one such technique is a reverse genetics approach known as “alanine screening”,
+wherein each and every position of the env protein is individually mutated to an alanine,
+which is chemically inert (relative to other amino acids) while remaining chiral (unlike glycine).
+The resulting constructs are then tested for binding activity.
+Given that there are 856 amino acid positions in the HIV-1 reference sequence ({HXB2}),
+such a technique is obviously labor and resource intensive.
+Additionally, it is hampered by biological caveats: some positions cannot be realistically mutated in vivo,
+there are fitness constraints that must be accounted for;
+the constructs used to test binding are often monomeric forms of the env protein (which is trimeric \em{in vivo}),
+and as such the results are not guaranteed to be representative of biological reality.
+Other biochemical and structural methods suffer similar caveats:
+x-ray crystallography often requires the use of chimeric constructs to facilitate crystallization.
+Computational approaches to epitope mapping offer the promise of rapid results,
+and paradoxically more biologically realistic results.
+
+<talk about other computational approaches, e.g. CHAVI, possibly miguel, and others>
+<talk about limitations in their approaches, either due to speed or unsimulatability> I propose one such method here, and demonstrate its efficacy on a variety of previously-characterized bnAb epitopes, and validate its performance across a variety of simulated inputs.
+
+For a given neutralizing agent,
+the IDEPI pipeline uses predictive modeling to identify common compensatory mutations between sequences of high sensitivity and low sensitivity.
+We hypothesize that common compensatory mutations will often lie within the epitope.
+
+% Results and Discussion can be combined.
+\section*{Results}
+
+\subsection*{Subsection 1}
+
+\subsection*{Subsection 2}
+
+\section*{Discussion}
+
+% You may title this section "Methods" or "Models".
+% "Models" is not a valid title for PLoS ONE authors. However, PLoS ONE
+% authors may use "Analysis"
+\section*{Materials and Methods}
+Data were obtained using a Monogram neutralization assay,
+which measures the half-maximal inhibitory concentration (\HMIC)
+of a neutralizing agent (monoclonal antibody or polyclonal sera) in a model system composed of a chimeric HIV-1 construct expressing a known envelope sequence.
+This assay was performed for 64 distinct neutralizing agents against 9 to 421 envelope sequences per agent (median 116).
+
+The IDEPI pipeline is composed of the following stages:
+1) collate the \HMIC values and corresponding envelope sequences for our neutralizing agent of interest,
+2) produce a multiple sequence alignment from the collated sequences using the {HMMER} multiple sequence alignment tool,
+3) binarize the data by thresholding the \HMIC values (at some natural or biologically-relevant value)
+and transforming each column of the MSA into a vector of 23 binary states representing the presence (1) or absence (0) of a given amino-acid at any given position,
+4) partition the sequences into $k$ bins,
+5) for each bin $B_i$,
+5a) set $B_i$ aside to use as test data,
+while using the remaining $k-1$ bins to learn a predictive model,
+5b) test the performance of the predictive model on the test data in bin $B_i$,
+6) collate and present the predictive model performance and the features chosen by the model as estimations of confidence and inferred epitope positions, respectively.
+
+% Do NOT remove this, even if you are not including acknowledgments
+\section*{Acknowledgments}
+
+
+%\section*{References}
+% The bibtex filename
+\bibliography{plos}
+
+\section*{Figure Legends}
+%\begin{figure}[!ht]
+%\begin{center}
+%%\includegraphics[width=4in]{figure_name.2.eps}
+%\end{center}
+%\caption{
+%{\bf Bold the first sentence.}  Rest of figure 2  caption.  Caption
+%should be left justified, as specified by the options to the caption
+%package.
+%}
+%\label{Figure_label}
+%\end{figure}
+
+
+\section*{Tables}
+%\begin{table}[!ht]
+%\caption{
+%\bf{Table title}}
+%\begin{tabular}{|c|c|c|}
+%table information
+%\end{tabular}
+%\begin{flushleft}Table caption
+%\end{flushleft}
+%\label{tab:label}
+% \end{table}
+
+\end{document}
