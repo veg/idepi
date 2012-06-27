@@ -1,12 +1,15 @@
+LATEX = latex -interaction=batchmode
+BIBTEX = bibtex -terse
+
 all: plos.pdf
 
 .PHONY: clean
 
 plos.pdf: plos.tex plos.bib
-	latex plos.tex
-	-bibtex plos.aux
-	latex plos.tex
-	latex plos.tex
+	${LATEX} plos.tex
+	-${BIBTEX} plos.aux
+	${LATEX} plos.tex
+	${LATEX} plos.tex
 	dvipdf plos.dvi
 
 clean:
