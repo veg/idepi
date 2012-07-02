@@ -83,15 +83,15 @@ Douglas D Richman$^{2,3}$,
 Dennis R Burton$^{4,5}$,
 Sergei L Kosakovsky Pond$^{2}$
 \\
-\bf{1} Interdisciplinary Bioinformatics and Systems Biology Program, University of California San Diego, La Jolla, CA, USA
+\bf{1} Interdisciplinary Bioinformatics and Systems Biology Program, University of California San Diego, La Jolla, California, USA
 \\
-\bf{2} Department of Medicine, University of California San Diego, La Jolla, CA, USA
+\bf{2} Department of Medicine, University of California San Diego, La Jolla, California, USA
 \\
-\bf{3} San Diego Veterans Affairs Healthcare System, San Diego, CA, USA
+\bf{3} San Diego Veterans Affairs Healthcare System, San Diego, California, USA
 \\
-\bf{4} The Scripps Research Institute, La Jolla, CA, USA
+\bf{4} The Scripps Research Institute, La Jolla, California, USA
 \\
-\bf{5} Ragon Institute of {MGH}, {MIT}, and Harvard, Boston, MA, USA
+\bf{5} Ragon Institute of {MGH}, {MIT}, and Harvard, Boston, Massachusetts, USA
 \\
 $\ast$ E-mail: Corresponding nhepler@ucsd.edu
 \end{flushleft}
@@ -147,8 +147,8 @@ We hypothesize that common compensatory mutations will often lie within the epit
 % Results and Discussion can be combined.
 \section*{Results}
 
-We demonstrate the effectiveness of the \idepi{} on the well-characterized b12 and 2F5 bnAbs,
-and demonstrate results for the PG9 and PG16 bnAbs and the recently-discovered PGT-family of bnAbs.
+We demonstrate the effectiveness of the \idepi{} epitope prediction pipeline on the well-characterized b12 and 2F5 bnAbs,
+and produce epitope predictions for the PG9 and PG16 bnAbs and the recently-discovered PGT-family of bnAbs.
 
 \subsection*{\idepi{} epitope predictions}
 
@@ -161,13 +161,13 @@ the largest value is assumed.
 For 101 of the samples, the \hmic{} is considered ``saturated'' with an $\textrm{{IC}}_{50} \ge 25{\mu}g/mL$.
 We threshold the \hmic{}s at $20{\mu}g/mL$,
 so that approximately 43.6\% of the samples are classified resistant.
-Using forward selection, we determine the optimum number of features to choose via \mrmr{} is XXX,
+Using forward selection, \idepi{} determined the optimum number of features to choose is 2,
 with 20-fold cross-validation producing the following statistics on average:
-accuracy - XXX,
-specificity - XXX,
-sensitivity - XXX,
-and F-score - XXX.
-Additionally, \idepi{} identifies sequence features XXX and XXX and XXX in more than 80\% of the cross-validation folds,
+accuracy - 95.1\%,
+sensitivity - 96.3\%,
+specificity - 94.4\%,
+and F-score - 94.4\%.
+Additionally, \idepi{} identifies sequence features K665K and A667A in more than 80\% of the cross-validation folds,
 suggesting they are robust.
 These positions are within the previously-described, canonical epitope,
 validating \idepi{} capacity for short linear epitopes like 2F5.
@@ -179,6 +179,7 @@ with a total of 394 independent \hmic{} samplings.
 
 \subsubsection*{PG9 and PG16}
 For bnAb PG9 and PG16, our data is composed of 
+
 \subsubsection*{PGT-family}
 
 
@@ -252,6 +253,8 @@ mrmr - implements the \mrmr{} feature selection algorithm,
 fakemp - implements concurrent MapReduce-esque functionality and non-concurrent fallback routines,
 pyxval - implements generic cross-validation, nested cross-validation, and grid-searching routines,
 BioExt - implements miscellaneous computational biology routines not provided by BioPython.
+
+
 
 % Do NOT remove this, even if you are not including acknowledgments
 \section*{Acknowledgments}
