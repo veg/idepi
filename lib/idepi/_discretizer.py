@@ -1,16 +1,16 @@
 
 from __future__ import division, print_function
 
-from numpy import (abs as np_abs,
-                   add as np_add,
-                   divide as np_divide,
-                   int8 as np_int8,
-                   mean as np_mean,
-                   multiply as np_multiply,
-                   ones as np_ones,
-                   subtract as np_subtract,
-                   var as np_var,
-                   zeros as np_zeros)
+from numpy import (
+    add as np_add,
+    divide as np_divide,
+    int8 as np_int8,
+    mean as np_mean,
+    multiply as np_multiply,
+    ones as np_ones,
+    subtract as np_subtract,
+    var as np_var
+)
 
 
 __all__ = ['Discretizer']

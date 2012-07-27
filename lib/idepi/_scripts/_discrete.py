@@ -25,37 +25,50 @@
 
 from __future__ import division, print_function
 
-import logging, sqlite3, sys
+import sys
 
-from json import dumps as json_dumps
-from math import ceil, copysign, log10, sqrt
+from argparse import ArgumentTypeError
 from operator import itemgetter
-from optparse import OptionParser
-from os import close, remove, rename
-from os.path import abspath, basename, exists, join, split, splitext
-from random import gauss, random, seed
-from re import sub, match
+from os import close, remove
+from os.path import abspath, join, split
+from random import seed
 from tempfile import mkstemp
 from warnings import warn
 
 import numpy as np
 
-from Bio import AlignIO, SeqIO
-from Bio.Seq import Seq
-from Bio.SeqRecord import SeqRecord
+from Bio import AlignIO
 
 from BioExt import hxb2
 
-from idepi import (Alphabet, ClassExtractor, DumbSimulation, LinearSvm, MarkovSimulation, NaiveFilter,
-                   PhyloFilter, Simulation, cv_results_to_output, extract_feature_weights,
-                   extract_feature_weights_similar, fasta_json_desc, fix_hxb2_seq,
-                   generate_alignment, IDEPI_LOGGER,
-                   input_data, is_HXB2, make_output_meta, pretty_fmt_results, seqrecord_get_ic50s,
-                   set_util_params, __file__ as _idepi_file, __version__ as _idepi_version)
+from idepi import (
+    Alphabet,
+    ClassExtractor,
+    DumbSimulation,
+    LinearSvm,
+    MarkovSimulation,
+    NaiveFilter,
+    Simulation,
+    alignment_identify_ref,
+    cv_results_to_output,
+    extract_feature_weights,
+    extract_feature_weights_similar,
+    fasta_json_desc,
+    fix_hxb2_seq,
+    generate_alignment,
+    input_data,
+    is_refseq,
+    make_output_meta,
+    pretty_fmt_results,
+    seqrecord_get_ic50s,
+    set_util_params,
+    __file__ as _idepi_file,
+    __version__ as _idepi_version
+)
 
-from mrmr import MRMR_LOGGER, DiscreteMrmr, PhyloMrmr
+from mrmr import DiscreteMrmr
 
-from pyxval import PYXVAL_LOGGER, CrossValidator, DiscretePerfStats, SelectingNestedCrossValidator
+from pyxval import CrossValidator, DiscretePerfStats, SelectingNestedCrossValidator
 
 
 __VERSION__ = _idepi_version
@@ -67,8 +80,6 @@ _HXB2_AMINO_FASTA = join(_IDEPI_PATH, 'data', 'hxb2_pep.fa')
 _DEFAULT_NUM_FEATURES = 10
 
 _RAND_SEQ_STOCKHOLM = join(_IDEPI_PATH, 'data', 'randhivenvpep_final.sto')
-
-_PHYLOFILTER_BATCHFILE = join(_IDEPI_PATH, 'hyphy', 'CorrectForPhylogeny.bf')
 
 # strip the _TEST variables because of the beginning and trailing newlines
 _TEST_DNA_STO = '''# STOCKHOLM 1.0
@@ -103,28 +114,7 @@ _TEST_STANFEL_X = np.array([[1,0,1,1,1,0,1,0,1,0,1,0,1],
                             [1,0,1,1,0,1,0,1,1,0,1,1,0],
                             [0,1,1,1,1,0,1,0,1,1,0,0,1]])
 
-OPTIONS = None
-
-
-def optparse_extend(option, opt_str, value, parser):
-    if getattr(parser.values, option.dest, None) is None:
-        setattr(parser.values, option.dest, [])
-    getattr(parser.values, option.dest).extend(value)
-
-
-def optparse_csv(option, opt_str, value, parser):
-    setattr(parser.values, option.dest, value.split(','))
-
-
-def optparse_data(option, opt_str, value, parser):
-    setattr(parser.values, option.dest, input_data(value))
-
-
-def optparse_log(option, opt_str, value, parser):
-    loggers = set(v.lower() for v in value.split(','))
-    if 'all' in loggers:
-        loggers |= set(['idepi', 'mrmr', 'pyxval', 'fakemp'])
-    setattr(parser.values, option.dest, loggers)
+ARGS = None
 
 
 def setup_option_parser():
@@ -232,18 +222,15 @@ def setup_option_parser():
 
 def run_tests():
     # set these to this so we don't exclude anything (just testing file generation and parsing)
-    OPTIONS.NUM_FEATURES = 15 # should be enough, the number is known to be 13
-    OPTIONS.MAXREL = False
-    OPTIONS.DNA = False
-    OPTIONS.MAX_CONSERVATION = 1.0
-    OPTIONS.MAX_GAP_RATIO    = 1.0
-    OPTIONS.MIN_CONSERVATION = 1.0
-    OPTIONS.IC50GT = 20.
-    OPTIONS.IC50LT = 2.
-    OPTIONS.TARGETS = ['lt']
+    ARGS.NUM_FEATURES = 15 # should be enough, the number is known to be 13
+    ARGS.MRMR_METHOD = DiscreteMrmr.MID
+    ARGS.MAX_CONSERVATION = 1.0
+    ARGS.MAX_GAP_RATIO    = 1.0
+    ARGS.MIN_CONSERVATION = 1.0
+    ARGS.IC50 = 20.
 
     # if we don't do this, DOOMBUNNIES
-    set_util_params(OPTIONS.HXB2_IDS, OPTIONS.IC50GT, OPTIONS.IC50LT)
+    set_util_params(ARGS.REFSEQ_IDS, ARGS.IC50)
 
     fd, sto_filename = mkstemp(); close(fd)
 
@@ -253,26 +240,25 @@ def run_tests():
         fh.close()
 
         alignment = AlignIO.read(sto_filename, 'stockholm')
+        refidx = alignment_identify_ref(alignment, is_refseq)
 
-        for OPTIONS.STANFEL in (True, False):
+        for ARGS.ALPHABET in (Alphabet.AMINO, Alphabet.STANFEL):
 
-            if OPTIONS.STANFEL:
-                OPTIONS.AMINO = False
+            if ARGS.ALPHABET == Alphabet.STANFEL:
                 _TEST_NAMES = _TEST_STANFEL_NAMES
                 _TEST_X = _TEST_STANFEL_X
             else:
-                OPTIONS.AMINO = True
                 _TEST_NAMES = _TEST_AMINO_NAMES
                 _TEST_X = _TEST_AMINO_X
 
-            alph = Alphabet(Alphabet.STANFEL if OPTIONS.STANFEL else Alphabet.DNA if OPTIONS.DNA else Alphabet.AMINO)
+            alph = Alphabet(mode=ARGS.ALPHABET)
 
             colfilter = NaiveFilter(
                 alph,
-                OPTIONS.MAX_CONSERVATION,
-                OPTIONS.MIN_CONSERVATION,
-                OPTIONS.MAX_GAP_RATIO,
-                ref_id_func=is_HXB2,
+                ARGS.MAX_CONSERVATION,
+                ARGS.MIN_CONSERVATION,
+                ARGS.MAX_GAP_RATIO,
+                refidx=refidx,
                 skip_func=lambda x: False # TODO: add the appropriate filter function based on the args here
             )
             colnames, x = colfilter.learn(alignment, {})
@@ -292,37 +278,31 @@ def run_tests():
             assert(np.all(_TEST_X == x))
 
             # test mRMR and LSVM file generation
-            for target in OPTIONS.TARGETS:
-                yextractor = ClassExtractor(
-                    seqrecord_get_ic50s,
-                    lambda row: is_HXB2(row) or False, # TODO: again filtration function
-                    lambda x: (x <= OPTIONS.IC50LT if target == 'le' else
-                               x <  OPTIONS.IC50LT if target == 'lt' else
-                               x >= OPTIONS.IC50GT if target == 'ge' else
-                               x >  OPTIONS.IC50GT),
-                    False
-                )
-                y, ic50ge = yextractor.extract(alignment)
+            yextractor = ClassExtractor(
+                seqrecord_get_ic50s,
+                lambda row: is_refseq(row) or False, # TODO: again filtration function
+                lambda x: x >  ARGS.IC50,
+                False
+            )
+            y, ic50 = yextractor.extract(alignment)
 
-                assert(np.all(_TEST_Y == y))
+            assert(np.all(_TEST_Y == y))
 
-                if OPTIONS.MRMR_NORMALIZE:
-                    DiscreteMrmr._NORMALIZED = True
+            if ARGS.MRMR_NORMALIZE:
+                DiscreteMrmr._NORMALIZED = True
 
-                # generate and test the mRMR portion
-                mrmr = DiscreteMrmr(
-                    num_features=OPTIONS.NUM_FEATURES,
-                    method=DiscreteMrmr.MAXREL if OPTIONS.MAXREL \
-                      else DiscreteMrmr.MID if OPTIONS.MRMR_METHOD == 'MID' \
-                      else DiscreteMrmr.MIQ
-                )
+            # generate and test the mRMR portion
+            mrmr = DiscreteMrmr(
+                num_features=ARGS.NUM_FEATURES,
+                method=ARGS.MRMR_METHOD
+            )
 
-                mrmr.select(x, y)
+            mrmr.select(x, y)
 
-                x = mrmr.subset(x)
+            x = mrmr.subset(x)
 
-                lsvm = LinearSvm()
-                lsvm.learn(x, y)
+            lsvm = LinearSvm()
+            lsvm.learn(x, y)
 
     finally:
         remove(sto_filename)
@@ -333,338 +313,232 @@ def run_tests():
 def main(argv=sys.argv):
     np.seterr(all='raise')
 
-    global OPTIONS
+    global ARGS
 
     # so some option parsing
-    option_parser = setup_option_parser()
-    (OPTIONS, args) = option_parser.parse_args(argv)
+    parser = init_args("XXX: description")
+    ARGS = parser.parse_args(argv)
 
-    if OPTIONS.LOGGING is not None:
-        if 'idepi' in OPTIONS.LOGGING:
-            logging.getLogger(IDEPI_LOGGER).setLevel(logging.DEBUG)
-        if 'mrmr' in OPTIONS.LOGGING:
-            logging.getLogger(MRMR_LOGGER).setLevel(logging.DEBUG)
-        if 'pyxval' in OPTIONS.LOGGING:
-            logging.getLogger(PYXVAL_LOGGER).setLevel(logging.DEBUG)
-        if 'fakemp' in OPTIONS.LOGGING:
-            try:
-                from fakemp import FAKEMP_LOGGER
-                logging.getLogger(FAKEMP_LOGGER).setLevel(logging.DEBUG)
-            except ImportError:
-                warn('fakemp logger not found')
+    finalize_args(ARGS)
 
     # do some argument parsing
-    if OPTIONS.TEST:
+    if ARGS.TEST:
         run_tests()
         return 0
 
-    if OPTIONS.SIM != '':
-        if OPTIONS.SIM == 'randdumbepi':
-            OPTIONS.SIM = Simulation.DUMB
-        elif OPTIONS.SIM == 'randepi':
-            OPTIONS.SIM == Simulation.EPITOPE
-        elif OPTIONS.SIM == 'randseq':
-            OPTIONS.SIM == Simulation.SEQUENCE
-        elif OPTIONS.SIM == 'randtarget':
-            OPTIONS.SIM == Simulation.TARGET
-        else:
-            option_parser.error('option --sim takes one of %s' % ', '.join(Simulation.VALUES))
-
-    if OPTIONS.RAND_SEED is not None:
-        seed(OPTIONS.RAND_SEED)
+    if ARGS.RAND_SEED is not None:
+        seed(ARGS.RAND_SEED)
 
     similar = True
-    if OPTIONS.MAXREL:
+    if ARGS.MAXREL:
         similar = False
 
-    if len(args) != 2:
-        option_parser.error('ANTIBODY is a required argument')
-
+    # XXX autobalance option directly
     autobalance = False
-    if OPTIONS.TARGETS == ['auto']:
-        OPTIONS.TARGETS = ['ge']
+    if ARGS.TARGETS == ['auto']:
+        ARGS.TARGETS = ['ge']
         autobalance = True
 
-    if not set(OPTIONS.TARGETS).issubset(set(['le', 'lt', 'ge', 'gt'])):
-        option_parser.error('option --targets takes either `auto` or any combination of: le, lt, ge, gt')
-
-    if not OPTIONS.MRMR_METHOD in ('MIQ', 'MID'):
-        option_parser.error('option --mrmrmethod takes either MIQ or MID')
-
-    # check to make sure our mode is exclusive, and set the default (AMINO) if none is set
-    alphoptlen = sum(1 for v in (OPTIONS.AMINO, OPTIONS.DNA, OPTIONS.STANFEL) if v)
-    if alphoptlen > 1:
-        option_parser.error('options --amino, --dna, and --stanfel are mutually exclusive')
-    elif alphoptlen == 0:
-        OPTIONS.AMINO = True
-
-    if sum(1 for v in (OPTIONS.ACCURACY, OPTIONS.PPV, OPTIONS.NPV, OPTIONS.SENSITIVITY, OPTIONS.SPECIFICITY, OPTIONS.FSCORE) if v) > 1:
-        option_parser.error('options --accuracy, --ppv/--precision, --npv, --sensitivity/--recall, --specificity/--tnr, --fscore are mutually exclusive')
-
-    try:
-        if len(OPTIONS.LOG2C) != 3 or float(OPTIONS.LOG2C[2]) <= 0.:
-            raise ValueError
-        OPTIONS.LOG2C = [int(OPTIONS.LOG2C[0]), int(OPTIONS.LOG2C[1]), float(OPTIONS.LOG2C[2])]
-    except ValueError as e:
-        option_parser.error('option --log2c takes an argument of the form C_BEGIN,C_END,C_STEP where C_STEP must be > 0')
+    # validate the subtype option
+    valid_subtypes = sorted(ARGS.DATA.subtypes, key=lambda x: x.strip().upper())
+    for subtype in ARGS.SUBTYPES:
+        if subtype not in valid_subtypes:
+            msg = "'%s' not in the list of permitted subtypes: %s" % (
+                subtype,
+                ', '.join("'%s'" % st.strip() for st in valid_subtypes)
+            )
+            raise ArgumentTypeError(msg)
 
     # validate the antibody argument, currently a hack exists to make PG9/PG16 work
     # TODO: Fix pg9/16 hax
-    antibody = args[1].strip()
-    valid_antibodies = sorted(OPTIONS.DATA.antibodies, key = lambda x: x.strip())
+    antibody = args.antibody.strip()
+    valid_antibodies = sorted(ARGS.DATA.antibodies, key=lambda x: x.strip())
     if antibody not in valid_antibodies:
         if ' ' + antibody not in valid_antibodies:
-            option_parser.error('%s not in the list of permitted antibodies: \n  %s' % (antibody, '\n  '.join(ab.strip() for ab in valid_antibodies)))
+            msg = "'%s' not in the list of permitted antibodies: %s" % (
+                antibody,
+                ', '.join("'%s'" % ab.strip() for ab in valid_antibodies)
+            )
+            raise ArgumentTypeError(msg)
         else:
             antibody = ' ' + antibody
 
-    # validate the subtype option
-    valid_subtypes = sorted(OPTIONS.DATA.subtypes, key = lambda x: x.strip().upper())
-    for subtype in OPTIONS.SUBTYPES:
-        if subtype not in valid_subtypes:
-            option_parser.error('%s not in the list of permitted subtypes: \n  %s' % (subtype, '\n  '.join(st.strip() for st in valid_subtypes)))
+    if ARGS.SIM in (Simulation.EPITOPE, Simulation.SEQUENCE) and ARGS.DNA:
+        raise ArgumentTypeError('randseq simulation target not compatible with DNA alphabet')
 
-    if OPTIONS.SIM in (Simulation.EPITOPE, Simulation.SEQUENCE) and OPTIONS.DNA:
-        option_parser.error('randseq simulation target not compatible with DNA mode')
+    if len(ARGS.FILTER) != 0:
+        if ARGS.NUM_FEATURES > len(ARGS.FILTER):
+            ARGS.NUM_FEATURES = len(ARGS.FILTER)
+            warn('clamping --numfeats to sizeof(--filter) = %d' % ARGS.NUM_FEATURES)
 
-    if OPTIONS.SIM_EPI_MUT_RATE < 0. or OPTIONS.SIM_EPI_MUT_RATE > 1.:
-        option_parser.error('--simepimutrate must be between 0.0 and 1.0')
-
-    if abs(OPTIONS.SIM_EPI_NOISE) > 1.:
-        option_parser.error('--simepinoise shouldn\'t really ever be greater than 1.0')
-
-    if OPTIONS.SIM_EPI_N is not None and OPTIONS.SIM_EPI_N < 1:
-        option_parser.error('--simepiseqnum must be greater than 0')
-
-    if OPTIONS.SIM_EPI_PERCENTILE < 0. or OPTIONS.SIM_EPI_PERCENTILE > 1.:
-        option_parser.error('--simepiperc must be betweeen 0.0 and 1.0')
-
-    if OPTIONS.IC50GT <= 0.:
-        option_parser.error('--ic50lt values must be >0, ic50 values are in [0, 25]')
-
-    if OPTIONS.IC50GT >= 25.:
-        option_parser.error('--ic50gt values must be <25, ic50 values are in [0, 25]')
-
-    if len(OPTIONS.FILTER) != 0:
-        if OPTIONS.NUM_FEATURES > len(OPTIONS.FILTER):
-            OPTIONS.NUM_FEATURES = len(OPTIONS.FILTER)
-            print('warning: clamping --numfeats to sizeof(--filter) = %d' % OPTIONS.NUM_FEATURES, file=sys.stderr)
-    else: # len(OPTIONS.FILTER) == 0
-        if OPTIONS.NUM_FEATURES == -1:
-            OPTIONS.NUM_FEATURES = _DEFAULT_NUM_FEATURES
-
-    if OPTIONS.MRMR_NORMALIZE and OPTIONS.PHYLOFILTER:
-        print("mRMR normalization and phylofiltering are incompatible, disabling mRMR normalization", file=sys.stderr)
-        OPTIONS.MRMR_NORMALIZE = False
-
-    # destroy the parser because optparse docs recommend it
-    option_parser.destroy()
-
-    # convert the hxb2 reference to amino acid, including loop definitions, if not OPTIONS.DNA
-    fix_hxb2_seq(OPTIONS)
+    # convert the hxb2 reference to amino acid, including loop definitions
+    fix_hxb2_seq(ARGS)
 
     # set the util params
-    set_util_params(OPTIONS.HXB2_IDS, OPTIONS.IC50GT, OPTIONS.IC50LT)
+    set_util_params(ARGS.REFSEQ_IDS, ARGS.IC50)
 
     # fetch the alphabet, we'll probably need it later
-    alph = Alphabet(mode=Alphabet.STANFEL if OPTIONS.STANFEL else Alphabet.DNA if OPTIONS.DNA else Alphabet.AMINO)
+    alph = Alphabet(mode=ARGS.ALPHABET)
 
     sim = None
-    if OPTIONS.SIM != '':
-        if OPTIONS.SIM == Simulation.DUMB:
-            sim = DumbSimulation(OPTIONS.SIM_RUNS, Simulation.EPITOPE, str(OPTIONS.REFSEQ.seq))
-        elif OPTIONS.SIM in (Simulation.EPITOPE, Simulation.SEQUENCE):
-            sim = MarkovSimulation(OPTIONS.SIM_RUNS, OPTIONS.SIM, _RAND_SEQ_STOCKHOLM)
+    if ARGS.SIM is not None:
+        if ARGS.SIM == Simulation.DUMB:
+            sim = DumbSimulation(ARGS.SIM_RUNS, Simulation.EPITOPE, str(ARGS.REFSEQ.seq))
+        elif ARGS.SIM in (Simulation.EPITOPE, Simulation.SEQUENCE):
+            sim = MarkovSimulation(ARGS.SIM_RUNS, ARGS.SIM, _RAND_SEQ_STOCKHOLM)
         else:
-            raise ValueError('Unknown simulation type `%s\'' % OPTIONS.SIM)
+            raise ValueError("Unknown simulation type '%s'" % ARGS.SIM)
 
     ab_basename = ''.join((
         antibody,
         '_randseq' if sim is not None and sim.mode == Simulation.SEQUENCE else '',
-        '_dna' if OPTIONS.DNA else '_amino',
-        '_clonal' if OPTIONS.CLONAL else ''
+        '_dna' if ARGS.DNA else '_amino',
+        '_clonal' if ARGS.CLONAL else ''
     ))
     alignment_basename = '_'.join((
         ab_basename,
-        OPTIONS.DATA.basename_root,
+        ARGS.DATA.basename_root,
         __VERSION__
     ))
 
     # grab the relevant antibody from the SQLITE3 data
     # format as SeqRecord so we can output as FASTA
     # and generate an alignment using HMMER if it doesn't already exist
-    seqrecords, clonal = OPTIONS.DATA.seqrecords(antibody, OPTIONS.CLONAL, OPTIONS.DNA)
+    seqrecords, clonal = ARGS.DATA.seqrecords(antibody, ARGS.CLONAL, ARGS.DNA)
 
     # if we're doing LOOCV, make sure we set CV_FOLDS appropriately
-    if OPTIONS.LOOCV:
-        OPTIONS.CV_FOLDS = len(seqrecords)
+    if ARGS.LOOCV:
+        ARGS.CV_FOLDS = len(seqrecords)
 
     # if clonal isn't supported, fallback to default
-    if clonal != OPTIONS.CLONAL:
+    if clonal != ARGS.CLONAL:
         ab_basename = ''.join(ab_basename.rsplit('_clonal', 1))
         alignment_basename = ''.join(alignment_basename.rsplit('_clonal', 1))
 
-    alignment, refseq_offs = generate_alignment(seqrecords, alignment_basename, is_HXB2, OPTIONS)
-    colfilter = None
-    if OPTIONS.PHYLOFILTER:
-        colfilter = PhyloFilter(
-            alph,
-            _PHYLOFILTER_BATCHFILE,
-            is_HXB2,
-            lambda x: False
-        )
-        colnames, x = colfilter.learn(alignment, refseq_offs)
-    else:
-        colfilter = NaiveFilter(
-            alph,
-            OPTIONS.MAX_CONSERVATION,
-            OPTIONS.MIN_CONSERVATION,
-            OPTIONS.MAX_GAP_RATIO,
-            ref_id_func=is_HXB2,
-            skip_func=lambda x: False, # TODO: add the appropriate filter function based on the args here
-            loop_defs=sorted(fasta_json_desc(OPTIONS.REFSEQ).get('loops', {}).items(), key=itemgetter(0))
-        )
+    alignment, refseq_offs = generate_alignment(seqrecords, alignment_basename, is_refseq, ARGS)
+    refidx = alignment_identify_ref(alignment, is_refseq)
+    colfilter = NaiveFilter(
+        alph,
+        ARGS.MAX_CONSERVATION,
+        ARGS.MIN_CONSERVATION,
+        ARGS.MAX_GAP_RATIO,
+        refidx=refidx,
+        skip_func=lambda x: False, # TODO: add the appropriate filter function based on the args here
+        loop_defs=sorted(fasta_json_desc(ARGS.REFSEQ).get('loops', {}).items(), key=itemgetter(0))
+    )
 
-        if sim is None:
-            colnames, x = colfilter.learn(alignment, refseq_offs)
-            # TODO: I don't think we need to binarize the colnames here, though we can if we want.
-            # I need to think more about how to properly handle this case.
-        else:
-            if OPTIONS.SIM_EPI_N is None:
-                OPTIONS.SIM_EPI_N = len(seqrecords)
+    if sim is None:
+        colnames, x = colfilter.learn(alignment, refseq_offs)
+        # TODO: I don't think we need to binarize the colnames here, though we can if we want.
+        # I need to think more about how to properly handle this case.
+    else:
+        if ARGS.SIM_EPI_N is None:
+            ARGS.SIM_EPI_N = len(seqrecords)
 
     # compute features
-    for target in OPTIONS.TARGETS:
+    forward_initval = 1 if ARGS.FORWARD_SELECT else ARGS.NUM_FEATURES
+    forward_select = None
+    results = None
+    for num_features in range(forward_initval, ARGS.NUM_FEATURES + 1):
 
-        forward_initval = 1 if OPTIONS.FORWARD_SELECT else OPTIONS.NUM_FEATURES
-        forward_select = None
-        results = None
-        for num_features in range(forward_initval, OPTIONS.NUM_FEATURES + 1):
+        if sim is None:
+            yextractor = ClassExtractor(
+                seqrecord_get_ic50s,
+                lambda row: is_refseq(row) or False, # TODO: again filtration function
+                lambda x: x > ARGS.IC50,
+                ARGS.AUTOBALANCE
+            )
+            y, ic50 = yextractor.extract(alignment)
+            assert y.shape[0] == x.shape[0], "number of classes doesn't match the data: %d vs %d" % (y.shape[0], x.shape[0])
+            assert(
+                (ic50 is None and not ARGS.AUTOBALANCE) or
+                (ic50 is not None and ARGS.AUTOBALANCE)
+            )
+            if autobalance:
+                ARGS.IC50 = ic50
 
-            if sim is None:
-                yextractor = ClassExtractor(
-                    seqrecord_get_ic50s,
-                    lambda row: is_HXB2(row) or False, # TODO: again filtration function
-                    lambda x: (x <= OPTIONS.IC50LT if target == 'le' else
-                               x <  OPTIONS.IC50LT if target == 'lt' else
-                               x >= OPTIONS.IC50GT if target == 'ge' else
-                               x >  OPTIONS.IC50GT),
-                    autobalance
-                )
-                y, ic50ge = yextractor.extract(alignment)
-                assert y.shape[0] == x.shape[0], "number of classes doesn't match the data: %d vs %d" % (y.shape[0], x.shape[0])
-                assert(
-                    (ic50ge is None and not autobalance) or
-                    (ic50ge is not None and autobalance)
-                )
-                if autobalance:
-                    OPTIONS.IC50GT = ic50ge
+        # simulations, ho!
+        for i in range(sim.runs if sim is not None else 1):
 
-#             if OPTIONS.PHYLOFILTER:
-#                 np.savez('phylo.y.npz', {'data': y})
-#             else:
-#                 with open(antibody + '.mrmr', 'w') as fh:
-#                     print('class,' + ','.join(colnames), file=fh)
-#                     print('\n'.join(','.join('%d' % v for v in ([y[i]] + (x[i, :].tolist()))) for i in range(x.shape[0])), file=fh)
-
-            # simulations, ho!
-            for i in range(sim.runs if sim is not None else 1):
-
-                # here is where the sequences must be generated for the random sequence and random epitope simulations
-                if sim is not None:
-                    alignment = sim.generate_sequences(
-                        N=OPTIONS.SIM_EPI_N,
-                        idfmt='%s|||',
-                        noise=OPTIONS.SIM_EPI_NOISE,
-                        mutation_rate=OPTIONS.SIM_EPI_MUT_RATE,
-                        alphabet=alph
-                    )
-
-                    colnames, x = colfilter.learn(alignment, {}) # XXX: refseq_offs needed here?
-
-                    # simulates the epitope and assigns the appropriate class
-                    epi_def = sim.simulate_epitope(
-                        alignment,
-                        alph,
-                        colnames,
-                        OPTIONS.SIM_EPI_SIZE,
-                        OPTIONS.SIM_EPI_PERCENTILE,
-                    )
-
-                    if epi_def is not None:
-                        print('********************* SIMULATED EPITOPE DESCRIPTION (%d) *********************\n' % OPTIONS.SIM_EPI_SIZE, file=sys.stdout)
-                        print('%s\n' % str(epi_def), file=sys.stdout)
-
-                optstat = DiscretePerfStats.MINSTAT
-                if OPTIONS.ACCURACY:
-                    optstat = DiscretePerfStats.ACCURACY
-                elif OPTIONS.PPV:
-                    optstat = DiscretePerfStats.PPV
-                elif OPTIONS.NPV:
-                    optstat = DiscretePerfStats.NPV
-                elif OPTIONS.SENSITIVITY:
-                    optstat = DiscretePerfStats.SENSITIVITY
-                elif OPTIONS.SPECIFICITY:
-                    optstat = DiscretePerfStats.SPECIFICITY
-                elif OPTIONS.FSCORE:
-                    optstat = DiscretePerfStats.FSCORE
-
-                C_begin, C_end, C_step = OPTIONS.LOG2C
-                recip = 1
-                if isinstance(C_step, float):
-                    recip = 1. / C_step
-                    C_begin, C_end = int(recip * C_begin), int(recip * C_end)
-                    C_step = 1
-                C_range = [pow(2., float(C) / recip) for C in range(C_begin, C_end + 1, C_step)]
-
-                if OPTIONS.MRMR_NORMALIZE:
-                    DiscreteMrmr._NORMALIZED = True
-
-                crossvalidator = SelectingNestedCrossValidator(
-                    classifier_cls=LinearSvm,
-                    selector_cls=PhyloMrmr if OPTIONS.PHYLOFILTER else DiscreteMrmr,
-                    folds=OPTIONS.CV_FOLDS,
-                    gridsearch_kwargs={ 'C': C_range },
-                    classifier_kwargs={ 'bias': True },
-                    selector_kwargs={
-                        'num_features': num_features,
-                        'method': DiscreteMrmr.MAXREL if OPTIONS.MAXREL else \
-                                  DiscreteMrmr.MID if OPTIONS.MRMR_METHOD == 'MID' else \
-                                  DiscreteMrmr.MIQ
-                    },
-                    validator_cls=CrossValidator,
-                    validator_kwargs={
-                        'folds': OPTIONS.CV_FOLDS-1,
-                        'scorer_cls': DiscretePerfStats,
-                        'scorer_kwargs': { 'optstat': optstat }
-                    },
-                    scorer_cls=DiscretePerfStats,
-                    scorer_kwargs={ 'optstat': optstat },
-                    weights_func='weights' # we MUST specify this or it will be set to lambda: None
+            # here is where the sequences must be generated for the random sequence and random epitope simulations
+            if sim is not None:
+                alignment = sim.generate_sequences(
+                    N=ARGS.SIM_EPI_N,
+                    idfmt='%s|||',
+                    noise=ARGS.SIM_EPI_NOISE,
+                    mutation_rate=ARGS.SIM_EPI_MUT_RATE,
+                    alphabet=alph
                 )
 
-                new_results = crossvalidator.crossvalidate(
-                    x, y,
-                    classifier_kwargs={},
-                    extra=extract_feature_weights_similar if similar else extract_feature_weights
+                colnames, x = colfilter.learn(alignment, {}) # XXX: refseq_offs needed here?
+
+                # simulates the epitope and assigns the appropriate class
+                epi_def = sim.simulate_epitope(
+                    alignment,
+                    alph,
+                    colnames,
+                    ARGS.SIM_EPI_SIZE,
+                    ARGS.SIM_EPI_PERCENTILE,
                 )
 
-                if results is not None and new_results.stats.get() <= results.stats.get():
-                    break
+                if epi_def is not None:
+                    print('********************* SIMULATED EPITOPE DESCRIPTION (%d) *********************\n' % ARGS.SIM_EPI_SIZE, file=sys.stdout)
+                    print('%s\n' % str(epi_def), file=sys.stdout)
 
-                results = new_results
-                forward_select = num_features
+            C_begin, C_end, C_step = ARGS.LOG2C
+            recip = 1
+            if isinstance(C_step, float):
+                recip = 1. / C_step
+                C_begin, C_end = int(recip * C_begin), int(recip * C_end)
+                C_step = 1
+            C_range = [pow(2., float(C) / recip) for C in range(C_begin, C_end + 1, C_step)]
 
-        # the alignment reflects the number of sequences either naturally,
-        # or through SIM_EPI_N, which reflects the natural number anyway, less the refseq
-        meta = make_output_meta(OPTIONS, len(alignment)-1, np.mean(y), target, antibody, forward_select)
-        ret = cv_results_to_output(results, colnames, meta, similar)
+            if ARGS.MRMR_NORMALIZE:
+                DiscreteMrmr._NORMALIZED = True
 
-        if isinstance(OPTIONS.OUTPUT, str):
-            with open(OPTIONS.OUTPUT, 'w') as fh:
-                print(pretty_fmt_results(ret, similar), file=fh)
-        else:
-            print(pretty_fmt_results(ret, similar))
+            crossvalidator = SelectingNestedCrossValidator(
+                classifier_cls=LinearSvm,
+                selector_cls=DiscreteMrmr,
+                folds=ARGS.CV_FOLDS,
+                gridsearch_kwargs={ 'C': C_range },
+                classifier_kwargs={ 'bias': True },
+                selector_kwargs={
+                    'num_features': num_features,
+                    'method': ARGS.MRMR_METHOD
+                },
+                validator_cls=CrossValidator,
+                validator_kwargs={
+                    'folds': ARGS.CV_FOLDS-1,
+                    'scorer_cls': DiscretePerfStats,
+                    'scorer_kwargs': { 'optstat': ARGS.OPTSTAT }
+                },
+                scorer_cls=DiscretePerfStats,
+                scorer_kwargs={ 'optstat': ARGS.OPTSTAT },
+                weights_func='weights' # we MUST specify this or it will be set to lambda: None
+            )
+
+            new_results = crossvalidator.crossvalidate(
+                x, y,
+                classifier_kwargs={},
+                extra=extract_feature_weights_similar if similar else extract_feature_weights
+            )
+
+            if results is not None and new_results.stats.get() <= results.stats.get():
+                break
+
+            results = new_results
+            forward_select = num_features
+
+    # the alignment reflects the number of sequences either naturally,
+    # or through SIM_EPI_N, which reflects the natural number anyway, less the refseq
+    meta = make_output_meta(ARGS, len(alignment)-1, np.mean(y), antibody, forward_select)
+    ret = cv_results_to_output(results, colnames, meta, similar)
+
+    if isinstance(ARGS.OUTPUT, str):
+        with open(ARGS.OUTPUT, 'w') as fh:
+            print(pretty_fmt_results(ret, similar), file=fh)
+    else:
+        print(pretty_fmt_results(ret, similar))
 
     return 0
 

@@ -43,4 +43,4 @@ class LarDantzig(WrappedRegressor):
         if 'lam0' in kwargs:
             lam=kwargs['lam0']
             del kwargs['lam0']
-        super(LarDantzig, self).__init__(selectorcls=Dantzig, regressorcls=Lar, tol0=tol, lam0=lam, m1=m, **kwargs)
+        super(LarDantzig, self).__init__(selectorcls=Dantzig, regressorcls=LARS, tol0=tol, lam0=lam, m1=m, **kwargs)

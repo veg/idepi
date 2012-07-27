@@ -5,7 +5,6 @@ from math import modf
 from operator import itemgetter
 from random import randint
 
-from ._alphabet import Alphabet
 from ._randomsequences import DumbRandomSequences, MarkovRandomSequences
 from ._simulatedepitope import SimulatedEpitope
 from ._util import get_noise, is_HXB2, sanitize_seq

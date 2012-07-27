@@ -45,7 +45,7 @@ __GAP = '-'
 
 
 def help():
-    print('usage: %s [-N <NUMSEQ>] <ALNFILE>' % NAME, file=sys.stderr)
+    print('usage: %s [-N <NUMSEQ>] <ALNFILE>' % __NAME, file=sys.stderr)
     return -1
 
 
@@ -173,7 +173,6 @@ def MarkovRandomSequences(file, N=1, consensus=False, gaps=False, opts={}, idfmt
 
     seq_len, id_seqs = read_alignment(file)
 
-    num_seqs = len(id_seqs)
     tree = [{}] * (seq_len)
 
     # make the markov tree (this could be done more elegantly)

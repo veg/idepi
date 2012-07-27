@@ -2,15 +2,11 @@
 
 from __future__ import division, print_function
 
-from gzip import GzipFile
 from os.path import basename, exists
 from re import compile as re_compile, sub as re_sub
-from six import StringIO
 from sys import argv as sys_argv, exit as sys_exit, stderr
 
 from numpy import mean
-
-from Bio import SeqIO
 
 from idepi import PhyloGzFile, seqrecord_get_ic50s
 

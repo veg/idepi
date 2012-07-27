@@ -25,28 +25,38 @@
 
 from __future__ import division, print_function
 
-import sqlite3, sys
+import sys
 
-from math import ceil, log10
-from operator import itemgetter
 from optparse import OptionParser
-from os import close, remove, rename
-from os.path import abspath, basename, exists, join, split, splitext
-from random import gauss, randint, random, seed
-from re import match, search, sub
-from subprocess import Popen, PIPE
+from os import close, remove
+from os.path import abspath, join, split
+from random import seed
+from re import search
 from tempfile import mkstemp
 
 import numpy as np
 
-from Bio import AlignIO, SeqIO
-from Bio.Seq import Seq
-from Bio.SeqRecord import SeqRecord
+from Bio import AlignIO
 
-from idepi import (Alphabet, ClassExtractor, NaiveFilter, PhyloFilter, Regressor,
-                   extract_feature_weights, cv_results_to_output, generate_alignment,
-                   input_data, is_HXB2, regressor_classes, pretty_fmt_results, seqrecord_get_ic50s,
-                   set_util_params, __file__ as _idepi_file, __version__ as _idepi_version)
+from idepi import (
+    Alphabet,
+    ClassExtractor,
+    NaiveFilter,
+    PhyloFilter,
+    Regressor,
+    alignment_identify_ref,
+    extract_feature_weights,
+    cv_results_to_output,
+    generate_alignment,
+    input_data,
+    is_HXB2,
+    regressor_classes,
+    pretty_fmt_results,
+    seqrecord_get_ic50s,
+    set_util_params,
+    __file__ as _idepi_file,
+    __version__ as _idepi_version
+)
 
 from pyxval import ContinuousPerfStats, CrossValidator
 
@@ -187,6 +197,7 @@ def run_tests():
         fh.close()
 
         alignment = AlignIO.read(sto_filename, 'stockholm')
+        refidx = alignment_identify_ref(alignment, is_HXB2)
 
         for OPTIONS.STANFEL in (True, False):
 
@@ -206,8 +217,8 @@ def run_tests():
                 OPTIONS.MAX_CONSERVATION,
                 OPTIONS.MIN_CONSERVATION,
                 OPTIONS.MAX_GAP_RATIO,
-                is_HXB2,
-                lambda x: False # TODO: add the appropriate filter function based on the args here
+                refidx=refidx,
+                skip_func=lambda x: False # TODO: add the appropriate filter function based on the args here
             )
             colnames, x = colfilter.learn(alignment, 0)
 
@@ -349,13 +360,15 @@ def main(argv=sys.argv):
         alignment_basename = ''.join(alignment_basename.rsplit('_clonal', 1))
 
     alignment, refseq_offs = generate_alignment(seqrecords, alignment_basename, is_HXB2, OPTIONS)
+    refidx = alignment_identify_ref(alignment, is_HXB2)
+
     colfilter = None
     if OPTIONS.PHYLOFILTER:
         colfilter = PhyloFilter(
             alph,
             _PHYLOFILTER_BATCHFILE,
-            is_HXB2,
-            lambda x: False # TODO: add the appropriate filter function based on the args here
+            refidx=refidx,
+            skip_func=lambda x: False # TODO: add the appropriate filter function based on the args here
         )
         # TODO: I don't think we need to binarize the colnames here, though we can if we want.
         # I need to think more about how to properly handle this case.
@@ -366,8 +379,8 @@ def main(argv=sys.argv):
             OPTIONS.MAX_CONSERVATION,
             OPTIONS.MIN_CONSERVATION,
             OPTIONS.MAX_GAP_RATIO,
-            is_HXB2,
-            lambda x: False # TODO: add the appropriate filter function based on the args here
+            refidx=refidx,
+            skip_func=lambda x: False # TODO: add the appropriate filter function based on the args here
         )
 
     colnames, x = colfilter.learn(alignment, refseq_offs)

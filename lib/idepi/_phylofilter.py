@@ -1,10 +1,7 @@
 
 from __future__ import division, print_function
 
-import json
-
-from math import floor
-from os import close, getpid, remove
+from os import close, remove
 from os.path import dirname, exists, join, realpath
 from re import compile as re_compile
 from tempfile import mkstemp
@@ -16,7 +13,6 @@ from Bio import SeqIO
 from ._alphabet import Alphabet
 from ._basefilter import BaseFilter
 from ._hyphy import HyPhy
-from ._util import is_HXB2
 
 
 __all__ = ['PhyloFilter']
@@ -24,7 +20,7 @@ __all__ = ['PhyloFilter']
 
 class PhyloFilter(BaseFilter):
 
-    def __init__(self, alphabet=None, batchfile=None, ref_id_func=None, skip_func=None):
+    def __init__(self, alphabet=None, batchfile=None, refidx=None, skip_func=None):
         if batchfile is None:
             batchfile = join(dirname(realpath(__file__)), '..', 'res', 'hyphy', 'CorrectForPhylogeny.bf')
 
@@ -33,8 +29,6 @@ class PhyloFilter(BaseFilter):
 
         if alphabet is None:
             alphabet = Alphabet()
-        if ref_id_func is None:
-            ref_id_func = is_HXB2
         if skip_func is None:
             skip_func = lambda x: False
 
@@ -42,7 +36,7 @@ class PhyloFilter(BaseFilter):
 
         self.__alph = alphabet
         self.__batchfile = batchfile
-        self.__rfn = ref_id_func
+        self.__refidx = refidx
         self.__sfn = skip_func
 #         self.__run, self.__data, self.__colnames = False, None, None
 
@@ -52,38 +46,32 @@ class PhyloFilter(BaseFilter):
                 remove(f)
 
     @staticmethod
-    def __compute(alignment, alphabet, batchfile, inputfile, ref_id_func, refseq_offs, skip_func, hyphy=None):
+    def __compute(alignment, alphabet, batchfile, inputfile, refidx, refseq_offs, skip_func, hyphy=None):
         if hyphy is None:
             hyphy = HyPhy()
 
-        refseq = None
-        for row in alignment:
-            r = ref_id_func(row)
-            if r and refseq is None:
-                refseq = row
-            elif r:
-                raise RuntimeError('Reference sequence found twice!?!?!?!')
+        refseq = alignment[refidx]
 
         alignment_length = alignment.get_alignment_length()
 
         old_ids = [None] * len(alignment)
         for i, row in enumerate(alignment):
             # remove if requested
-            if ref_id_func(row) or skip_func(row):
+            if i == refidx or skip_func(row):
                 pass
             old_ids[i] = row.id
             row.id = '%d' % i
 
         with open(inputfile, 'w') as fh:
-            SeqIO.write((row for row in alignment
-                             if not ref_id_func(row) and
+            SeqIO.write((row for i, row in enumerate(alignment)
+                             if not i == refidx and
                                 not skip_func(row)),
                         fh, 'fasta')
 
         # restore the old id names or barfage later
         for i, row in enumerate(alignment):
             # remove if requested
-            if ref_id_func(row) or skip_func(row):
+            if i == refidx or skip_func(row):
                 pass
             row.id = old_ids[i]
 
@@ -149,7 +137,7 @@ class PhyloFilter(BaseFilter):
         if refseq is not None:
             alignment.append(refseq)
 
-        colnames = BaseFilter._colnames(alignment, alphabet, ref_id_func, refseq_offs, ignore_idxs)
+        colnames = BaseFilter._colnames(alignment, alphabet, refidx, refseq_offs, ignore_idxs)
 
         with open('phylo.colnames.json', 'w') as fh:
             import json
@@ -167,7 +155,7 @@ class PhyloFilter(BaseFilter):
 
     def learn(self, alignment, refseq_offs):
         return PhyloFilter.__compute(
-            alignment, self.__alph, self.__batchfile, self.__inputfile, self.__rfn, refseq_offs, self.__sfn
+            alignment, self.__alph, self.__batchfile, self.__inputfile, self.__refidx, refseq_offs, self.__sfn
         )
 
 #     @property

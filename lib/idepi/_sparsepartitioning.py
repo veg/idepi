@@ -28,10 +28,8 @@ from re import match
 from os import chdir, getcwd, listdir, remove, rmdir
 from os.path import exists, isfile, join
 from subprocess import PIPE, Popen
-from sys import exit, stderr
+from sys import stderr
 from tempfile import mkdtemp
-
-from ._smldata import SmlData
 
 
 __all__ = ['SpDeterministicFeature', 'SpDeterministicModel', 'SpMcmcFeature', 'SpMcmcPair', 'SpMcmcModel', 'SparsePartitioning']
@@ -196,7 +194,7 @@ class SparsePartitioning(object):
             for file_ in listdir(self.dirname):
                 filepath = join(self.dirname, file_)
                 if isfile(filepath):
-                    if file in self.__KNOWN_SP_FILES:
+                    if file_ in self.__KNOWN_SP_FILES:
                         remove(filepath)
                     else:
                         print('WARNING: will not remove temporary directory %s, for it contains an unknown file %s' % (self.dirname, file_), file=stderr)
@@ -316,7 +314,6 @@ class SparsePartitioning(object):
                 # use a -1 to 0-index things
                 predidxs = [int(p) - 1 for p in predidxs]
                 features = [SpDeterministicFeature(i, self.feature_names[i]) for i in predidxs]
-                lastmodel = SpDeterministicModel(response, features)
             fh.close()
             fh = open(join(self.dirname, 'detsteps.txt'))
             for line in fh:

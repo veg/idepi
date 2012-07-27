@@ -72,7 +72,7 @@ class Hmmer(object):
         tmp = False
         if output is None:
             fd, output = mkstemp(); close(fd)
-            tmp = True
+            tmp = True # TODO something with this variable...?
 
         args = [self.__alignbin]
         if allcol is True:

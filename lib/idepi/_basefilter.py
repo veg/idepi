@@ -4,8 +4,6 @@ from __future__ import division, print_function
 from logging import getLogger
 from time import clock
 
-from numpy import zeros
-
 from ._alphabet import Alphabet
 from ._logging import IDEPI_LOGGER
 from ._util import BASE_ALPH, base_10_to_n, base_26_to_alph
@@ -21,11 +19,8 @@ class BaseFilter(object):
     # before the key-index. This so the colfilter can properly name the
     # positions according to the full reference sequence
     @staticmethod
-    def _colnames(alignment, alphabet, ref_id_func, refseq_offs, ignore_idxs):
-        ref = None
-        for r in alignment:
-            if ref_id_func(r):
-                ref = str(r.seq)
+    def _colnames(alignment, alphabet, refidx, refseq_offs, ignore_idxs):
+        ref = str(alignment[refidx].seq)
 
         if ref is None:
             raise RuntimeError('No reference sequence found, aborting')

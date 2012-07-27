@@ -24,8 +24,6 @@
 
 from __future__ import division, print_function
 
-from itertools import chain
-
 import numpy as np
 
 from mlpy import ElasticNet, LARS, Ridge
@@ -35,7 +33,6 @@ from ._doubledantzig import DoubleDantzig
 from ._lardantzig import LarDantzig
 from ._linearsvr import LinearSvr
 from ._ridgedantzig import RidgeDantzig
-from ._ridgelar import RidgeLar
 from ._ridgelar import RidgeLar
 
 
@@ -101,7 +98,7 @@ class Regressor(object):
                     x[:, j] /= xvar[j]
                     try:
                         assert(np.abs(sum([pow(i, 2.0) for i in x[:, j]]) - 1.0) < ZERO)
-                    except AssertionError as e:
+                    except AssertionError:
                         print('\u03c3: %.4g, \u03a3x\u00b2: %.4g' % (xvar[j], sum([pow(i, 2.0) for i in x[:, j]])))
         finally:
             np.seterr(**nperr)

@@ -24,26 +24,19 @@
 
 from __future__ import division, print_function
 
-from json import loads as json_loads
 from operator import itemgetter
-from os import close, remove, rename
-from re import sub, match
-from sqlite3 import OperationalError, connect
-from sys import stderr
-from tempfile import mkstemp
+from re import sub
 
 import numpy as np
 
 from ._alphabet import Alphabet
-from ._hmmer import Hmmer
-from ._smldata import SmlData
 
 
 __all__ = [
     'BASE_ALPH',
     'set_util_params',
     'is_testdata',
-    'is_HXB2',
+    'is_refseq',
     'seqrecord_get_ic50s',
     'seqrecord_get_subtype',
     'seqrecord_set_ic50',
@@ -57,32 +50,21 @@ __all__ = [
     'sanitize_seq'
 ]
 
-__HXB2_IDS = ('HXB2_env',)
-__IC50LT = None
-__IC50GT = None
+__REFSEQ_IDS = []
+__IC50 = None
 
 BASE_ALPH = 26
 
-__equivalencies = {}
-for k, v in [('PG9', 'NAC17'), ('PG16', 'NAC18')]:
-    __equivalencies[k] = [v]
-    __equivalencies[v] = [k]
 
-
-
-
-def set_util_params(hxb2_ids=None, ic50gt=None, ic50lt=None):
-    global __HXB2_IDS, __IC50GT, __IC50LT
-    if hxb2_ids is not None:
-        __HXB2_IDS = hxb2_ids
-    if ic50gt is not None:
-        __IC50GT = ic50gt
-    if ic50lt is not None:
-        __IC50LT = ic50lt
-
+def set_util_params(refseq_ids=None, ic50=None):
+    global __REFSEQ_IDS, __IC50
+    if refseq_ids is not None:
+        __REFSEQ_IDS = refseq_ids
+    if ic50 is not None:
+        __IC50 = ic50
 
 def is_testdata(sid):
-    if is_HXB2(sid):
+    if is_refseq(sid):
         return False
     else:
         try:
@@ -90,21 +72,19 @@ def is_testdata(sid):
                 return True
             else:
                 return False
-        except IndexError as e:
+        except IndexError:
             raise ValueError('malformed ID: %s' % sid)
     return False
 
-
-def is_HXB2(seqrecord):
+def is_refseq(seqrecord):
     try:
-        if seqrecord.id.strip() in __HXB2_IDS:
+        if seqrecord.id.strip() in __REFSEQ_IDS:
             return True
-    except IndexError as e:
+    except IndexError:
         pass
         # we don't care about this, do we?
         # print >> stderr, "ERROR: malformed ID: %s" % id
     return False
-
 
 def seqrecord_get_ic50s(seqrecord):
     # cap ic50s to 25
@@ -116,14 +96,12 @@ def seqrecord_get_ic50s(seqrecord):
         raise ValueError('Cannot parse `%s\' for IC50 value' % seqrecord.description)
     return ic50s
 
-
 def seqrecord_get_subtype(seqrecord):
     try:
         subtype = seqrecord.description.rsplit('|', 2)[0].upper()
     except ValueError:
         raise ValueError('Cannot parse `%s\' for HIV subtype' % seqrecord.description)
     return subtype
-
 
 def seqrecord_set_ic50(seqrecord, ic50):
     vals = seqrecord.description.rsplit('|', 2)
@@ -133,11 +111,9 @@ def seqrecord_set_ic50(seqrecord, ic50):
     seqrecord.description = '|'.join(vals)
     return seqrecord
 
-
 def get_noise(seqrecord):
     # just return the "mean" as noise
     return np.mean(seqrecord_get_ic50s(seqrecord.description))
-
 
 def base_10_to_n(n, N):
     val = n
@@ -161,7 +137,6 @@ def base_10_to_n(n, N):
             cols[i] = 0
     return cols
 
-
 def base_26_to_alph(cols):
     for k in sorted(cols.keys()):
         # we might think this dangerous, but if k+1 is in cols, then it is > 1 or it has something above it
@@ -174,7 +149,6 @@ def base_26_to_alph(cols):
     for k, v in sorted(cols.items(), key=itemgetter(0), reverse=True):
         alph += chr(ord('a') + v - 1)
     return alph
-
 
 def alph_to_base_26(str):
     cols = {}
@@ -191,13 +165,11 @@ def alph_to_base_26(str):
             cols[i+1] += 1
     return cols
 
-
 def base_n_to_10(cols, N):
     num = 0
     for k, v in cols.items():
         num += pow(N, k) * v
     return num
-
 
 # very heavily based on the design of friedmanchisquare in scipy
 try:
@@ -288,7 +260,6 @@ try:
         return T2, fdtrc(k-1, b*k-b-t+1, T2)
 
     __all__ += ['durbin']
-
 except ImportError:
     pass
 
@@ -300,7 +271,6 @@ def ystoconfusionmatrix(truth, preds):
                                                            # true pos    true neg    false pos   false neg
     tp, tn, fp, fn = (np.sum(np.multiply(a, b)) for a, b in ((tps, pps), (tns, pns), (tns, pps), (tps, pns)))
     return tp, tn, fp, fn
-
 
 def clamp(x):
     if x < 0.:
@@ -317,6 +287,6 @@ def sanitize_seq(seq, alphabet):
         seq = seq.upper()
         seq = sub(r'[%s]' % Alphabet.SPACE, '-', seq)
         seq = sub(r'[^%s]' % ''.join(alphdict.keys()), 'X', seq)
-    except TypeError as e:
+    except TypeError:
         raise RuntimeError('something is amiss with things:\n  SPACE = %s\n  seq = %s\n  alphabet = %s\n' % (Alphabet.SPACE, seq, alphdict))
     return seq

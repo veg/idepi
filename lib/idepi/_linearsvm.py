@@ -24,12 +24,8 @@
 
 from __future__ import division, print_function
 
-from operator import itemgetter
 from os import close, remove
 from os.path import exists
-from re import sub
-from shutil import copyfile
-from subprocess import Popen, PIPE
 from tempfile import mkstemp
 from warnings import warn
 

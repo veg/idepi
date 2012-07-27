@@ -6,17 +6,17 @@ from json import dumps as json_dumps, loads as json_loads
 from logging import getLogger
 from math import copysign, sqrt
 from operator import itemgetter
-from os import close, remove, rename
+from os import close, remove
 from os.path import exists
-from re import compile as re_compile, sub as re_sub
+from re import compile as re_compile
 from shutil import copyfile
 from six import u
-from sys import stderr, stdout
+from sys import stderr
 from tempfile import mkstemp
 from unicodedata import combining
 from warnings import warn
 
-from Bio import AlignIO, SeqIO
+from Bio import SeqIO
 from Bio.Align import MultipleSeqAlignment
 from Bio.Alphabet import Gapped, generic_nucleotide, generic_protein
 from Bio.Seq import Seq
@@ -45,20 +45,15 @@ __all__ = [
     'extract_feature_weights',
     'column_labels',
     'fasta_json_desc',
-    'fix_hxb2_seq'
+    'fix_hxb2_seq',
+    'alignment_identify_ref'
 ]
-
-
-try:
-    unicode is not None
-except NameError:
-    unicode = str
 
 
 # refseq_offs has for keys 0-indexed positions into the trimmed refseq
 # and for values the number of trimmed positions occuring immediately
 # before the key-index. This so the colfilter can properly name the
-# positions according to the full reference sequence 
+# positions according to the full reference sequence
 def refseq_off(refseq):
     off = 0
     offs = {}
@@ -259,13 +254,12 @@ def cv_results_to_output(results, colnames, meta=None, similar=True):
     return ret
 
 
-def make_output_meta(opts, N, balance, target, antibody, forward_select=None):
-    cutoff = opts.IC50LT if target in ('le', 'lt') else opts.IC50GT
+def make_output_meta(opts, N, balance, antibody, forward_select=None):
     return {
         'sequences': N,
         'balance': balance,
         'features': opts.NUM_FEATURES if forward_select is None else forward_select,
-        'discriminator': { 'orientation': target, 'cutoff': cutoff },
+        'discriminator': { 'orientation': 'gt', 'cutoff': opts.IC50 },
         'antibody': antibody,
         'folds': opts.CV_FOLDS
     }
@@ -437,3 +431,15 @@ def fix_hxb2_seq(opts):
                 opts.REFSEQ.description = ' '.join((opts.REFSEQ.id, json_dumps(data, separators=(',', ':'))))
         except ValueError:
             pass # we're already a protein
+
+
+def alignment_identify_ref(alignment, ref_id_func=None):
+    refidx = None
+    if ref_id_func is not None:
+        for i, seq in enumerate(alignment):
+            if ref_id_func(seq):
+                refidx = i
+                break
+        if refidx is None:
+            raise RuntimeError('ref_id_func provided but no reference found')
+    return refidx

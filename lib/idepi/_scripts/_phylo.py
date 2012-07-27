@@ -2,14 +2,17 @@
 
 from __future__ import division, print_function
 
-from gzip import GzipFile
 from os.path import basename, exists
-from re import compile as re_compile
-from six import StringIO
-from sys import argv as sys_argv, exit as sys_exit, stderr, stdout
+from sys import argv as sys_argv, exit as sys_exit, stderr
 
-
-from idepi import Alphabet, Phylo, PhyloGzFile, column_labels, crude_sto_read, is_HXB2
+from idepi import (
+    Phylo,
+    PhyloGzFile,
+    alignment_identify_ref,
+    column_labels,
+    crude_sto_read,
+    is_HXB2
+)
 
 
 def main(argv=sys_argv):
@@ -24,11 +27,12 @@ def main(argv=sys_argv):
     msa, refseq_offs = crude_sto_read(argv[0], is_HXB2, description=True)
 
     try:
-        refseq = [r for r in msa if is_HXB2(r)][0]
+        refidx = alignment_identify_ref(msa, is_HXB2)
+        refseq = msa[refidx]
     except IndexError:
         raise RuntimeError('No reference sequence found!')
 
-    seqrecords = [r for r in msa if not is_HXB2(r)]
+    seqrecords = [r for i, r in enumerate(msa) if not i == refidx]
 
     tree, alignment = Phylo()(seqrecords)
 

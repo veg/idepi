@@ -25,35 +25,50 @@
 
 from __future__ import division, print_function
 
-import logging, sqlite3, sys
+import logging, sys
 
-from json import dumps as json_dumps
-from math import ceil, copysign, log10, sqrt
-from operator import itemgetter
+from math import copysign
 from optparse import OptionParser
-from os import close, remove, rename
+from os import close, remove
 from os.path import abspath, basename, exists, join, split, splitext
-from random import gauss, random, seed
+from random import seed
 from re import compile as re_compile
 from six import StringIO
 from tempfile import mkstemp
+from warnings import warn
 
 import numpy as np
 
 from Bio import AlignIO, SeqIO
 from Bio.Seq import Seq
-from Bio.SeqRecord import SeqRecord
 
 from BioExt import hxb2
 
-from idepi import (Alphabet, ClassExtractor, DumbSimulation, Hmmer, LinearSvm,
-                   MarkovSimulation, NaiveFilter, NormalValue, Phylo, PhyloFilter,
-                   PhyloGzFile, Simulation, column_labels, crude_sto_read,
-                   cv_results_to_output, fix_hxb2_seq, generate_alignment, IDEPI_LOGGER,
-                   input_data, is_HXB2,
-                   make_output_meta, pretty_fmt_meta, pretty_fmt_weights,
-                   seqrecord_get_ic50s, seqrecord_set_ic50, set_util_params,
-                   __file__ as _idepi_file, __version__ as _idepi_version)
+from idepi import (
+    IDEPI_LOGGER,
+    Alphabet,
+    ClassExtractor,
+    Hmmer,
+    LinearSvm,
+    NaiveFilter,
+    Phylo,
+    PhyloGzFile,
+    alignment_identify_ref,
+    column_labels,
+    crude_sto_read,
+    fix_hxb2_seq,
+    generate_alignment,
+    input_data,
+    is_HXB2,
+    make_output_meta,
+    pretty_fmt_meta,
+    pretty_fmt_weights,
+    seqrecord_get_ic50s,
+    seqrecord_set_ic50,
+    set_util_params,
+    __file__ as _idepi_file,
+    __version__ as _idepi_version
+)
 
 from mrmr import MRMR_LOGGER, DiscreteMrmr, PhyloMrmr
 
@@ -242,6 +257,7 @@ def run_tests():
         fh.close()
 
         alignment = AlignIO.read(sto_filename, 'stockholm')
+        refidx = alignment_identify_ref(alignment, is_HXB2)
 
         for OPTIONS.STANFEL in (True, False):
 
@@ -261,8 +277,8 @@ def run_tests():
                 OPTIONS.MAX_CONSERVATION,
                 OPTIONS.MIN_CONSERVATION,
                 OPTIONS.MAX_GAP_RATIO,
-                is_HXB2,
-                lambda x: False # TODO: add the appropriate filter function based on the args here
+                refidx=refidx,
+                skip_func=lambda x: False # TODO: add the appropriate filter function based on the args here
             )
             colnames, x = colfilter.learn(alignment, 0)
 
@@ -379,7 +395,7 @@ def main(argv=sys.argv):
         if len(OPTIONS.LOG2C) != 3 or float(OPTIONS.LOG2C[2]) <= 0.:
             raise ValueError
         OPTIONS.LOG2C = [int(OPTIONS.LOG2C[0]), int(OPTIONS.LOG2C[1]), float(OPTIONS.LOG2C[2])]
-    except ValueError as e:
+    except ValueError:
         option_parser.error('option --log2c takes an argument of the form C_BEGIN,C_END,C_STEP where C_STEP must be > 0')
 
     # validate the antibody argument, currently a hack exists to make PG9/PG16 work
@@ -450,6 +466,7 @@ def main(argv=sys.argv):
         alignment_basename = ''.join(alignment_basename.rsplit('_clonal', 1))
 
     alignment, refseq_offs = generate_alignment(seqrecords, alignment_basename, is_HXB2, OPTIONS)
+    refidx = alignment_identify_ref(alignment, is_HXB2)
 
     seqfiletype = 'stockholm' if splitext(oldseq)[1].find('sto') == 1 else 'fasta'
 
@@ -494,7 +511,7 @@ def main(argv=sys.argv):
 #         colfilter = PhyloFilter(
 #             alph,
 #             _PHYLOFILTER_BATCHFILE,
-#             is_HXB2,
+#             refidx,
 #             lambda x: False
 #         )
     else:
@@ -503,8 +520,8 @@ def main(argv=sys.argv):
             OPTIONS.MAX_CONSERVATION,
             OPTIONS.MIN_CONSERVATION,
             OPTIONS.MAX_GAP_RATIO,
-            is_HXB2,
-            lambda x: False # TODO: add the appropriate filter function based on the args here
+            refidx=refidx,
+            skip_func=lambda x: False # TODO: add the appropriate filter function based on the args here
         )
 
     colnames, xt = colfilter.learn(alignment, refseq_offs)
@@ -602,7 +619,7 @@ def main(argv=sys.argv):
 
         if OPTIONS.TREE is not None:
             try:
-                refseq = [r for r in alignment if is_HXB2(r)][0]
+                refseq = alignment[refidx]
             except IndexError:
                 raise RuntimeError('Reference sequence not found!')
             tree_seqrecords = [seqrecord_set_ic50(r, yp[i]) for i, r in enumerate(fasta_aln)]
