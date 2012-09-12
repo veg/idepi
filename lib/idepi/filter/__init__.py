@@ -22,4 +22,7 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
-__version__ = '0.9.5'
+from ._naivefilter import *
+from ._pairfilter import *
+
+__all__ = [] + _naivefilter.__all__ + _pairfilter.__all__

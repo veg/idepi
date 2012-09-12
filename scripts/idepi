@@ -2,26 +2,32 @@
 
 from __future__ import division, print_function
 
-from os.path import basename
-from sys import argv as sys_argv, exit as sys_exit, stderr
+from argparse import ArgumentParser
+from sys import argv as sys_argv, exit as sys_exit
 
-from idepi._scripts import *
-from idepi._scripts import __all__ as programs
+from idepi.scripts import *
+from idepi.scripts import __all__ as scripts
 
 
-def main(argv=sys_argv):
-    argv[0] = basename(argv[0])
-    name = argv[0]
+def main(args=None):
+    if args is None:
+        args = sys_argv[1:]
 
-    try:
-        argv[0] = ' '.join(argv[:2])
-        progname = argv.pop(1)
-        assert(progname in programs)
-    except:
-        print('usage: %s [%s] ARGS' % (name, '|'.join(programs)), file=stderr)
-        return -1
+    parser = ArgumentParser(description='IDentify EPItopes')
+    subparsers = parser.add_subparsers(
+        title='subcommands',
+        description='valid subcommands',
+        help='additional help'
+    )
+    for script in scripts:
+        p = subparsers.add_parser(script, add_help=False)
+        p.set_defaults(script=globals()[script])
 
-    return globals()[progname](argv)
+    ns, args = parser.parse_known_args()
+
+    ns.script(args)
+
+    return 0
 
 
 if __name__ == '__main__':
