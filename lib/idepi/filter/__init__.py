@@ -24,11 +24,7 @@
 
 from ._databuilder1d import *
 from ._filters import *
-from ._naivefilter import *
-# from ._pairfilter import *
 
 __all__ = []
 __all__ += _databuilder1d.__all__
 __all__ += _filters.__all__
-__all__ += _naivefilter.__all__
-# __all__ += _pairfilter.__all__

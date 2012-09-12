@@ -66,7 +66,6 @@ from idepi.svm import LinearSvm
 from idepi.test import test_discrete
 from idepi.util import (
     alignment_identify_refidx,
-    site_labels,
     generate_alignment,
     is_refseq,
     C_range,
@@ -146,7 +145,7 @@ def main(args=None):
         ab_basename = ''.join(ab_basename.rsplit('_clonal', 1))
         alignment_basename = ''.join(alignment_basename.rsplit('_clonal', 1))
 
-    alignment, refseq_offs = generate_alignment(seqrecords, alignment_basename, is_refseq, ARGS)
+    alignment = generate_alignment(seqrecords, alignment_basename, is_refseq, ARGS)
     refidx = alignment_identify_refidx(alignment, is_refseq)
 
     seqfilefmt = 'stockholm' if splitext(ARGS.SEQUENCES)[1].find('sto') == 1 else 'fasta'
@@ -192,18 +191,18 @@ def main(args=None):
         ARGS.MIN_CONSERVATION,
         ARGS.MAX_GAP_RATIO
     )
-    builder = DataBuilder1D()
-    xt = builder.learn(
+    builder = DataBuilder1D(
         alignment,
         alph,
-        filter,
-        refidx
+        refidx,
+        filter
     )
+    xt = builder(alignment, refidx)
     colnames = builder.labels
 
     if ARGS.TREE is not None:
         tree, fasta_aln = Phylo()([r for r in fasta_aln if not is_refseq(r)])
-    xp = builder.filter(fasta_aln)
+    xp = builder(fasta_aln)
 
     # compute features
     ylabeler = Labeler(
@@ -260,12 +259,8 @@ def main(args=None):
     print(ret.dumps(), file=ARGS.OUTPUT)
 
     if ARGS.TREE is not None:
-        try:
-            refseq = alignment[refidx]
-        except IndexError:
-            raise RuntimeError('Reference sequence not found!')
         tree_seqrecords = [seqrecord_set_ic50(r, yp[i]) for i, r in enumerate(fasta_aln)]
-        PhyloGzFile.write(ARGS.TREE, tree, tree_seqrecords, site_labels(refseq, refseq_offs), ret['metadata'])
+        PhyloGzFile.write(ARGS.TREE, tree, tree_seqrecords, colnames, ret['metadata'])
 
     finalize_args(ARGS)
 

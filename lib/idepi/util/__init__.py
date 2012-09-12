@@ -24,26 +24,13 @@
 
 from __future__ import division, print_function
 
-from collections import namedtuple
 from os.path import exists
-from re import compile as re_compile
-from warnings import warn
 
 import numpy as np
 
 from Bio import AlignIO, SeqIO
-from Bio.Align import MultipleSeqAlignment
-from Bio.Alphabet import Gapped, generic_nucleotide, generic_protein
-from Bio.Seq import Seq
-from Bio.SeqRecord import SeqRecord
 
-from .._common import (
-    BASE_ALPH,
-    base_26_to_alph,
-    base_10_to_n,
-    generate_alignment_from_seqrecords,
-    refseq_off
-)
+from .._common import generate_alignment_from_seqrecords
 from ..hmmer import Hmmer
 
 
@@ -58,7 +45,6 @@ __all__ = [
     'extract_feature_weights_similar',
     'extract_feature_weights',
     'generate_alignment',
-    'crude_sto_read',
     'C_range'
 ]
 
@@ -267,74 +253,8 @@ def generate_alignment(seqrecords, my_basename, ref_id_func, opts):
         msa = AlignIO.read(fh, 'stockholm')
 
     # we store the antibody information in the description, so grab it
-    return msa, {} # crude_sto_read(sto_filename, ref_id_func, opts.DNA, description=True)
+    return msa
 
-
-def crude_sto_read(filename, ref_id_func=None, dna=False, description=False):
-    Fake = namedtuple('FakeSeqRecord', ['id'])
-    alph = Gapped(generic_nucleotide if dna else generic_protein)
-    refseq = None
-    msa = MultipleSeqAlignment([], alphabet=alph)
-    with open(filename) as fh:
-        notrel = re_compile(r'^(?://|#(?!=GS))')
-        isdesc = re_compile(r'^#=GS')
-        trim = re_compile(r'[^-A-Z]+')
-        descs = {}
-        for line in fh:
-            line = line.strip()
-            if line == '' or notrel.match(line):
-                continue
-            elif isdesc.match(line):
-                if description:
-                    elems = line.split(None, 3)
-                    if len(elems) > 3 and elems[2] == 'DE':
-                        acc, desc = elems[1], elems[3]
-                        if acc in descs:
-                            warn("duplicate sequence name '%s' detected! The stockholm specification doesn't allow this!" % acc)
-                        descs[acc] = desc
-                else:
-                     continue
-            else:
-                try:
-                    acc, seq = line.split(None, 1)
-                except ValueError:
-                    warn("skipping line '%s', doesn't seem to contain a sequence" % line)
-                    continue
-                if ref_id_func is not None and ref_id_func(Fake(acc)):
-                    refseq = seq
-                try:
-                    seq = trim.sub('', seq)
-                    desc = descs[acc] if acc in descs else acc
-                    msa.append(SeqRecord(Seq(seq), id=acc, description=desc))
-                except ValueError:
-                    warn("skipping sequence '%s', it doesn't match the length of the MSA (%d vs %d)" % (acc, len(seq), msa.get_alignment_length()))
-
-    if ref_id_func is not None and refseq is None:
-        raise RuntimeError('Unable to find the reference sequence to compute an offset!')
-
-    offs = None if ref_id_func is None else refseq_off(refseq)
-    return msa, offs
-
-
-def site_labels(refseq, refseq_offs={}):
-    if isinstance(refseq, str):
-        ref = refseq
-    elif isinstance(refseq, SeqRecord):
-        ref = str(refseq.seq)
-    colnames = []
-    colnum = 0
-    insert = 0
-    for i, p in enumerate(ref):
-        if i in refseq_offs:
-            colnum += refseq_offs[i]
-        if ref[i] not in '._-':
-            colnum += 1
-            insert = 0
-        else:
-            insert += 1
-        colname = '%s%d%s' % (p if insert == 0 else '', colnum, base_26_to_alph(base_10_to_n(insert, BASE_ALPH)))
-        colnames.append(colname)
-    return colnames
 
 def C_range(begin, end, step):
     recip = 1

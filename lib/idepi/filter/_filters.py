@@ -2,7 +2,7 @@
 from functools import partial
 
 
-__all__ = ['naivefilter']
+__all__ = ['naivefilter', 'nofilter']
 
 
 def __naivefilter(maxcons, mincons, maxgap, pos):
@@ -15,5 +15,12 @@ def __naivefilter(maxcons, mincons, maxgap, pos):
     # otherwise return true
     return sorted(pos.counts.keys())
 
+
 def naivefilter(maxcons, mincons, maxgap):
     return partial(__naivefilter, maxcons, mincons, maxgap)
+
+
+def nofilter(pos):
+    if pos is None:
+        return []
+    return sorted(pos.counts.keys())

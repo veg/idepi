@@ -24,7 +24,6 @@ __all__ = [
     'base_26_to_alph',
     'alph_to_base_26',
     'base_n_to_10',
-    'refseq_off',
     'generate_alignment_from_seqrecords',
     'get_noise',
     'sanitize_seq',
@@ -92,27 +91,6 @@ def base_n_to_10(cols, N):
     for k, v in cols.items():
         num += pow(N, k) * v
     return num
-
-
-# refseq_offs has for keys 0-indexed positions into the trimmed refseq
-# and for values the number of trimmed positions occuring immediately
-# before the key-index. This so the colfilter can properly name the
-# positions according to the full reference sequence
-def refseq_off(refseq):
-    off = 0
-    offs = {}
-    i = 0
-    for pos in refseq:
-        if 'a' < pos and pos < 'z':
-            off += 1
-        elif 'A' < pos and pos < 'Z':
-            if off > 0:
-                offs[i] = off
-                off = 0
-            i += 1
-        else:
-            continue
-    return offs
 
 
 def generate_alignment_from_seqrecords(seq_records, my_basename, opts):

@@ -217,13 +217,13 @@ def run_tests():
                 OPTIONS.MIN_CONSERVATION,
                 OPTIONS.MAX_GAP_RATIO
             )
-            builder = DataBuilder1D()
-            x = builder.learn(
+            builder = DataBuilder1D(
                 alignment,
                 alph,
-                filter,
-                refidx
+                refidx,
+                filter
             )
+            x = builder(alignment, refidx)
             colnames = builder.labels
 
             # test the feature names portion
@@ -363,7 +363,7 @@ def main(argv=sys.argv):
         ab_basename = ''.join(ab_basename.rsplit('_clonal', 1))
         alignment_basename = ''.join(alignment_basename.rsplit('_clonal', 1))
 
-    alignment, refseq_offs = generate_alignment(seqrecords, alignment_basename, is_HXB2, OPTIONS)
+    alignment = generate_alignment(seqrecords, alignment_basename, is_HXB2, OPTIONS)
     refidx = alignment_identify_ref(alignment, is_HXB2)
 
     filter = naivefilter(
@@ -371,13 +371,13 @@ def main(argv=sys.argv):
         OPTIONS.MIN_CONSERVATION,
         OPTIONS.MAX_GAP_RATIO,
     )
-    builder = DataBuilder1D()
-    x = builder.learn(
+    builder = DataBuilder1D(
         alignment,
         alph,
-        filter,
-        refidx
+        refidx,
+        filter
     )
+    x = builder(alignment, refidx)
     colnames = builder.labels
 
     ylabeler = Labeler(

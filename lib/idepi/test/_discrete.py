@@ -72,13 +72,13 @@ def test_discrete(ARGS):
                 ARGS.MIN_CONSERVATION,
                 ARGS.MAX_GAP_RATIO,
             )
-            builder = DataBuilder1D()
-            x = builder.learn(
+            builder = DataBuilder1D(
                 alignment,
                 alph,
-                filter,
-                refidx
+                refidx,
+                filter
             )
+            x = builder(alignment, refidx)
             colnames = builder.labels
 
             # test the feature names portion

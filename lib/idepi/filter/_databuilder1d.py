@@ -1,6 +1,7 @@
 
 from numpy import zeros
 
+from ._filters import nofilter
 from ._posstream import posstream
 from .._common import base_10_to_n, base_26_to_alph
 
@@ -10,15 +11,10 @@ __all__ = ['DataBuilder1D']
 
 class DataBuilder1D(object):
 
-    def __init__(self):
-        self.__alphabet = None
+    def __init__(self, alignment, alphabet, refidx, filter=nofilter):
+        self.__alphabet = alphabet
         self.__filtercalls = []
         self.__labels = []
-        self.__length = None
-
-    def __learn(self, alignment, alphabet, filter, refidx):
-
-        self.__alphabet = alphabet
 
         # evaluate each position in the stream and generate the column labels
         for p in posstream(alignment, alphabet, refidx):
@@ -30,12 +26,14 @@ class DataBuilder1D(object):
 
         self.__length = sum(len(chars) for chars in self.__filtercalls)
 
+        assert self.__length == len(self.__labels)
+
     def __len__(self):
         return self.__length
 
-    def filter(self, alignment, refidx=None):
+    def __call__(self, alignment, refidx=None):
         if self.__length is None:
-            raise RuntimeError('no filter model computed! call learn()')
+            raise RuntimeError('no filter model computed! programmer error!')
 
         if alignment.get_alignment_length() != len(self.__filtercalls):
             msg = 'alignment length (%d) does not match the learned length (%d)' % (
@@ -63,7 +61,3 @@ class DataBuilder1D(object):
     @property
     def labels(self):
         return self.__labels
-
-    def learn(self, alignment, alphabet, filter, refidx):
-        self.__learn(alignment, alphabet, filter, refidx)
-        return self.filter(alignment, refidx)

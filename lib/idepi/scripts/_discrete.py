@@ -177,7 +177,7 @@ def main(args=None):
         ab_basename = ''.join(ab_basename.rsplit('_clonal', 1))
         alignment_basename = ''.join(alignment_basename.rsplit('_clonal', 1))
 
-    alignment, refseq_offs = generate_alignment(seqrecords, alignment_basename, is_refseq, ARGS)
+    alignment = generate_alignment(seqrecords, alignment_basename, is_refseq, ARGS)
     refidx = alignment_identify_refidx(alignment, is_refseq)
     filter = naivefilter(
         ARGS.MAX_CONSERVATION,
@@ -186,13 +186,13 @@ def main(args=None):
     )
 
     if sim is None:
-        builder = DataBuilder1D()
-        x = builder.learn(
+        builder = DataBuilder1D(
             alignment,
             alph,
-            filter,
-            refidx
+            refidx,
+            filter
         )
+        x = builder(alignment, refidx)
         colnames = builder.labels
     else:
         if ARGS.SIM_EPI_N is None:
@@ -233,13 +233,13 @@ def main(args=None):
                     alphabet=alph
                 )
 
-                builder = DataBuilder1D()
-                x = builder.learn(
+                builder = DataBuilder1D(
                     alignment,
                     alph,
-                    filter,
-                    refidx
+                    refidx,
+                    filter
                 )
+                x = builder(alignment, refidx)
                 colnames = builder.labels
 
                 # simulates the epitope and assigns the appropriate class
