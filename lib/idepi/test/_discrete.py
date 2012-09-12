@@ -11,7 +11,7 @@ from Bio import AlignIO
 from mrmr import DiscreteMrmr
 
 from idepi.alphabet import Alphabet
-from idepi.filter import NaiveFilter
+from idepi.filter import naivefilter, DataBuilder1D
 from idepi.labeler import Labeler
 from idepi.svm import LinearSvm
 from idepi.util import (
@@ -67,15 +67,19 @@ def test_discrete(ARGS):
 
             alph = Alphabet(mode=ARGS.ALPHABET)
 
-            colfilter = NaiveFilter(
-                alph,
+            filter = naivefilter(
                 ARGS.MAX_CONSERVATION,
                 ARGS.MIN_CONSERVATION,
                 ARGS.MAX_GAP_RATIO,
-                refidx=refidx,
-                skip_func=lambda x: False # TODO: add the appropriate filter function based on the args here
             )
-            colnames, x = colfilter.learn(alignment, {})
+            builder = DataBuilder1D()
+            x = builder.learn(
+                alignment,
+                alph,
+                filter,
+                refidx
+            )
+            colnames = builder.labels
 
             # test the feature names portion
             try:

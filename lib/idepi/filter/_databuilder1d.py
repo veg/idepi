@@ -4,6 +4,10 @@ from numpy import zeros
 from ._posstream import posstream
 from .._common import base_10_to_n, base_26_to_alph
 
+
+__all__ = ['DataBuilder1D']
+
+
 class DataBuilder1D(object):
 
     def __init__(self):
@@ -12,7 +16,7 @@ class DataBuilder1D(object):
         self.__labels = []
         self.__length = None
 
-    def __learn(self, alignment, alphabet, filter, refidx, radius):
+    def __learn(self, alignment, alphabet, filter, refidx):
 
         self.__alphabet = alphabet
 
@@ -40,12 +44,17 @@ class DataBuilder1D(object):
             )
             raise ValueError(msg)
 
-        data = zeros((len(alignment), len(self)), dtype=int)
+        data = zeros((
+            len(alignment) - (0 if refidx is None else 1),
+            len(self)
+        ), dtype=int)
 
         col = 0
         for i, chars in enumerate(self.__filtercalls):
             for j, char in enumerate(chars, start=col):
-                for k, c in enumerate(alignment[:, i]):
+                # handle the refidx case
+                column = (alignment[k, i] for k in range(len(alignment)) if k != refidx)
+                for k, c in enumerate(column):
                     data[k, j] = c == char
             col += len(chars)
 
@@ -55,6 +64,6 @@ class DataBuilder1D(object):
     def labels(self):
         return self.__labels
 
-    def learn(self, alignment, alphabet, filter, refidx, radius=0):
-        self.__compute(alignment, alphabet, filter, refidx, radius)
-        return self.filter(alignment)
+    def learn(self, alignment, alphabet, filter, refidx):
+        self.__learn(alignment, alphabet, filter, refidx)
+        return self.filter(alignment, refidx)

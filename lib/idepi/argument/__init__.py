@@ -22,7 +22,7 @@ from __future__ import division, print_function
 import logging, sys
 
 from argparse import ArgumentParser, ArgumentTypeError, FileType
-from os.path import join
+from os.path import exists, join
 from random import seed
 from warnings import warn
 

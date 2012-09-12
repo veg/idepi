@@ -55,7 +55,7 @@ from idepi.argument import (
     parse_args,
     abtypefactory
 )
-from idepi.filter import NaiveFilter #, PairFilter
+from idepi.filter import DataBuilder1D, naivefilter
 from idepi.labeler import Labeler
 from idepi.logging import init_log
 from idepi.results import IdepiResults
@@ -179,32 +179,21 @@ def main(args=None):
 
     alignment, refseq_offs = generate_alignment(seqrecords, alignment_basename, is_refseq, ARGS)
     refidx = alignment_identify_refidx(alignment, is_refseq)
-    colfilter = NaiveFilter(
-        alph,
+    filter = naivefilter(
         ARGS.MAX_CONSERVATION,
         ARGS.MIN_CONSERVATION,
-        ARGS.MAX_GAP_RATIO,
-        refidx=refidx,
-        skip_func=lambda x: False, # TODO: add the appropriate filter function based on the args here
-        loop_defs=[]# TODO: fix loop definitions constructs
+        ARGS.MAX_GAP_RATIO
     )
-#     pairfilter = PairFilter(
-#         alph,
-#         ARGS.MAX_CONSERVATION,
-#         ARGS.MIN_CONSERVATION,
-#         ARGS.MAX_GAP_RATIO,
-#         refidx=refidx,
-#         skip_func=lambda x: False,
-#         loop_defs=[] # TODO: fix loop definition constructs
-#     )
 
     if sim is None:
-        colnames, x = colfilter.learn(alignment, refseq_offs)
-#         c2, x2 = pairfilter.learn(alignment, refseq_offs)
-#         colnames += c2
-#         x = np.hstack((x1, x2))
-        # TODO: I don't think we need to binarize the colnames here, though we can if we want.
-        # I need to think more about how to properly handle this case.
+        builder = DataBuilder1D()
+        x = builder.learn(
+            alignment,
+            alph,
+            filter,
+            refidx
+        )
+        colnames = builder.labels
     else:
         if ARGS.SIM_EPI_N is None:
             ARGS.SIM_EPI_N = len(seqrecords)
@@ -244,7 +233,14 @@ def main(args=None):
                     alphabet=alph
                 )
 
-                colnames, x = colfilter.learn(alignment, {}) # XXX: refseq_offs needed here?
+                builder = DataBuilder1D()
+                x = builder.learn(
+                    alignment,
+                    alph,
+                    filter,
+                    refidx
+                )
+                colnames = builder.labels
 
                 # simulates the epitope and assigns the appropriate class
                 epi_def = sim.simulate_epitope(

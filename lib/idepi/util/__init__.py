@@ -31,7 +31,7 @@ from warnings import warn
 
 import numpy as np
 
-from Bio import SeqIO
+from Bio import AlignIO, SeqIO
 from Bio.Align import MultipleSeqAlignment
 from Bio.Alphabet import Gapped, generic_nucleotide, generic_protein
 from Bio.Seq import Seq
@@ -263,8 +263,11 @@ def generate_alignment(seqrecords, my_basename, ref_id_func, opts):
         hmmer = Hmmer(opts.HMMER_ALIGN_BIN, opts.HMMER_BUILD_BIN)
         hmmer.build(hmm_filename, sto_filename)
 
+    with open(sto_filename) as fh:
+        msa = AlignIO.read(fh, 'stockholm')
+
     # we store the antibody information in the description, so grab it
-    return crude_sto_read(sto_filename, ref_id_func, opts.DNA, description=True)
+    return msa, {} # crude_sto_read(sto_filename, ref_id_func, opts.DNA, description=True)
 
 
 def crude_sto_read(filename, ref_id_func=None, dna=False, description=False):

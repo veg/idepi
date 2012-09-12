@@ -38,11 +38,11 @@ import numpy as np
 
 from Bio import AlignIO
 
+from idepi.alphabet import Alphabet
+from idepi.filter import naivefilter, DataBuilder1D
+
 from idepi import (
-    Alphabet,
     Labeler,
-    NaiveFilter,
-    PhyloFilter,
     Regressor,
     alignment_identify_ref,
     extract_feature_weights,
@@ -212,15 +212,19 @@ def run_tests():
 
             alph = Alphabet(Alphabet.STANFEL if OPTIONS.STANFEL else Alphabet.DNA if OPTIONS.DNA else Alphabet.AMINO)
 
-            colfilter = NaiveFilter(
-                alph,
+            filter = naivefilter(
                 OPTIONS.MAX_CONSERVATION,
                 OPTIONS.MIN_CONSERVATION,
-                OPTIONS.MAX_GAP_RATIO,
-                refidx=refidx,
-                skip_func=lambda x: False # TODO: add the appropriate filter function based on the args here
+                OPTIONS.MAX_GAP_RATIO
             )
-            colnames, x = colfilter.learn(alignment, 0)
+            builder = DataBuilder1D()
+            x = builder.learn(
+                alignment,
+                alph,
+                filter,
+                refidx
+            )
+            colnames = builder.labels
 
             # test the feature names portion
             try:
@@ -362,28 +366,19 @@ def main(argv=sys.argv):
     alignment, refseq_offs = generate_alignment(seqrecords, alignment_basename, is_HXB2, OPTIONS)
     refidx = alignment_identify_ref(alignment, is_HXB2)
 
-    colfilter = None
-    if OPTIONS.PHYLOFILTER:
-        colfilter = PhyloFilter(
-            alph,
-            _PHYLOFILTER_BATCHFILE,
-            refidx=refidx,
-            skip_func=lambda x: False # TODO: add the appropriate filter function based on the args here
-        )
-        # TODO: I don't think we need to binarize the colnames here, though we can if we want.
-        # I need to think more about how to properly handle this case.
-#             colnames = binarize(x, colnames, dox=False)
-    else:
-        colfilter = NaiveFilter(
-            alph,
-            OPTIONS.MAX_CONSERVATION,
-            OPTIONS.MIN_CONSERVATION,
-            OPTIONS.MAX_GAP_RATIO,
-            refidx=refidx,
-            skip_func=lambda x: False # TODO: add the appropriate filter function based on the args here
-        )
-
-    colnames, x = colfilter.learn(alignment, refseq_offs)
+    filter = naivefilter(
+        OPTIONS.MAX_CONSERVATION,
+        OPTIONS.MIN_CONSERVATION,
+        OPTIONS.MAX_GAP_RATIO,
+    )
+    builder = DataBuilder1D()
+    x = builder.learn(
+        alignment,
+        alph,
+        filter,
+        refidx
+    )
+    colnames = builder.labels
 
     ylabeler = Labeler(
         seqrecord_get_ic50s,

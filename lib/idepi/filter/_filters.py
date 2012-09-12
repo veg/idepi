@@ -1,6 +1,10 @@
 
 from functools import partial
 
+
+__all__ = ['naivefilter']
+
+
 def __naivefilter(maxcons, mincons, maxgap, pos):
     # return the number of binary columns per site
     if (pos is None or

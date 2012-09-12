@@ -35,7 +35,7 @@ from tempfile import mkstemp
 
 import numpy as np
 
-from Bio import SeqIO
+from Bio import AlignIO, SeqIO
 from Bio.Seq import Seq
 
 from idepi import (
@@ -57,7 +57,7 @@ from idepi.argument import (
     finalize_args,
     abtypefactory
 )
-from idepi.filter import NaiveFilter
+from idepi.filter import DataBuilder1D, naivefilter
 from idepi.hmmer import Hmmer
 from idepi.labeler import Labeler
 from idepi.phylogeny import Phylo, PhyloGzFile
@@ -67,7 +67,6 @@ from idepi.test import test_discrete
 from idepi.util import (
     alignment_identify_refidx,
     site_labels,
-    crude_sto_read,
     generate_alignment,
     is_refseq,
     C_range,
@@ -179,7 +178,8 @@ def main(args=None):
         if exists(tmpseq):
             remove(tmpseq)
 
-    fasta_aln, _ = crude_sto_read(fasta_stofile, None, ARGS.DNA)
+    with open(fasta_stofile) as fh:
+        fasta_aln = AlignIO.read(fh, 'stockholm')
 
     try:
         assert(alignment.get_alignment_length() == fasta_aln.get_alignment_length())
@@ -187,19 +187,23 @@ def main(args=None):
         print(alignment.get_alignment_length(), fasta_aln.get_alignment_length())
         raise
 
-    colfilter = NaiveFilter(
-        alph,
+    filter = naivefilter(
         ARGS.MAX_CONSERVATION,
         ARGS.MIN_CONSERVATION,
-        ARGS.MAX_GAP_RATIO,
-        refidx=refidx,
-        skip_func=lambda x: False # TODO: add the appropriate filter function based on the args here
+        ARGS.MAX_GAP_RATIO
     )
+    builder = DataBuilder1D()
+    xt = builder.learn(
+        alignment,
+        alph,
+        filter,
+        refidx
+    )
+    colnames = builder.labels
 
-    colnames, xt = colfilter.learn(alignment, refseq_offs)
     if ARGS.TREE is not None:
         tree, fasta_aln = Phylo()([r for r in fasta_aln if not is_refseq(r)])
-    xp = colfilter.filter(fasta_aln)
+    xp = builder.filter(fasta_aln)
 
     # compute features
     ylabeler = Labeler(
