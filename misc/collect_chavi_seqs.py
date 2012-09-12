@@ -88,9 +88,9 @@ tmpfile = 'chavi.xml.tmp'
 if os.path.exists(tmpfile):
     handle = open(tmpfile)
 else:
-    handle = Entrez.efetch(db='nucleotide', id=','.join(accessions.keys()), retmode='xml')
+    handle = Entrez.efetch(db='nucleotide', id=','.join(list(accessions.keys())), retmode='xml')
     tmp = open(tmpfile, 'w')
-    print >> tmp, handle.read()
+    print(handle.read(), file=tmp)
     tmp.close()
     handle = open(tmpfile)
 
@@ -134,7 +134,7 @@ for record in records:
         except KeyError:
             pass
     if start == -1 or end == -1:
-        print record
+        print(record)
         sys.exit(-1)
     seq = record['GBSeq_sequence'].upper()[start:end]
     if id in accessions:
@@ -145,7 +145,7 @@ for record in records:
         curs.execute('INSERT INTO \'NEUT\' VALUES(\'%d\', \'%s\', \'B12\', \'%s\')' % (c, id, ic50))
         c += 1
     else:
-        print >> sys.stderr, id
+        print(id, file=sys.stderr)
 
 conn.commit()
 curs.close()
