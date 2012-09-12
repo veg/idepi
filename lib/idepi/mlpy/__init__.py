@@ -22,4 +22,23 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
-__version__ = '0.9.5'
+from ._dantzig import *
+from ._doubledantzig import *
+from ._glm import *
+from ._lardantzig import *
+from ._linearsvr import *
+from ._regressor import *
+from ._ridgedantzig import *
+from ._ridgelar import *
+from ._wrappedregressor import *
+
+__all__ = []
+__all__ += _dantzig.__all__
+__all__ += _doubledantzig.__all__
+__all__ += _glm.__all__
+__all__ += _lardantzig.__all__
+__all__ += _linearsvr.__all__
+__all__ += _regressor.__all__
+__all__ += _ridgedantzig.__all__
+__all__ += _ridgelar.__all__
+__all__ += _wrappedregressor.__all__

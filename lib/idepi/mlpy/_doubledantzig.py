@@ -22,4 +22,15 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
-__version__ = '0.9.5'
+from __future__ import division, print_function
+
+from ._dantzig import Dantzig
+from ._wrappedregressor import WrappedRegressor
+
+
+__all__ = ['DoubleDantzig']
+
+
+class DoubleDantzig(WrappedRegressor):
+    def __init__(self, tol0=0.001, lam0=1.0, tol=0.001, lam=0.001, **kwargs):
+        super(DoubleDantzig, self).__init__(selectorcls=Dantzig, regressorcls=Dantzig, tol0=tol0, lam0=lam0, tol1=tol, lam1=lam, **kwargs)

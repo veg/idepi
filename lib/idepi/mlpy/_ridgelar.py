@@ -22,4 +22,16 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
-__version__ = '0.9.5'
+from __future__ import division, print_function
+
+from mlpy import LARS, Ridge
+
+from ._wrappedregressor import WrappedRegressor
+
+
+__all__ = ['RidgeLar']
+
+
+class RidgeLar(WrappedRegressor):
+    def __init__(self, m, alpha=0.0, **kwargs):
+        super(RidgeLar, self).__init__(selectorcls=LARS, regressorcls=Ridge, m0=m, alpha1=alpha, **kwargs)

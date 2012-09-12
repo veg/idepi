@@ -1,54 +1,104 @@
 
-import logging, re
+from __future__ import division, print_function
 
-from math import copysign, sqrt
+from logging import getLogger
 from operator import itemgetter
-from os import close, remove, rename
-from os.path import exists
+from os import close, remove
+from re import sub as re_sub
 from shutil import copyfile
-from sys import stderr, stdout
+from sys import stderr
 from tempfile import mkstemp
-from unicodedata import combining
 
 from Bio import SeqIO
-from Bio.Align import MultipleSeqAlignment
-from Bio.Alphabet import Gapped, generic_nucleotide, generic_protein
-from Bio.Seq import Seq
-from Bio.SeqRecord import SeqRecord
 
-from mrmr import MRMR_LOGGER
+from .alphabet import Alphabet
+from .hmmer import Hmmer
+from .logging import IDEPI_LOGGER
 
-from _hmmer import Hmmer
-from _logging import IDEPI_LOGGER
-from _normalvalue import NormalValue
-from _simulation import Simulation
+import numpy as np
 
 
 __all__ = [
-    'cv_results_to_output',
-    'make_output_meta',
-    'crude_sto_read',
-    'generate_alignment_from_SeqRecords',
-    'generate_alignment',
-    'pretty_fmt_results',
-    'pretty_fmt_stats',
-    'pretty_fmt_weights',
-    'extract_feature_weights'
+    'BASE_ALPH',
+    'base_10_to_n',
+    'base_26_to_alph',
+    'alph_to_base_26',
+    'base_n_to_10',
+    'refseq_off',
+    'generate_alignment_from_seqrecords',
+    'get_noise',
+    'sanitize_seq',
+    'clamp'
 ]
+
+BASE_ALPH = 26
+
+
+def base_10_to_n(n, N):
+    val = n
+    cols = {}
+    pow_ = -1
+    while val >= N:
+        new_val = val
+        mul_ = 0
+        pow_ = 0
+        while new_val > 0:
+            new_mul = new_val / N
+            if new_mul > 0:
+                mul_ = new_mul
+                pow_ += 1
+            new_val /= N
+        val -= pow(N, pow_) * mul_
+        cols[pow_] = mul_
+    cols[0] = val
+    for i in range(min(cols.keys())+1, max(cols.keys())):
+        if i not in cols:
+            cols[i] = 0
+    return cols
+
+
+def base_26_to_alph(cols):
+    for k in sorted(cols.keys()):
+        # we might think this dangerous, but if k+1 is in cols, then it is > 1 or it has something above it
+        if cols[k] <= 0 and (k+1) in cols:
+            cols[k+1] -= 1
+            cols[k] += 26
+    if cols[max(cols.keys())] == 0:
+        del cols[max(cols.keys())]
+    alph = ""
+    for k, v in sorted(cols.items(), key=itemgetter(0), reverse=True):
+        alph += chr(ord('a') + v - 1)
+    return alph
+
+
+def alph_to_base_26(str):
+    cols = {}
+    col_idx = 0
+    for i in range(len(str)-1, -1, -1):
+        new_val = ord(str[i]) - ord('a') + 1
+        cols[col_idx] = new_val
+        col_idx += 1
+    for i in range(col_idx):
+        if cols[i] > 25:
+            cols[i] %= 26
+            if (i+1) not in cols:
+                cols[i+1] = 0
+            cols[i+1] += 1
+    return cols
+
+
+def base_n_to_10(cols, N):
+    num = 0
+    for k, v in cols.items():
+        num += pow(N, k) * v
+    return num
 
 
 # refseq_offs has for keys 0-indexed positions into the trimmed refseq
 # and for values the number of trimmed positions occuring immediately
 # before the key-index. This so the colfilter can properly name the
-# positions according to the full reference sequence 
-def refseq_off(alndict, ref_id_func):
-    refseq = None
-    for acc in alndict.keys():
-        if apply(ref_id_func, (acc,)):
-            refseq = alndict[acc]
-            break
-    if refseq is None:
-        raise RuntimeError('Unable to find the reference sequence to compute an offset!')
+# positions according to the full reference sequence
+def refseq_off(refseq):
     off = 0
     offs = {}
     i = 0
@@ -65,52 +115,34 @@ def refseq_off(alndict, ref_id_func):
     return offs
 
 
-def crude_sto_read(filename, ref_id_func=None, dna=False):
-    with open(filename) as fh:
-        notrel = re.compile(r'^(?:#|#=|//)')
-        alndict = dict(line.strip().split() for line in fh if not notrel.match(line.strip()) and line.strip() != '')
-    trim = re.compile(r'[^-A-Z]')
-    alph = Gapped(generic_nucleotide if dna else generic_protein)
-    alignment = MultipleSeqAlignment(
-        SeqRecord(
-            Seq(trim.sub('', seq), alph),
-            acc
-        ) for acc, seq in alndict.items()
-    )
-    off = None if ref_id_func is None else refseq_off(alndict, ref_id_func)
-    return alignment, off
-
-
-def generate_alignment_from_SeqRecords(seq_records, my_basename, opts):
+def generate_alignment_from_seqrecords(seq_records, my_basename, opts):
     fd, ab_fasta_filename = mkstemp(); close(fd)
     fd, hmm_filename = mkstemp(); close(fd)
     fd, sto_filename = mkstemp(); close(fd)
     finished = False
 
-    log = logging.getLogger(IDEPI_LOGGER)
+    log = getLogger(IDEPI_LOGGER)
 
     try:
         # get the FASTA format file so we can HMMER it
         fafh = open(ab_fasta_filename, 'w')
-        hxb2fh = open(opts.REFSEQ_FASTA, 'rU')
 
-        # grab the HXB2 Reference Sequence
-        hxb2_record = SeqIO.parse(hxb2fh, 'fasta')
-        seq_records.extend(hxb2_record)
+        # insert the reference sequence
+        seq_records.append(opts.REFSEQ)
 
         # type errors here?
         try:
             SeqIO.write(seq_records, fafh, 'fasta')
-        except TypeError, e:
-            print >> stderr, seq_records
+        except TypeError as e:
+            print(seq_records, file=stderr)
             raise e
 
         # close the handles in this order because BioPython wiki does so
         fafh.close()
-        hxb2fh.close()
 
         # make the tempfiles for the alignments, and close them out after we use them
-        SeqIO.convert(opts.REFSEQ_FASTA, 'fasta', sto_filename, 'stockholm')
+        with open(sto_filename, 'w') as fh:
+            SeqIO.write([opts.REFSEQ], fh, 'stockholm')
 
         hmmer = Hmmer(opts.HMMER_ALIGN_BIN, opts.HMMER_BUILD_BIN)
 
@@ -118,10 +150,16 @@ def generate_alignment_from_SeqRecords(seq_records, my_basename, opts):
 
         log.debug('beginning alignment')
 
-        for i in xrange(opts.HMMER_ITER):
+        for i in range(opts.HMMER_ITER):
             log.debug('aligning %d sequences (%d of %d)' % (numseqs, i+1, opts.HMMER_ITER))
             hmmer.build(hmm_filename, sto_filename)
-            hmmer.align(hmm_filename, ab_fasta_filename, output=sto_filename, alphabet=Hmmer.DNA if opts.DNA else Hmmer.AMINO, outformat=Hmmer.PFAM)
+            hmmer.align(
+                hmm_filename,
+                ab_fasta_filename,
+                output=sto_filename,
+                alphabet=Hmmer.DNA if opts.DNA else Hmmer.AMINO,
+                outformat=Hmmer.PFAM
+            )
 
         # rename the final alignment to its destination
         finished = True
@@ -136,162 +174,29 @@ def generate_alignment_from_SeqRecords(seq_records, my_basename, opts):
         remove(ab_fasta_filename)
         remove(hmm_filename)
 
-def generate_alignment(seqrecords, my_basename, ref_id_func, opts):
-    sto_filename = my_basename + '.sto'
-    hmm_filename = my_basename + '.hmm'
 
-    if hasattr(opts, 'SIM') and opts.SIM == Simulation.DUMB:
-        # we're assuming pre-aligned because they're all generated from the same refseq
-        with open(hmm_filename, 'w') as fh:
-            SeqIO.write(seqrecords, fh, 'stockholm')
-    elif not exists(sto_filename):
-        generate_alignment_from_SeqRecords(
-            seqrecords,
-            my_basename,
-            opts
-        )
-
-    if not exists(hmm_filename):
-        hmmer = Hmmer(opts.HMMER_ALIGN_BIN, opts.HMMER_BUILD_BIN)
-        hmmer.build(hmm_filename, sto_filename)
-
-    return crude_sto_read(sto_filename, ref_id_func, opts.DNA)
+def get_noise(seqrecord):
+    from .util import seqrecord_get_ic50s
+    # just return the "mean" as noise
+    return np.mean(seqrecord_get_ic50s(seqrecord.description))
 
 
-def cv_results_to_output(results, colnames, meta=None):
-
-    statsdict = results.stats.todict()
-
-    # remove minstat 'cause we don't want it here..
-    if 'Minstat' in statsdict:
-        del statsdict['Minstat']
-
-    featureweights = {}
-
-    for i in xrange(len(results.extra)):
-        assert(len(results.extra[i]['features']) >= len(results.extra[i]['weights']))
-        for j in xrange(len(results.extra[i]['features'])):
-            v = results.extra[i]['weights'][j] if j < len(results.extra[i]['weights']) else 0.
-            k = results.extra[i]['features'][j]
-            if k not in featureweights:
-                featureweights[k] = []
-            featureweights[k].append(int(copysign(1, v)))
-
-    weightsdict = {}
-    for idx, weights in featureweights.items():
-        val = NormalValue(int, weights)
-        weightsdict[colnames[idx]] = val
-
-    log = logging.getLogger(MRMR_LOGGER)
-    log.debug('mrmr index to name map: {%s}' % ', '.join(
-        "%d: '%s'" % (
-            idx, colnames[idx]
-        ) for idx in sorted(featureweights.keys())
-    ))
-
-    ret = {}
-
-    if meta is not None:
-        ret['meta'] = meta
-
-    ret['statistics'] = dict((k, { 'mean': v.mu, 'std': sqrt(v.sigma) }) for k, v in statsdict.items())
-    ret['weights'] = [{ 'position': k, 'value': { 'mean': v.mu, 'std': sqrt(v.sigma), 'N': len(v) } } for k, v in sorted(
-        weightsdict.items(),
-        key=lambda x: int(re.sub(r'[a-zA-Z\[\]]+', '', x[0]))
-    )]
-
-    return ret
+def sanitize_seq(seq, alphabet):
+    alphdict = alphabet.todict()
+    assert(len(Alphabet.SPACE) > 0 and len(seq) > 0 and len(alphdict) > 0)
+    try:
+        seq = str(seq)
+        seq = seq.upper()
+        seq = re_sub(r'[%s]' % Alphabet.SPACE, '-', seq)
+        seq = re_sub(r'[^%s]' % ''.join(alphdict.keys()), 'X', seq)
+    except TypeError:
+        raise RuntimeError('something is amiss with things:\n  SPACE = %s\n  seq = %s\n  alphabet = %s\n' % (Alphabet.SPACE, seq, alphdict))
+    return seq
 
 
-def make_output_meta(opts, N, target, antibody, forward_select=None):
-    cutoff = opts.IC50LT if target == 'lt' else opts.IC50GT
-    return {
-        'sequences': N,
-        'features': opts.NUM_FEATURES if forward_select is None else forward_select,
-        'discriminator': { 'orientation': target, 'cutoff': cutoff },
-        'antibody': antibody,
-        'folds': opts.CV_FOLDS
-    }
-
-
-def pretty_fmt_stats(stats, ident=0):
-    prefix = u' ' * 2 * ident
-
-    buf = prefix
-
-    buf += '"statistics": {\n'
-
-    stat_prefixes = {}
-    for k in stats.keys():
-        stat_prefixes[k] = sum([1 for c in k if combining(c) == 0])
-
-    stat_len = max(stat_prefixes.values())
-    mean_len = max(len('%.6f' % v['mean']) for v in stats.values())
-    std_len = max(len('%.6f' % v['std']) for v in stats.values())
-    fmt = u'{ "mean": %%%d.6f, "std": %%%d.6f }' % (mean_len, std_len)
-    output = (prefix + u'  %s%s %s' % (
-        u'"%s":' % k,
-        u' ' * (stat_len - stat_prefixes[k]),
-        fmt % (v['mean'], v['std'])
-    ) for k, v in sorted(stats.items(), key=itemgetter(0)))
-
-    return buf + ',\n'.join(output) + '\n' + prefix + '}'
-
-
-def pretty_fmt_weights(weights, ident=0):
-    prefix = u' ' * 2 * ident
-
-    buf = prefix + '"weights": [\n'
-
-    if len(weights) > 0:
-        name_len = max(len(v['position']) for v in weights) + 3
-        mean_len = max(len('% .6f' % v['value']['mean']) for v in weights)
-        std_len = max(len('%.6f' % v['value']['std']) for v in weights)
-        N_len = max(len('%d' % v['value']['N']) for v in weights)
-        fmt = u'{ "mean": %%%d.6f, "std": %%%d.6f, "N": %%%dd }' % (mean_len, std_len, N_len)
-        output = (prefix + u'  { "position": %-*s "value": %s }' % (
-            name_len, u'"%s",' % v['position'],
-            fmt % (
-                v['value']['mean'],
-                v['value']['std'],
-                v['value']['N']
-            ),
-        ) for v in sorted(weights, key=lambda x: int(re.sub(r'[a-zA-Z\[\]]+', '', x['position']))))
-
-    return buf + ',\n'.join(output) + '\n' + prefix + ']'
-
-
-def pretty_fmt_meta(meta, ident=0):
-    prefix = u' ' * 2 * ident
-
-    buf = prefix + '"meta": {\n'
-
-    name_len = max(len(k) for k in meta.keys()) + 3
-    output = (prefix + u'  %-*s %s' % (
-        name_len,
-        u'"%s":' % k,
-        '"%s"' % v if isinstance(v, str) else \
-        ' { %s }' % ', '.join(
-            ('"%s": %s' % (
-                k,
-                '%s' % v if isinstance(v, (float, int)) else '"%s"' % v
-            ) for k, v in v.items())
-        ) if isinstance(v, dict) else \
-        ' %s' % str(v)
-    ) for k, v in sorted(meta.items(), key=itemgetter(0)))
-
-    return buf + ',\n'.join(output) + '\n' + prefix + '}'
-
-
-def pretty_fmt_results(results):
-    ret = '{\n'
-    ret += pretty_fmt_meta(results['meta'], 1) + ',\n' if 'meta' in results else ''
-    ret += pretty_fmt_stats(results['statistics'], 1) + ',\n'
-    ret += pretty_fmt_weights(results['weights'], 1) + '\n}'
-    return ret
-
-def extract_feature_weights(instance):
-    return {
-        'features': instance.features(),
-        'weights': instance.classifier.weights()
-    }
+def clamp(x):
+    if x < 0.:
+        return 0.
+    if x > 1.:
+        return 1.
+    return x

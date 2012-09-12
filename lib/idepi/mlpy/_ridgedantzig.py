@@ -22,4 +22,23 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
-__version__ = '0.9.5'
+from __future__ import division, print_function
+
+from mlpy import Ridge
+
+from ._dantzig import Dantzig
+from ._wrappedregressor import WrappedRegressor
+
+
+__all__ = ['RidgeDantzig']
+
+
+class RidgeDantzig(WrappedRegressor):
+    def __init__(self, tol=0.001, lam=1.0, alpha=0.0, **kwargs):
+        if 'tol0' in kwargs:
+            lam=kwargs['tol0']
+            del kwargs['tol0']
+        if 'lam0' in kwargs:
+            lam=kwargs['lam0']
+            del kwargs['lam0']
+        super(RidgeDantzig, self).__init__(selectorcls=Dantzig, regressorcls=Ridge, tol0=tol, lam0=lam, alpha1=alpha, **kwargs)

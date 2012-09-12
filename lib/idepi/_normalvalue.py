@@ -22,6 +22,8 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
+from __future__ import division, print_function
+
 from collections import Iterable
 from math import sqrt
 from numpy import mean, nan_to_num, var
@@ -49,7 +51,7 @@ class NormalValue(list):
 
     def __imul__(self, value):
         assert(isinstance(value, self.__dtype))
-        for i in xrange(len(self)):
+        for i in range(len(self)):
             self[i] *= value
         NormalValue.__compute(self)
         return self
@@ -106,5 +108,5 @@ class NormalValue(list):
     def __unicode__(self):
         return NormalValue.sprintf(self)
 
-    def sprintf(self, format=u'%g \xb1 %g'):
+    def sprintf(self, format='%g \xb1 %g'):
         return format % (self.mu, sqrt(self.sigma))

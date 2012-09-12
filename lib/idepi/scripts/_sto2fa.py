@@ -1,9 +1,9 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
 #
-# idepi :: (IDentify EPItope) python libraries containing some useful machine
-# learning interfaces for regression and discrete analysis (including
-# cross-validation, grid-search, and maximum-relevance/mRMR feature selection)
-# and utilities to help identify neutralizing antibody epitopes via machine
-# learning.
+# sto2fa.py :: converts a stockholm multiple sequence alignment file to fasta
+# format.
 #
 # Copyright (C) 2011 N Lance Hepler <nlhepler@gmail.com>
 #
@@ -22,4 +22,31 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
-__version__ = '0.9.5'
+from __future__ import division, print_function
+
+from argparse import ArgumentParser, FileType
+from sys import argv, exit, stdin, stdout
+
+from Bio import AlignIO
+
+
+def main(args=None):
+
+    if args is None:
+        args = argv[1:]
+
+    parser = ArgumentParser(description='convert stockholm file to FASTA')
+    parser.add_argument('STOCKHOLMFILE', type=FileType)
+    ns = parser.parse_args(args)
+
+    alignments = AlignIO.parse(ns.STOCKHOLMFILE, 'stockholm')
+    AlignIO.write(alignments, stdout, 'fasta')
+
+    if ns.STOCKHOLMFILE != stdin:
+        ns.STOCKHOLMFILE.close()
+
+    return 0
+
+
+if __name__ == '__main__':
+    exit(main())
