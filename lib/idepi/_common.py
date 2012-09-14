@@ -22,8 +22,8 @@ __all__ = [
     'BASE_ALPH',
     'base_10_to_n',
     'base_26_to_alph',
-    'alph_to_base_26',
-    'base_n_to_10',
+#     'alph_to_base_26',
+#     'base_n_to_10',
     'generate_alignment_from_seqrecords',
     'get_noise',
     'sanitize_seq',
@@ -34,63 +34,54 @@ BASE_ALPH = 26
 
 
 def base_10_to_n(n, N):
-    val = n
-    cols = {}
-    pow_ = -1
-    while val >= N:
-        new_val = val
-        mul_ = 0
-        pow_ = 0
-        while new_val > 0:
-            new_mul = new_val / N
-            if new_mul > 0:
-                mul_ = new_mul
-                pow_ += 1
-            new_val /= N
-        val -= pow(N, pow_) * mul_
-        cols[pow_] = mul_
-    cols[0] = val
-    for i in range(min(cols.keys())+1, max(cols.keys())):
-        if i not in cols:
-            cols[i] = 0
-    return cols
+     if n < 0:
+         sign = -1
+     elif n == 0:
+         return [0]
+     else:
+         sign = 1
+     n *= sign
+     digits = []
+     while n:
+         digits.append(n % N)
+         n //= N
+     return digits
 
 
 def base_26_to_alph(cols):
-    for k in sorted(cols.keys()):
-        # we might think this dangerous, but if k+1 is in cols, then it is > 1 or it has something above it
-        if cols[k] <= 0 and (k+1) in cols:
-            cols[k+1] -= 1
-            cols[k] += 26
-    if cols[max(cols.keys())] == 0:
-        del cols[max(cols.keys())]
-    alph = ""
-    for k, v in sorted(cols.items(), key=itemgetter(0), reverse=True):
-        alph += chr(ord('a') + v - 1)
-    return alph
+     for i, v in enumerate(cols):
+         if v <= 0 and (i + 1) < len(cols):
+             cols[i + 1] -= 1
+             cols[i] += 26
+     if cols[-1] == 0:
+         cols.pop()
+     alph = ''
+     for v in reversed(cols):
+         alph += chr(ord('a') + v - 1)
+     return alph
 
 
-def alph_to_base_26(str):
-    cols = {}
-    col_idx = 0
-    for i in range(len(str)-1, -1, -1):
-        new_val = ord(str[i]) - ord('a') + 1
-        cols[col_idx] = new_val
-        col_idx += 1
-    for i in range(col_idx):
-        if cols[i] > 25:
-            cols[i] %= 26
-            if (i+1) not in cols:
-                cols[i+1] = 0
-            cols[i+1] += 1
-    return cols
+# def alph_to_base_26(str):
+#     cols = {}
+#     col_idx = 0
+#     for i in range(len(str)-1, -1, -1):
+#         new_val = ord(str[i]) - ord('a') + 1
+#         cols[col_idx] = new_val
+#         col_idx += 1
+#     for i in range(col_idx):
+#         if cols[i] > 25:
+#             cols[i] %= 26
+#             if (i+1) not in cols:
+#                 cols[i+1] = 0
+#             cols[i+1] += 1
+#     return cols
 
 
-def base_n_to_10(cols, N):
-    num = 0
-    for k, v in cols.items():
-        num += pow(N, k) * v
-    return num
+# def base_n_to_10(cols, N):
+#     num = 0
+#     for k, v in cols.items():
+#         num += pow(N, k) * v
+#     return num
 
 
 def generate_alignment_from_seqrecords(seq_records, my_basename, opts):
