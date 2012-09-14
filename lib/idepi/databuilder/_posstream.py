@@ -26,6 +26,9 @@ def posstream(alignment, alphabet, refidx):
 
     labels = __poslabels(alignment, alphabet, refidx)
 
+    # save the gap coord for later use
+    gap = alphabet('-')
+
     for i in range(alignment.get_alignment_length()):
         # convert to alphabet coordinates
         counts = Counter(
@@ -34,8 +37,8 @@ def posstream(alignment, alphabet, refidx):
             if j != refidx
         )
         pos, insert, label = next(labels)
-        gapc = 0 if Alphabet.GAP_REPR not in counts else counts[Alphabet.GAP_REPR]
-        maxc, minc, total = maxminsum(v for k, v in counts.items() if k != Alphabet.GAP_REPR)
+        gapc = 0 if gap not in counts else counts[gap]
+        maxc, minc, total = maxminsum(v for k, v in counts.items() if k != gap)
         # if everything is a gap (ie, total == 0), skip it
         if total == 0:
             yield None
