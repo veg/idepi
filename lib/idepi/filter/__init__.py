@@ -1,30 +1,26 @@
-#
-# idepi :: (IDentify EPItope) python libraries containing some useful machine
-# learning interfaces for regression and discrete analysis (including
-# cross-validation, grid-search, and maximum-relevance/mRMR feature selection)
-# and utilities to help identify neutralizing antibody epitopes via machine
-# learning.
-#
-# Copyright (C) 2011 N Lance Hepler <nlhepler@gmail.com>
-#
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License along
-# with this program; if not, write to the Free Software Foundation, Inc.,
-# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-#
 
-from ._databuilder1d import *
-from ._filters import *
+from functools import partial
 
-__all__ = []
-__all__ += _databuilder1d.__all__
-__all__ += _filters.__all__
+
+__all__ = ['naivefilter', 'nofilter']
+
+
+def __naivefilter(maxcons, mincons, maxgap, pos):
+    # return the number of binary columns per site
+    if (pos is None or
+        pos.maxcount / pos.total > maxcons or
+        pos.mincount / pos.total > mincons or
+        pos.gapcount / (pos.total + pos.gapcount) > maxgap):
+        return []
+    # otherwise return true
+    return sorted(pos.counts.keys())
+
+
+def naivefilter(maxcons, mincons, maxgap):
+    return partial(__naivefilter, maxcons, mincons, maxgap)
+
+
+def nofilter(pos):
+    if pos is None:
+        return []
+    return sorted(pos.counts.keys())

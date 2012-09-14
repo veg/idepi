@@ -18,7 +18,8 @@ class Alphabet(object):
     AMINO, DNA, STANFEL, CUSTOM = 0, 1, 2, 3
 
     # underscore must go first or re.compile blows up
-    SPACE = '_.-='
+    GAP_CHARS = '_.-='
+    GAP_REPR = '[]'
 
     __DNA_ALPH   = 'ACGTUN-'
     __AMINO_ALPH = 'ACGILMPSTVDENQFWYHKRX-'
@@ -41,7 +42,7 @@ class Alphabet(object):
             l = []
             # don't forget to +1 here, otherwise we miss the '-' character
             for i in range(max(d.values()) + 1):
-                l.append('[%s]' % ''.join(sorted(k if k not in Alphabet.SPACE else '' for k, v_ in d.items() if i == v_)))
+                l.append('[%s]' % ''.join(sorted(k if k not in Alphabet.GAP_CHARS else '' for k, v_ in d.items() if i == v_)))
 
         elif mode in (Alphabet.AMINO, Alphabet.DNA):
             alph = Alphabet.__AMINO_ALPH if mode == self.AMINO else Alphabet.__DNA_ALPH
@@ -62,17 +63,21 @@ class Alphabet(object):
     def __len__(self):
         return len(self.__list)
 
+    def __call__(self, char):
+        if not isinstance(char, str):
+            raise ValueError('alphabet() converts chars to alphabet indices')
+        return self.__dict[char]
+
     def __getitem__(self, idx):
-        if isinstance(idx, int):
-            return self.__list[idx]
-        elif isinstance(idx, str):
-            return self.__dict[idx]
+        if not isinstance(idx, int):
+            raise ValueError('alphabet[] converst alpahbet indices to a str repr')
+        return self.__list[idx]
 
     @staticmethod
     def __dict_and_list(alphabet):
         alph = alphabet.upper()
         d = dict((alph[i], i) for i in range(len(alph)))
-        l = [alph[i] if alph[i] not in Alphabet.SPACE else '[]' for i in range(len(alph))]
+        l = [alph[i] if alph[i] not in Alphabet.GAP_CHARS else Alphabet.GAP_REPR for i in range(len(alph))]
         return d, l
 
     def todict(self):

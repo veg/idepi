@@ -27,10 +27,15 @@ def posstream(alignment, alphabet, refidx):
     labels = __poslabels(alignment, alphabet, refidx)
 
     for i in range(alignment.get_alignment_length()):
-        counts = Counter(alignment[j, i].upper() for j in range(nrow) if j != refidx)
+        # convert to alphabet coordinates
+        counts = Counter(
+            alphabet(alignment[j, i].upper())
+            for j in range(nrow)
+            if j != refidx
+        )
         pos, insert, label = next(labels)
-        gapc = 0 if Alphabet.SPACE not in counts else counts[Alphabet.SPACE]
-        maxc, minc, total = maxminsum(v for k, v in counts.items() if k != Alphabet.SPACE)
+        gapc = 0 if Alphabet.GAP_REPR not in counts else counts[Alphabet.GAP_REPR]
+        maxc, minc, total = maxminsum(v for k, v in counts.items() if k != Alphabet.GAP_REPR)
         # if everything is a gap (ie, total == 0), skip it
         if total == 0:
             yield None
@@ -42,7 +47,7 @@ def __poslabels(alignment, alphabet, refidx):
 
     pos, insert = 0, 0
     for i, char in enumerate(refseq):
-        if char not in Alphabet.SPACE:
+        if char not in Alphabet.GAP_CHARS:
             pos += 1
             insert = 0
         else:

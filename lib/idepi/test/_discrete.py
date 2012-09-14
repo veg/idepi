@@ -11,7 +11,8 @@ from Bio import AlignIO
 from mrmr import DiscreteMrmr
 
 from idepi.alphabet import Alphabet
-from idepi.filter import naivefilter, DataBuilder1D
+from idepi.databuilder import DataBuilder1D
+from idepi.filter import naivefilter
 from idepi.labeler import Labeler
 from idepi.svm import LinearSvm
 from idepi.util import (

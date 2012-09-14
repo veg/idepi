@@ -55,7 +55,12 @@ from idepi.argument import (
     parse_args,
     abtypefactory
 )
-from idepi.filter import DataBuilder1D, naivefilter
+from idepi.databuilder import (
+    DataBuilder1D,
+    DataBuilder2D,
+    DataReducer
+)
+from idepi.filter import naivefilter
 from idepi.labeler import Labeler
 from idepi.logging import init_log
 from idepi.results import IdepiResults
@@ -186,11 +191,20 @@ def main(args=None):
     )
 
     if sim is None:
-        builder = DataBuilder1D(
-            alignment,
-            alph,
-            refidx,
-            filter
+        builder = DataReducer(
+            DataBuilder1D(
+                alignment,
+                alph,
+                refidx,
+                filter
+            ),
+            DataBuilder2D(
+                alignment,
+                alph,
+                refidx,
+                filter,
+                ARGS.RADIUS
+            )
         )
         x = builder(alignment, refidx)
         colnames = builder.labels

@@ -161,14 +161,14 @@ def get_noise(seqrecord):
 
 def sanitize_seq(seq, alphabet):
     alphdict = alphabet.todict()
-    assert(len(Alphabet.SPACE) > 0 and len(seq) > 0 and len(alphdict) > 0)
+    assert(len(Alphabet.GAP_CHARS) > 0 and len(seq) > 0 and len(alphdict) > 0)
     try:
         seq = str(seq)
         seq = seq.upper()
-        seq = re_sub(r'[%s]' % Alphabet.SPACE, '-', seq)
+        seq = re_sub(r'[%s]' % Alphabet.GAP_CHARS, '-', seq)
         seq = re_sub(r'[^%s]' % ''.join(alphdict.keys()), 'X', seq)
     except TypeError:
-        raise RuntimeError('something is amiss with things:\n  SPACE = %s\n  seq = %s\n  alphabet = %s\n' % (Alphabet.SPACE, seq, alphdict))
+        raise RuntimeError('something is amiss with things:\n  GAP_CHARS = %s\n  seq = %s\n  alphabet = %s\n' % (Alphabet.GAP_CHARS, seq, alphdict))
     return seq
 
 

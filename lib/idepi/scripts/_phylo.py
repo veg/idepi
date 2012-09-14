@@ -9,7 +9,7 @@ from Bio import AlignIO
 
 from idepi.alphabet import Alphabet
 from idepi.argument import PathType
-from idepi.filter import DataBuilder1D
+from idepi.databuilder import DataBuilder1D
 from idepi.phylogeny import (
     Phylo,
     PhyloGzFile

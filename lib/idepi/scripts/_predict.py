@@ -57,7 +57,8 @@ from idepi.argument import (
     finalize_args,
     abtypefactory
 )
-from idepi.filter import DataBuilder1D, naivefilter
+from idepi.databuilder import DataBuilder1D
+from idepi.filter import naivefilter
 from idepi.hmmer import Hmmer
 from idepi.labeler import Labeler
 from idepi.phylogeny import Phylo, PhyloGzFile

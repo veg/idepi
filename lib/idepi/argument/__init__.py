@@ -140,10 +140,12 @@ def filter_args(parser):
     parser.add_argument('--maxcon', type=float, dest='MAX_CONSERVATION')
     parser.add_argument('--maxgap', type=float, dest='MAX_GAP_RATIO')
     parser.add_argument('--mincon', type=float, dest='MIN_CONSERVATION')
+    parser.add_argument('--radius', type=int,   dest='RADIUS')
     parser.set_defaults(
         MAX_CONSERVATION=1.0, # 93.,
         MAX_GAP_RATIO   =0.1, # 93.,
-        MIN_CONSERVATION=1.0  # 33.
+        MIN_CONSERVATION=1.0, # 33.,
+        RADIUS          =0
     )
     return parser
 

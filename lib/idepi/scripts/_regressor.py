@@ -39,7 +39,8 @@ import numpy as np
 from Bio import AlignIO
 
 from idepi.alphabet import Alphabet
-from idepi.filter import naivefilter, DataBuilder1D
+from idepi.databuilder import DataBuilder1D
+from idepi.filter import naivefilter
 
 from idepi import (
     Labeler,
