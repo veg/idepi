@@ -36,7 +36,7 @@ def main(args=None):
         args = argv[1:]
 
     parser = ArgumentParser(description='convert stockholm file to FASTA')
-    parser.add_argument('STOCKHOLMFILE', type=FileType)
+    parser.add_argument('STOCKHOLMFILE', type=FileType('r'))
     ns = parser.parse_args(args)
 
     alignments = AlignIO.parse(ns.STOCKHOLMFILE, 'stockholm')

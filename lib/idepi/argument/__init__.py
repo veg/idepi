@@ -304,19 +304,19 @@ def init_args(description, args):
     # setup a "subtypetype for the parser"
     subtype = subtypefactory(ns.DATA)
 
-    #                   option             action='store'       type           dest
-    parser.add_argument('--autobalance',   action='store_true',                dest='AUTOBALANCE')
-    parser.add_argument('--log',                                type=logtype,  dest='LOGGING')
-    parser.add_argument('--filter',                             type=csvtype,  dest='FILTER')
-    parser.add_argument('--clonal',        action='store_true',                dest='CLONAL')
-    parser.add_argument('--subtypes',                           type=subtype,  dest='SUBTYPES')
-    parser.add_argument('--weighting',     action='store_true',                dest='WEIGHTING')
-    parser.add_argument('--ic50',                               type=ic50type, dest='IC50')
-    parser.add_argument('--refseq',                             type=str,      dest='REFSEQ')
-    parser.add_argument('--ids',                                type=csvtype,  dest='REFSEQ_IDS')
-    parser.add_argument('--test',          action='store_true',                dest='TEST')
-    parser.add_argument('--seed',                               type=int,      dest='RAND_SEED')
-    parser.add_argument('-o', '--output',                       type=FileType, dest='OUTPUT')
+    #                   option             action='store'       type                dest
+    parser.add_argument('--autobalance',   action='store_true',                     dest='AUTOBALANCE')
+    parser.add_argument('--log',                                type=logtype,       dest='LOGGING')
+    parser.add_argument('--filter',                             type=csvtype,       dest='FILTER')
+    parser.add_argument('--clonal',        action='store_true',                     dest='CLONAL')
+    parser.add_argument('--subtypes',                           type=subtype,       dest='SUBTYPES')
+    parser.add_argument('--weighting',     action='store_true',                     dest='WEIGHTING')
+    parser.add_argument('--ic50',                               type=ic50type,      dest='IC50')
+    parser.add_argument('--refseq',                             type=str,           dest='REFSEQ')
+    parser.add_argument('--ids',                                type=csvtype,       dest='REFSEQ_IDS')
+    parser.add_argument('--test',          action='store_true',                     dest='TEST')
+    parser.add_argument('--seed',                               type=int,           dest='RAND_SEED')
+    parser.add_argument('-o', '--output',                       type=FileType('w'), dest='OUTPUT')
 
     refseq = hxb2.env.load()
 
