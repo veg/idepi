@@ -29,6 +29,7 @@ import sys
 
 from argparse import ArgumentTypeError
 from os.path import join
+from re import compile as re_compile, I as re_I
 from warnings import warn
 
 import numpy as np
@@ -58,6 +59,7 @@ from idepi.argument import (
 from idepi.databuilder import (
     DataBuilder1D,
     DataBuilder2D,
+    DataBuilderRegex,
     DataReducer
 )
 from idepi.filter import naivefilter
@@ -204,6 +206,13 @@ def main(args=None):
                 refidx,
                 filter,
                 ARGS.RADIUS
+            ),
+            DataBuilderRegex(
+                alignment,
+                alph,
+                refidx,
+                re_compile('N[^P][TS][^P]', re_I),
+                'PNGS'
             )
         )
         x = builder(alignment, refidx)
@@ -280,7 +289,8 @@ def main(args=None):
                 classifier_kwargs={ 'bias': True },
                 selector_kwargs={
                     'num_features': num_features,
-                    'method': ARGS.MRMR_METHOD
+                    'method': ARGS.MRMR_METHOD,
+                    'threshold': ARGS.SIMILAR
                 },
                 validator_cls=CrossValidator,
                 validator_kwargs={

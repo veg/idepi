@@ -24,9 +24,11 @@
 
 from ._databuilder1d import *
 from ._databuilder2d import *
+from ._databuilderregex import *
 from ._datareducer import *
 
 __all__ = []
 __all__ += _databuilder1d.__all__
 __all__ += _databuilder2d.__all__
+__all__ += _databuilderregex.__all__
 __all__ += _datareducer.__all__

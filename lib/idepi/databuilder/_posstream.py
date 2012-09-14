@@ -4,12 +4,12 @@ from collections import namedtuple
 from BioExt import Counter
 
 from ..alphabet import Alphabet
+from .._common import base_10_to_n, base_26_to_alph
 
 
 PosData = namedtuple('PosData', [
     'counts',
     'gapcount',
-    'insert',
     'label',
     'maxcount',
     'mincount',
@@ -36,13 +36,14 @@ def posstream(alignment, alphabet, refidx):
             for j in range(nrow)
             if j != refidx
         )
-        pos, insert, label = next(labels)
+        pos, label = next(labels)
         gapc = 0 if gap not in counts else counts[gap]
         maxc, minc, total = maxminsum(v for k, v in counts.items() if k != gap)
         # if everything is a gap (ie, total == 0), skip it
         if total == 0:
             yield None
-        yield PosData(counts, gapc, insert, label, maxc, minc, pos, total)
+        else:
+            yield PosData(counts, gapc, label, maxc, minc, pos, total)
 
 
 def __poslabels(alignment, alphabet, refidx):
@@ -55,7 +56,8 @@ def __poslabels(alignment, alphabet, refidx):
             insert = 0
         else:
             insert += 1
-        yield (pos, insert, '%s%d' % (char.upper() if insert == 0 else '', pos))
+        ins = base_26_to_alph(base_10_to_n(insert, 26))
+        yield (pos, '%s%d%s' % (char.upper() if insert == 0 else '', pos, ins))
 
 
 def maxminsum(iterable):

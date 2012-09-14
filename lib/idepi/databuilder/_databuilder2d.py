@@ -4,7 +4,6 @@ from numpy import zeros
 from ._posstream import posstream
 from ..alphabet import Alphabet
 from ..filter import nofilter
-from .._common import base_10_to_n, base_26_to_alph
 
 
 __all__ = ['DataBuilder2D']
@@ -26,10 +25,10 @@ class DataBuilder2D(object):
             raise ValueError('radius expects a positive integer')
 
         self.__alphabet = alphabet
-        self.__filtercalls = {}
         self.__labels = []
 
         if radius == 0:
+            self.__filtercalls = []
             self.__length = 0
             return
 
@@ -62,7 +61,7 @@ class DataBuilder2D(object):
                     if pidx1 < pidx2:
                         key = (pidx1, pidx2)
                         val = (char1, char2)
-                    elif pidx2 < pidx1:
+                    elif pidx1 > pidx2:
                         key = (pidx2, pidx1)
                         val = (char2, char1)
                     else:
@@ -86,12 +85,10 @@ class DataBuilder2D(object):
         for ab, pairs in self.__filtercalls:
             a, b = ab
             for pair in pairs:
-                ins1 = base_26_to_alph(base_10_to_n(pstream[a].insert, 26))
-                ins2 = base_26_to_alph(base_10_to_n(pstream[b].insert, 26))
-                self.__labels.append('%s%s%s+%s%s%s' % (
+                self.__labels.append('%s%s+%s%s' % (
                     # convert to alphabet repr
-                    pstream[a].label, ins1, alphabet[pair[0]],
-                    pstream[b].label, ins2, alphabet[pair[1]]
+                    pstream[a].label, alphabet[pair[0]],
+                    pstream[b].label, alphabet[pair[1]]
                 ))
 
         self.__length = sum(len(pairs) for _, pairs in self.__filtercalls)

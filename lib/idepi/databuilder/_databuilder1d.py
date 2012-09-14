@@ -3,7 +3,6 @@ from numpy import zeros
 
 from ._posstream import posstream
 from ..filter import nofilter
-from .._common import base_10_to_n, base_26_to_alph
 
 
 __all__ = ['DataBuilder1D']
@@ -22,8 +21,7 @@ class DataBuilder1D(object):
             chars = filter(p)
             self.__filtercalls.append(chars)
             for char in chars:
-                insert = base_26_to_alph(base_10_to_n(p.insert, 26))
-                self.__labels.append('%s%s%s' % (p.label, insert, alphabet[char]))
+                self.__labels.append('%s%s' % (p.label, alphabet[char]))
 
         self.__length = sum(len(chars) for chars in self.__filtercalls)
 

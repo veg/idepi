@@ -92,15 +92,17 @@ def featsel_args(parser):
 
 def mrmr_args(parser):
     group = parser.add_mutually_exclusive_group()
-    #                   option             action                const              dest
-    group.add_argument( '--maxrel',        action='store_const', const=MRMR.MAXREL, dest='MRMR_METHOD')
-    group.add_argument( '--mid',           action='store_const', const=MRMR.MID,    dest='MRMR_METHOD')
-    group.add_argument( '--miq',           action='store_const', const=MRMR.MIQ,    dest='MRMR_METHOD')
-    parser.add_argument('--normalizemrmr', action='store_true',                     dest='MRMR_NORMALIZE')
+    #                   option             action                const              type        dest
+    group.add_argument( '--maxrel',        action='store_const', const=MRMR.MAXREL,             dest='MRMR_METHOD')
+    group.add_argument( '--mid',           action='store_const', const=MRMR.MID,                dest='MRMR_METHOD')
+    group.add_argument( '--miq',           action='store_const', const=MRMR.MIQ,                dest='MRMR_METHOD')
+    parser.add_argument('--normalizemrmr', action='store_true',                                 dest='MRMR_NORMALIZE')
+    parser.add_argument('--similar',                                                type=float, dest='SIMILAR')
     parser.set_defaults(
         MRMR_METHOD   =MRMR.MID,
         MRMR_NORMALIZE=False,
-        MAXREL        =False
+        MAXREL        =False,
+        SIMILAR       =1e7 # don't no similar features by default
     )
     return parser
 
