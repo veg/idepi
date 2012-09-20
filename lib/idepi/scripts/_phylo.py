@@ -9,7 +9,7 @@ from Bio import AlignIO
 
 from idepi.alphabet import Alphabet
 from idepi.argument import PathType
-from idepi.databuilder import DataBuilder1D
+from idepi.databuilder import DataBuilder
 from idepi.phylogeny import (
     Phylo,
     PhyloGzFile
@@ -39,7 +39,7 @@ def main(args=None):
         raise RuntimeError('No reference sequence found!')
 
     # TODO: by default, Alphabet() is amino acids, fix this?
-    labels = DataBuilder1D(msa, Alphabet(), refidx).labels
+    labels = DataBuilder(msa, Alphabet(), refidx).labels
 
     seqrecords = [r for i, r in enumerate(msa) if not i == refidx]
 

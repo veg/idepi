@@ -6,7 +6,7 @@ from ..alphabet import Alphabet
 from ..filter import nofilter
 
 
-__all__ = ['DataBuilder2D']
+__all__ = ['DataBuilderPairwise']
 
 
 def clamp(min, max, val):
@@ -18,7 +18,7 @@ def clamp(min, max, val):
         return val
 
 
-class DataBuilder2D(object):
+class DataBuilderPairwise(object):
 
     def __init__(self, alignment, alphabet, refidx, filter=nofilter, radius=0):
         if radius < 0:
@@ -70,17 +70,16 @@ class DataBuilder2D(object):
                         calls[key] = set()
                     calls[key].add(val)
 
-        # this correctly sorts the alphabet characters
-        def keyfn1(x):
+        # this correctly sorts the character pairs
+        def alphkey(x):
             return len(alphabet) * x[0] + x[1]
 
-        # this performs a 2D sorting of the
-        # list of position pairs
-        def keyfn2(x):
+        # and this correctly sorts the idx pairs
+        def idxkey(x):
             return len(pstream) * x[0][0] + x[0][1]
 
         # turn the dict of sets into a sorted list of sorted lists
-        self.__filtercalls = sorted(((k, sorted(v, key=keyfn1)) for k, v in calls.items()), key=keyfn2)
+        self.__filtercalls = sorted(((k, sorted(v, key=alphkey)) for k, v in calls.items()), key=idxkey)
 
         for ab, pairs in self.__filtercalls:
             a, b = ab

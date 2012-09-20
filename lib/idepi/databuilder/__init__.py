@@ -22,13 +22,15 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
-from ._databuilder1d import *
-from ._databuilder2d import *
+from ._databuilder import *
+from ._databuilderpairwise import *
 from ._databuilderregex import *
+from ._databuilderregexpairwise import *
 from ._datareducer import *
 
 __all__ = []
-__all__ += _databuilder1d.__all__
-__all__ += _databuilder2d.__all__
+__all__ += _databuilder.__all__
+__all__ += _databuilderpairwise.__all__
 __all__ += _databuilderregex.__all__
+__all__ += _databuilderregexpairwise.__all__
 __all__ += _datareducer.__all__

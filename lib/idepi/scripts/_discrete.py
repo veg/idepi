@@ -57,9 +57,10 @@ from idepi.argument import (
     abtypefactory
 )
 from idepi.databuilder import (
-    DataBuilder1D,
-    DataBuilder2D,
+    DataBuilder,
+    DataBuilderPairwise,
     DataBuilderRegex,
+    DataBuilderRegexPairwise,
     DataReducer
 )
 from idepi.filter import naivefilter
@@ -192,15 +193,17 @@ def main(args=None):
         ARGS.MAX_GAP_RATIO
     )
 
+    re_pngs = re_compile(r'N[^P][TS][^P]', re_I)
+
     if sim is None:
         builder = DataReducer(
-            DataBuilder1D(
+            DataBuilder(
                 alignment,
                 alph,
                 refidx,
                 filter
             ),
-            DataBuilder2D(
+            DataBuilderPairwise(
                 alignment,
                 alph,
                 refidx,
@@ -211,7 +214,14 @@ def main(args=None):
                 alignment,
                 alph,
                 refidx,
-                re_compile('N[^P][TS][^P]', re_I),
+                re_pngs,
+                'PNGS'
+            ),
+            DataBuilderRegexPairwise(
+                alignment,
+                alph,
+                refidx,
+                re_pngs,
                 'PNGS'
             )
         )
@@ -256,7 +266,7 @@ def main(args=None):
                     alphabet=alph
                 )
 
-                builder = DataBuilder1D(
+                builder = DataBuilder(
                     alignment,
                     alph,
                     refidx,

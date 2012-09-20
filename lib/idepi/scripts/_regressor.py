@@ -39,7 +39,7 @@ import numpy as np
 from Bio import AlignIO
 
 from idepi.alphabet import Alphabet
-from idepi.databuilder import DataBuilder1D
+from idepi.databuilder import DataBuilder
 from idepi.filter import naivefilter
 
 from idepi import (
@@ -218,7 +218,7 @@ def run_tests():
                 OPTIONS.MIN_CONSERVATION,
                 OPTIONS.MAX_GAP_RATIO
             )
-            builder = DataBuilder1D(
+            builder = DataBuilder(
                 alignment,
                 alph,
                 refidx,
@@ -372,7 +372,7 @@ def main(argv=sys.argv):
         OPTIONS.MIN_CONSERVATION,
         OPTIONS.MAX_GAP_RATIO,
     )
-    builder = DataBuilder1D(
+    builder = DataBuilder(
         alignment,
         alph,
         refidx,

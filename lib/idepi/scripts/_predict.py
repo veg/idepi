@@ -57,7 +57,7 @@ from idepi.argument import (
     finalize_args,
     abtypefactory
 )
-from idepi.databuilder import DataBuilder1D
+from idepi.databuilder import DataBuilder
 from idepi.filter import naivefilter
 from idepi.hmmer import Hmmer
 from idepi.labeler import Labeler
@@ -192,7 +192,7 @@ def main(args=None):
         ARGS.MIN_CONSERVATION,
         ARGS.MAX_GAP_RATIO
     )
-    builder = DataBuilder1D(
+    builder = DataBuilder(
         alignment,
         alph,
         refidx,

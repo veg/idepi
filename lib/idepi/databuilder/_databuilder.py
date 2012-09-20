@@ -5,10 +5,10 @@ from ._posstream import posstream
 from ..filter import nofilter
 
 
-__all__ = ['DataBuilder1D']
+__all__ = ['DataBuilder']
 
 
-class DataBuilder1D(object):
+class DataBuilder(object):
 
     def __init__(self, alignment, alphabet, refidx, filter=nofilter):
         self.__alphabet = alphabet

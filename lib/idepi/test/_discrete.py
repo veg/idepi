@@ -11,7 +11,7 @@ from Bio import AlignIO
 from mrmr import DiscreteMrmr
 
 from idepi.alphabet import Alphabet
-from idepi.databuilder import DataBuilder1D
+from idepi.databuilder import DataBuilder
 from idepi.filter import naivefilter
 from idepi.labeler import Labeler
 from idepi.svm import LinearSvm
@@ -73,7 +73,7 @@ def test_discrete(ARGS):
                 ARGS.MIN_CONSERVATION,
                 ARGS.MAX_GAP_RATIO,
             )
-            builder = DataBuilder1D(
+            builder = DataBuilder(
                 alignment,
                 alph,
                 refidx,
