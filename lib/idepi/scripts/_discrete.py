@@ -61,6 +61,7 @@ from idepi.databuilder import (
     DataBuilderPairwise,
     DataBuilderRegex,
     DataBuilderRegexPairwise,
+    DataBuilderRegexTriplewise,
     DataReducer
 )
 from idepi.filter import naivefilter
@@ -218,6 +219,13 @@ def main(args=None):
                 'PNGS'
             ),
             DataBuilderRegexPairwise(
+                alignment,
+                alph,
+                refidx,
+                re_pngs,
+                'PNGS'
+            ),
+            DataBuilderRegexTriplewise(
                 alignment,
                 alph,
                 refidx,

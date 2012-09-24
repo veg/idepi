@@ -7,10 +7,10 @@ from ._posstream import posstream
 from ..alphabet import Alphabet
 
 
-__all__ = ['DataBuilderRegexPairwise']
+__all__ = ['DataBuilderRegexTriplewise']
 
 
-class DataBuilderRegexPairwise(object):
+class DataBuilderRegexTriplewise(object):
 
     def __init__(self, alignment, alphabet, refidx, regex, label=''):
 
@@ -49,14 +49,17 @@ class DataBuilderRegexPairwise(object):
             for idx2 in sorted(calls):
                 if idx2 <= idx1:
                     continue
-                self.__filtercalls[(idx1, idx2)] = j
-                j += 1
+                for idx3 in sorted(calls):
+                    if idx3 <= idx1 or idx3 <= idx2:
+                        continue
+                    self.__filtercalls[(idx1, idx2, idx3)] = j
+                    j += 1
 
         # sort on the value, which is the column idx (see above)
         for k, _ in sorted(self.__filtercalls.items(), key=itemgetter(1)):
             idx1, idx2 = k
-            self.__labels.append('%s(%s+%s)' % (
-                label, pstream[idx1].label, pstream[idx2].label
+            self.__labels.append('%s(%s+%s+%s)' % (
+                label, pstream[idx1].label, pstream[idx2].label, pstream[idx3].label
             ))
 
         self.__length = len(self.__filtercalls)
@@ -97,10 +100,13 @@ class DataBuilderRegexPairwise(object):
                 for idx2 in matches:
                     if idx2 <= idx1:
                         continue
-                    k = (idx1, idx2)
-                    if k in self.__filtercalls:
-                        j = self.__filtercalls[k]
-                        data[i, j] = True
+                    for idx3 in matches:
+                        if idx3 <= idx1 or idx3 <= idx2:
+                            continue
+                        k = (idx1, idx2, idx3)
+                        if k in self.__filtercalls:
+                            j = self.__filtercalls[k]
+                            data[i, j] = True
 
         return data
 
