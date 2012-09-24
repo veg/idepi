@@ -224,14 +224,14 @@ def main(args=None):
                 refidx,
                 re_pngs,
                 'PNGS'
-            ),
-            DataBuilderRegexTriplewise(
-                alignment,
-                alph,
-                refidx,
-                re_pngs,
-                'PNGS'
-            )
+            ) # ,
+#             DataBuilderRegexTriplewise(
+#                 alignment,
+#                 alph,
+#                 refidx,
+#                 re_pngs,
+#                 'PNGS'
+#             )
         )
         x = builder(alignment, refidx)
         colnames = builder.labels

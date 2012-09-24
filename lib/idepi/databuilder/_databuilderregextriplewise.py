@@ -57,7 +57,7 @@ class DataBuilderRegexTriplewise(object):
 
         # sort on the value, which is the column idx (see above)
         for k, _ in sorted(self.__filtercalls.items(), key=itemgetter(1)):
-            idx1, idx2 = k
+            idx1, idx2, idx3 = k
             self.__labels.append('%s(%s+%s+%s)' % (
                 label, pstream[idx1].label, pstream[idx2].label, pstream[idx3].label
             ))
