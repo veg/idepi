@@ -44,7 +44,7 @@ class Labeler:
             dtype = float
             discretize = lambda x: x
         else:
-            dtype = bool
+            dtype = int
 
         if skip is None:
             skip = lambda _: False
@@ -154,5 +154,9 @@ class Labeler:
         else:
             for i, values in enumerate(allvals):
                 y[i] = values[0][1] # 0 automagically exists, and 1 refers to the discretized value
+
+        # set the values between -1 and 1
+        y *= 2
+        y -= 1
 
         return y, median if autobalance else None

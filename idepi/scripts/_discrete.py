@@ -29,6 +29,7 @@ import sys
 
 from argparse import ArgumentTypeError
 from math import copysign
+from os import getenv
 from os.path import join
 from re import compile as re_compile, I as re_I
 from warnings import warn
@@ -307,7 +308,7 @@ def main(args=None):
                         'estimator_params': [dict(C=c) for c in C_range(*ARGS.LOG2C)]
                         },
                     score_func=scorer,
-                    n_jobs=-2, # use all but 1 cpu
+                    n_jobs=int(getenv('NCPU', -1)), # use all but 1 cpu
                     pre_dispatch='2 * n_jobs'
                     )
 

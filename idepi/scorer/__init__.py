@@ -1,5 +1,5 @@
 
-from numpy import seterr
+from numpy import prod, seterr
 
 from sklearn.metrics import (
     confusion_matrix,
@@ -47,7 +47,11 @@ class Scorer:
 
     @staticmethod
     def stats(y_true, y_pred):
-        tp, fn, fp, tn = confusion_matrix(y_true, y_pred, [True, False]).reshape((4,))
+        vals = sorted(
+            set(y_true.reshape((prod(y_true.shape),))) |
+            set(y_pred.reshape((prod(y_pred.shape),)))
+            )
+        tn, fp, fn, tp = confusion_matrix(y_true, y_pred, vals).reshape((4,))
         acc = (tp + tn) / (tp + tn + fp + fn)
         npv = tn / (tn + fn)
         ppv = tp / (tp + fp) # precision

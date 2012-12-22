@@ -152,7 +152,7 @@ class Results(dict):
     def add(self, y_true, y_pred, coefs):
         self.__nfeat.add(len(coefs))
         self.__nfold += 1
-        self.__npos += y_true.sum()
+        self.__npos += (y_true > 0).sum()
         self.__ntotal += np.prod(y_true.shape)
         for i, coef in coefs.items():
             self.__coefs[i].add(coef)
