@@ -66,14 +66,15 @@ setup(name='idepi',
       scripts=['scripts/idepi'],
       requires=[
             'Bio (>=1.58)',
-            'BioExt (>=0.9.4)',
-            'cvxopt (>=1.1.5)',
-            'fakemp (>=0.9.1)',
-            'hppy (>=0.9.2)',
+            'BioExt (>=0.14.0)',
+            'fakemp (>=0.9.2)',
+            'hppy (>=0.9.5)',
             'mlpy (>=3.5.0)',
             'mrmr (>=0.9.2)',
             'numpy (>=1.6)',
             'pyxval (>=0.9.3)',
-            'six'
+            'six',
+            'sklearn (>=0.12.1)',
+            'sklmrmr (>=0.1.1)',
       ]
      )

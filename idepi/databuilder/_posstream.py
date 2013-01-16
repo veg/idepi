@@ -1,7 +1,7 @@
 
 from collections import namedtuple
 
-from BioExt.counter import Counter
+from BioExt.collections import Counter
 
 from ..alphabet import Alphabet
 from .._common import base_10_to_n, base_26_to_alph
@@ -20,6 +20,7 @@ PosData = namedtuple('PosData', [
 
 def posstream(alignment, alphabet, refidx):
     nrow = len(alignment)
+    ncol = alignment.get_alignment_length()
 
     if refidx < 0 or refidx >= nrow:
         raise ValueError('refidx must be an index into alignment')
@@ -29,13 +30,17 @@ def posstream(alignment, alphabet, refidx):
     # save the gap coord for later use
     gap = alphabet('-')
 
-    for i in range(alignment.get_alignment_length()):
-        # convert to alphabet coordinates
-        counts = Counter(
-            alphabet(alignment[j, i].upper())
-            for j in range(nrow)
-            if j != refidx
-            )
+    counters = [Counter() for _ in range(ncol)]
+
+    for i, seq in enumerate(alignment):
+        if i == refidx:
+            continue
+        for j, char in enumerate(seq):
+            # update() requires an iterable, make it a 1-tuple
+            char_ = (alphabet(char.upper()),)
+            counters[j].update(char_)
+
+    for counts in counters:
         pos, label = next(labels)
         gapc = 0 if gap not in counts else counts[gap]
         maxc, minc, total = maxminsum(v for k, v in counts.items() if k != gap)
@@ -51,7 +56,7 @@ def __poslabels(alignment, alphabet, refidx):
 
     pos, insert = 0, 0
     for i, char in enumerate(refseq):
-        if char not in Alphabet.GAP_CHARS:
+        if char not in Alphabet.GAPS:
             pos += 1
             insert = 0
         else:

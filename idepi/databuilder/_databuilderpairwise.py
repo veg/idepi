@@ -44,7 +44,7 @@ class DataBuilderPairwise:
             seqp = [
                 (col, alphabet(char))
                 for col, char in enumerate(seq)
-                if char not in Alphabet.GAP_CHARS
+                if char not in Alphabet.GAPS
                 ]
             for i, colchar in enumerate(seqp):
                 pidx1, char1 = colchar
@@ -79,7 +79,13 @@ class DataBuilderPairwise:
             return len(pstream) * x[0][0] + x[0][1]
 
         # turn the dict of sets into a sorted list of sorted lists
-        self.__filtercalls = sorted(((k, sorted(v, key=alphkey)) for k, v in calls.items()), key=idxkey)
+        self.__filtercalls = sorted(
+            (
+                (k, sorted(v, key=alphkey))
+                for k, v in calls.items()
+                ),
+            key=idxkey
+            )
 
         for ab, pairs in self.__filtercalls:
             a, b = ab
@@ -99,7 +105,7 @@ class DataBuilderPairwise:
     def __len__(self):
         return self.__length
 
-    def __call__(self, alignment, refidx=None, globber=None):
+    def __call__(self, alignment, refidx=None, globber=None, normalize=False):
         if self.__length is None:
             raise RuntimeError('no filter model computed! programmer error!')
 
@@ -110,36 +116,37 @@ class DataBuilderPairwise:
 
         data = zeros((nrow, len(self)), dtype=int)
 
-        col = 0
-        for ab, pairs in self.__filtercalls:
-            a, b = ab
-            for j, pair in enumerate(pairs, start=col):
-                # handle the refidx case,
-                # and convert to alphabet coordinates
-                if globber is None:
-                    column = enumerate(
-                        (
-                            self.__alphabet(alignment[k, a]),
-                            self.__alphabet(alignment[k, b])
-                            )
-                        for k in range(len(alignment))
-                        if k != refidx
-                        )
-                else:
-                    column = (
-                        (
-                            globber[alignment[k].id],
-                            (
-                                self.__alphabet(alignment[k, a]),
-                                self.__alphabet(alignment[k, b])
-                                )
-                            )
-                        for k in range(len(alignment))
-                        if k != refidx
-                        )
-                for k, c in column:
-                    data[k, j] += (c == pair)
-            col += len(pairs)
+        if len(self) == 0:
+            return data
+
+        alignment_ = (seq for i, seq in enumerate(alignment) if i != refidx)
+
+        if normalize:
+            coverage = zeros((len(self),), dtype=int)
+
+        for i, seq in enumerate(alignment_):
+            if globber is None:
+                r = i
+            else:
+                r = globber[seq.id]
+            seq_ = ''.join(c.upper() for c in seq)
+            col = 0
+            for ab, pairs in self.__filtercalls:
+                a, b = ab
+                if (normalize and
+                    seq_[a] not in Alphabet.GAPS and
+                    seq_[b] not in Alphabet.GAPS):
+                    lwr, upr = col, col + len(pairs)
+                    coverage[lwr:upr] += 1
+                for j, pair in enumerate(pairs, start=col):
+                    c, d = pair
+                    if (self.__alphabet(seq_[a]) == c and
+                        self.__alphabet(seq_[b]) == d):
+                        data[r, j] += True
+                col += len(pairs)
+
+        if normalize:
+            return data / coverage
 
         return data
 

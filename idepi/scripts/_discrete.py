@@ -217,14 +217,16 @@ def main(args=None):
                 alph,
                 refidx,
                 re_pngs,
-                'PNGS'
+                4,
+                label='PNGS'
                 ),
             DataBuilderRegexPairwise(
                 alignment,
                 alph,
                 refidx,
                 re_pngs,
-                'PNGS'
+                4,
+                label='PNGS'
                 )
             )
         X = builder(alignment, refidx)
@@ -244,8 +246,8 @@ def main(args=None):
         if sim is None:
             ylabeler = Labeler(
                 seqrecord_get_ic50s,
-                lambda row: is_refseq(row) or False, # TODO: again filtration function
-                lambda x: x > ARGS.IC50,
+                is_refseq, # TODO: again, filtration function
+                lambda x: 1 if x > ARGS.IC50 else -1,
                 ARGS.AUTOBALANCE
                 )
             y, ic50 = ylabeler(alignment)
@@ -294,40 +296,56 @@ def main(args=None):
 
             for train_idxs, test_idxs in StratifiedKFold(y, ARGS.CV_FOLDS):
 
+                if train_idxs.sum() < 1 or test_idxs.sum() < 1:
+                    continue
+
+                X_train = X[train_idxs]
+                y_train = y[train_idxs]
+
+                svm = SVC(kernel='linear')
+
+                # do MRMR-fitting separately from GridSearchCV to avoid
+                # performing MRMR on every iteration of the grid search,
+                # which would naturally take forever
                 mrmr = MRMR(
-                    estimator=SVC(kernel='linear'),
+                    estimator=svm,
                     n_features_to_select=num_features,
                     method=ARGS.MRMR_METHOD,
                     normalize=ARGS.MRMR_NORMALIZE,
                     similar=ARGS.SIMILAR
                     )
 
+                mrmr.fit(X_train, y_train)
+
+                # train only using the MRMR-selected features
+                X_train_ = X_train[:, mrmr.support_]
+
                 clf = GridSearchCV(
-                    estimator=mrmr,
+                    estimator=svm,
                     param_grid={
-                        'estimator_params': [dict(C=c) for c in C_range(*ARGS.LOG2C)]
+                        'C': list(C_range(*ARGS.LOG2C))
                         },
                     score_func=scorer,
                     n_jobs=int(getenv('NCPU', -1)), # use all but 1 cpu
                     pre_dispatch='2 * n_jobs'
                     )
 
-                X_train = X[train_idxs]
-                y_train = y[train_idxs]
-
-                clf.fit(X_train, y_train, cv=ARGS.CV_FOLDS-1)
+                clf.fit(X_train_, y_train, cv=ARGS.CV_FOLDS-1)
 
                 X_test = X[test_idxs]
                 y_true = y[test_idxs]
 
-                y_pred = clf.predict(X_test)
+                # use only the MRMR-selected features, like above
+                X_test_ = X_test[:, mrmr.support_]
+
+                y_pred = clf.predict(X_test_)
 
                 coefs = {}
                 c = 0
-                for i, selected in enumerate(clf.best_estimator_.support_):
+                for i, selected in enumerate(mrmr.support_):
                     if selected:
                         coefs[i] = int(
-                            copysign(1, clf.best_estimator_.estimator_.coef_[0, c])
+                            copysign(1, clf.best_estimator_.coef_[0, c])
                             )
                         c += 1
 

@@ -1,6 +1,12 @@
 
 from copy import copy
-from re import RegexObject
+from re import _pattern_type as RegexObject
+
+
+__all__ = [
+    'RegexGlobber'
+    ]
+
 
 class RegexGlobber(dict):
 
@@ -28,7 +34,9 @@ class RegexGlobber(dict):
                 if m is not None:
                     break
             if m is None:
-                raise ValueError("key '%s' does not match supplied regular expression" % seq.id)
+                raise ValueError(
+                    "key '%s' does not match supplied regular expression" % seq.id
+                    )
             else:
                 row = ''.join(m.groups())
                 if row not in self._rows:
@@ -42,7 +50,9 @@ class RegexGlobber(dict):
             if m is not None:
                 break
         if m is None:
-            raise ValueError("key '%s' does not match supplied regular expression" % seqid)
+            raise ValueError(
+                "key '%s' does not match supplied regular expression" % seqid
+                )
         else:
             return self._rows[''.join(m.groups())]
 

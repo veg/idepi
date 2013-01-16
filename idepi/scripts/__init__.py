@@ -1,5 +1,6 @@
 
 from ._discrete import main as discrete
+from ._hcv import main as hcv
 from ._phylo import main as phylo
 from ._predict import main as predict
 # from ._regressor import main as regressor
@@ -8,6 +9,7 @@ from ._tree import main as tree
 
 __all__ = [
     'discrete',
+    'hcv',
     'phylo',
     'predict',
 #     'regressor',

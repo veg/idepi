@@ -236,6 +236,7 @@ class Results(dict):
         self['predictions'] = list(zip(ids, preds))
 
     def dumps(self, keys=None):
+        Results.__compute(self)
         if keys is None:
             keys = sorted(self.keys())
         ret = ['{\n']

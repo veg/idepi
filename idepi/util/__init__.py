@@ -28,7 +28,9 @@ from os.path import exists
 
 import numpy as np
 
-from Bio import AlignIO, SeqIO
+from Bio import SeqIO
+
+from BioExt.io import LazyAlignIO as AlignIO
 
 from .._common import generate_alignment_from_seqrecords
 from ..hmmer import Hmmer

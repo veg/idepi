@@ -18,7 +18,7 @@ class Alphabet:
     AMINO, DNA, STANFEL, CUSTOM = 0, 1, 2, 3
 
     # underscore must go first or re.compile blows up
-    GAP_CHARS = '_.-='
+    GAPS = '_.-='
     GAP_REPR = '[]'
 
     __DNA_ALPH   = 'ACGTUN-'
@@ -42,7 +42,7 @@ class Alphabet:
             l = []
             # don't forget to +1 here, otherwise we miss the '-' character
             for i in range(max(d.values()) + 1):
-                l.append('[%s]' % ''.join(sorted(k if k not in Alphabet.GAP_CHARS else '' for k, v_ in d.items() if i == v_)))
+                l.append('[%s]' % ''.join(sorted(k if k not in Alphabet.GAPS else '' for k, v_ in d.items() if i == v_)))
 
         elif mode in (Alphabet.AMINO, Alphabet.DNA):
             alph = Alphabet.__AMINO_ALPH if mode == self.AMINO else Alphabet.__DNA_ALPH
@@ -56,7 +56,9 @@ class Alphabet:
         else:
             raise ValueError('mode must be one of Alphabet.AMINO, Alphabet.DNA, Alphabet.STANFEL, or Alphabet.CUSTOM')
 
-        self.__dict = defaultdict(constant_factory(d['X']))
+        default = 'N' if mode == Alphabet.DNA else 'X'
+
+        self.__dict = defaultdict(constant_factory(d[default]))
         self.__dict.update(d)
         self.__list = l
 
@@ -66,6 +68,8 @@ class Alphabet:
     def __call__(self, char):
         if not isinstance(char, str):
             raise ValueError('alphabet() converts chars to alphabet indices')
+        if char in Alphabet.GAPS:
+            char = '-'
         return self.__dict[char]
 
     def __getitem__(self, idx):
@@ -77,7 +81,7 @@ class Alphabet:
     def __dict_and_list(alphabet):
         alph = alphabet.upper()
         d = dict((alph[i], i) for i in range(len(alph)))
-        l = [alph[i] if alph[i] not in Alphabet.GAP_CHARS else Alphabet.GAP_REPR for i in range(len(alph))]
+        l = [alph[i] if alph[i] not in Alphabet.GAPS else Alphabet.GAP_REPR for i in range(len(alph))]
         return d, l
 
     def todict(self):

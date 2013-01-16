@@ -75,7 +75,7 @@ from idepi.util import (
     seqrecord_set_ic50
 )
 
-from mrmr import DiscreteMrmr, PhyloMrmr
+from mrmr import DiscreteMrmr
 
 from pyxval import CrossValidator, DiscretePerfStats, SelectingGridSearcher
 
@@ -208,8 +208,8 @@ def main(args=None):
     # compute features
     ylabeler = Labeler(
         seqrecord_get_ic50s,
-        lambda row: is_refseq(row) or False, # TODO: again filtration function
-        lambda x: x > ARGS.IC50GT,
+        lambda seq: is_refseq(seq) or False, # TODO: again filtration function
+        lambda x: 1 if x > ARGS.IC50 else -1,
         ARGS.AUTOBALANCE
     )
     yt, ic50 = ylabeler(alignment)
@@ -225,7 +225,7 @@ def main(args=None):
 
     sgs = SelectingGridSearcher(
         classifier_cls=LinearSvm,
-        selector_cls=PhyloMrmr if ARGS.PHYLOFILTER else DiscreteMrmr,
+        selector_cls=DiscreteMrmr,
         validator_cls=CrossValidator,
         gridsearch_kwargs={ 'C': C_range(*ARGS.LOG2C) },
         classifier_kwargs={},

@@ -244,7 +244,7 @@ def run_tests():
             # test mRMR and LSVM file generation
             ylabeler = Labeler(
                 seqrecord_get_ic50s,
-                lambda row: is_HXB2(row) or False, # TODO: again filtration function
+                lambda seq: is_HXB2(seq) or False, # TODO: again filtration function
             )
             y, ic50gt = ylabeler(alignment)
 
@@ -383,7 +383,7 @@ def main(argv=sys.argv):
 
     ylabeler = Labeler(
         seqrecord_get_ic50s,
-        lambda row: is_HXB2(row) or False, # TODO: again filtration function
+        lambda seq: is_HXB2(seq) or False, # TODO: again filtration function
     )
     y, ic50gt = ylabeler(alignment)
 

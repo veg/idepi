@@ -1,6 +1,7 @@
 
 from numpy import zeros
 
+from ..alphabet import Alphabet
 from ._posstream import posstream
 from ..filter import nofilter
 
@@ -30,13 +31,15 @@ class DataBuilder:
     def __len__(self):
         return self.__length
 
-    def __call__(self, alignment, refidx=None, globber=None):
+    def __call__(self, alignment, refidx=None, globber=None, normalize=False):
         if self.__length is None:
             raise RuntimeError('no filter model computed! programmer error!')
 
-        if alignment.get_alignment_length() != len(self.__filtercalls):
+        ncol = alignment.get_alignment_length()
+
+        if ncol != len(self.__filtercalls):
             msg = 'alignment length (%d) does not match the learned length (%d)' % (
-                alignment.get_alignment_length(),
+                ncol,
                 len(self.__filtercalls)
             )
             raise ValueError(msg)
@@ -48,26 +51,32 @@ class DataBuilder:
 
         data = zeros((nrow, len(self)), dtype=int)
 
-        col = 0
-        for i, chars in enumerate(self.__filtercalls):
-            for j, char in enumerate(chars, start=col):
-                # handle the refidx case,
-                # and convert to alphabet coordinates
-                if globber is None:
-                    column = enumerate(
-                        self.__alphabet(alignment[k, i])
-                        for k in range(len(alignment))
-                        if k != refidx
-                        )
-                else:
-                    column = (
-                        (globber[alignment[k].id], self.__alphabet(alignment[k, i]))
-                        for k in range(len(alignment))
-                        if k != refidx
-                        )
-                for k, c in column:
-                    data[k, j] += c == char
-            col += len(chars)
+        if len(self) == 0:
+            return data
+
+        alignment_ = (seq for i, seq in enumerate(alignment) if i != refidx)
+
+        if normalize:
+            coverage = zeros((len(self),), dtype=int)
+
+        for i, seq in enumerate(alignment_):
+            if globber is None:
+                r = i
+            else:
+                r = globber[seq.id]
+            seq_ = ''.join(c.upper() for c in seq)
+            col = 0
+            for j, chars in enumerate(self.__filtercalls):
+                if normalize and seq_[j] not in Alphabet.GAPS:
+                    lwr, upr = col, col + len(chars)
+                    coverage[lwr:upr] += 1
+                for k, char in enumerate(chars, start=col):
+                    # convert to alphabet coordinates
+                    data[r, k] += self.__alphabet(seq_[j]) == char
+                col += len(chars)
+
+        if normalize:
+            return data / coverage
 
         return data
 

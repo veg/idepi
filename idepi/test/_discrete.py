@@ -6,15 +6,16 @@ from tempfile import mkstemp
 
 import numpy as np
 
-from Bio import AlignIO
+from BioExt.io import LazyAlignIO as AlignIO
 
-from mrmr import DiscreteMrmr
+from sklearn.svm import SVC
+
+from sklmrmr import MRMR
 
 from idepi.alphabet import Alphabet
 from idepi.databuilder import DataBuilder
 from idepi.filter import naivefilter
 from idepi.labeler import Labeler
-from idepi.svm import LinearSvm
 from idepi.util import (
     alignment_identify_refidx,
     is_refseq,
@@ -38,7 +39,7 @@ __all__ = ['test_discrete']
 def test_discrete(ARGS):
     # set these to this so we don't exclude anything (just testing file generation and parsing)
     ARGS.NUM_FEATURES = 15 # should be enough, the number is known to be 13
-    ARGS.MRMR_METHOD = DiscreteMrmr.MID
+    ARGS.MRMR_METHOD = 'MID'
     ARGS.MAX_CONSERVATION = 1.0
     ARGS.MAX_GAP_RATIO    = 1.0
     ARGS.MIN_CONSERVATION = 1.0
@@ -107,21 +108,16 @@ def test_discrete(ARGS):
 
             assert(np.all(TEST_Y == y))
 
-            if ARGS.MRMR_NORMALIZE:
-                DiscreteMrmr._NORMALIZED = True
-
             # generate and test the mRMR portion
-            mrmr = DiscreteMrmr(
-                num_features=ARGS.NUM_FEATURES,
-                method=ARGS.MRMR_METHOD
-            )
+            mrmr = MRMR(
+                estimator=SVC(kernel='linear'),
+                n_features_to_select=ARGS.NUM_FEATURES,
+                method=ARGS.MRMR_METHOD,
+                normalize=ARGS.MRMR_NORMALIZE,
+                similar=ARGS.SIMILAR
+                )
 
-            mrmr.select(x, y)
-
-            x = mrmr.subset(x)
-
-            lsvm = LinearSvm()
-            lsvm.learn(x, y)
+            mrmr.fit(x, y)
 
     finally:
         remove(sto_filename)
