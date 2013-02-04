@@ -77,7 +77,10 @@ class DataBuilderRegex:
         else:
             nrow = len(globber)
 
-        data = zeros((nrow, len(self)), dtype=int)
+        data = zeros(
+            (nrow, len(self)),
+            dtype=int if globber is None else float
+            )
 
         if len(self) == 0:
             return data
@@ -90,9 +93,9 @@ class DataBuilderRegex:
 
         for i, seq in enumerate(alignment_):
             if globber is None:
-                r = i
+                r, weight = i, 1
             else:
-                r = globber[seq.id]
+                r, weight = globber[seq.id]
 
             # do NOT convert to alphabet coords
             cols, chars = zip(*[
@@ -114,7 +117,7 @@ class DataBuilderRegex:
                 idx = cols[start]
                 if idx in self.__filtercalls:
                     j = self.__filtercalls[idx]
-                    data[r, j] += True
+                    data[r, j] += weight
 
         if normalize:
             return data / coverage

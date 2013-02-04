@@ -30,9 +30,10 @@ from idepi.results import Results
 from idepi.scorer import Scorer
 from idepi.util import C_range
 
-from sklearn.feature_selection import RFE
 from sklearn.cross_validation import StratifiedKFold
+from sklearn.feature_selection import RFE
 from sklearn.grid_search import GridSearchCV
+from sklearn.preprocessing import scale
 from sklearn.svm import SVC
 
 
@@ -44,9 +45,9 @@ def label(seq):
     if x == 'HCC':
         return 1
     elif x == 'CHC':
-        return 2
+        return -1
     elif x == 'CIRR':
-        return 3
+        return -1
     else:
         return None
 
@@ -97,7 +98,7 @@ def main(args=None):
         )
 
     globber = RegexGlobber(
-        [re_compile(r'^[^_]+_([^_]+)')],
+        [re_compile(r'^[^_]+_([^_]+)_HAP[0-9]+_(?P<weight>[0-9]\.[0-9]+(?:e-[0-9]+)?)')],
         alignment,
         refidx
         )
@@ -133,9 +134,12 @@ def main(args=None):
     X = builder(
         alignment,
         refidx,
-        globber=globber,
-        normalize=True
+        globber=globber
+        # normalize=True
         )
+
+    # scale the data to 0 mean and unit variance
+    X = scale(X)
 
     scorer = Scorer(ARGS.OPTSTAT)
     results = Results(builder.labels, scorer)

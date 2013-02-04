@@ -88,7 +88,10 @@ class NormalValue(list):
 
     def __compute(self):
         # keep the comprehensions or infinite recursions
-        mean_ = sum(self) / len(self)
+        mean_ = (
+            sum(self) / len(self)
+            if len(self) else 0
+            )
         std_ = 0.0
         for v in self:
             std_ += (mean_ - v) ** 2

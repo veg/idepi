@@ -49,7 +49,10 @@ class DataBuilder:
         else:
             nrow = len(globber)
 
-        data = zeros((nrow, len(self)), dtype=int)
+        data = zeros(
+            (nrow, len(self)),
+            dtype=int if globber is None else float
+            )
 
         if len(self) == 0:
             return data
@@ -61,9 +64,9 @@ class DataBuilder:
 
         for i, seq in enumerate(alignment_):
             if globber is None:
-                r = i
+                r, weight = i, 1
             else:
-                r = globber[seq.id]
+                r, weight = globber[seq.id]
             seq_ = ''.join(c.upper() for c in seq)
             col = 0
             for j, chars in enumerate(self.__filtercalls):
@@ -72,7 +75,8 @@ class DataBuilder:
                     coverage[lwr:upr] += 1
                 for k, char in enumerate(chars, start=col):
                     # convert to alphabet coordinates
-                    data[r, k] += self.__alphabet(seq_[j]) == char
+                    if self.__alphabet(seq_[j]) == char:
+                        data[r, k] += weight
                 col += len(chars)
 
         if normalize:

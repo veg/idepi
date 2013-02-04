@@ -114,7 +114,10 @@ class DataBuilderPairwise:
         else:
             nrow = len(globber)
 
-        data = zeros((nrow, len(self)), dtype=int)
+        data = zeros(
+            (nrow, len(self)),
+            dtype=int if globber is None else float
+            )
 
         if len(self) == 0:
             return data
@@ -126,9 +129,9 @@ class DataBuilderPairwise:
 
         for i, seq in enumerate(alignment_):
             if globber is None:
-                r = i
+                r, weight = i, 1
             else:
-                r = globber[seq.id]
+                r, weight = globber[seq.id]
             seq_ = ''.join(c.upper() for c in seq)
             col = 0
             for ab, pairs in self.__filtercalls:
@@ -142,7 +145,7 @@ class DataBuilderPairwise:
                     c, d = pair
                     if (self.__alphabet(seq_[a]) == c and
                         self.__alphabet(seq_[b]) == d):
-                        data[r, j] += True
+                        data[r, j] += weight
                 col += len(pairs)
 
         if normalize:

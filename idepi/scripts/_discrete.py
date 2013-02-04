@@ -86,6 +86,7 @@ from idepi.util import (
     )
 
 from sklearn.cross_validation import StratifiedKFold
+from sklearn.feature_selection import RFE
 from sklearn.grid_search import GridSearchCV
 from sklearn.svm import SVC
 
@@ -117,6 +118,8 @@ def main(args=None):
     parser = simulation_args(parser)
 
     parser.add_argument('ANTIBODY', type=abtypefactory(ns.DATA))
+    parser.add_argument('--rfe', action='store_true', dest='RFE')
+    parser.add_argument('--rfestep', type=int, dest='RFE_STEP')
 
     ARGS = parse_args(parser, args, namespace=ns)
 
@@ -297,6 +300,8 @@ def main(args=None):
             for train_idxs, test_idxs in StratifiedKFold(y, ARGS.CV_FOLDS):
 
                 if train_idxs.sum() < 1 or test_idxs.sum() < 1:
+                    y_true = y[test_idxs]
+                    results_.add(y_true, y_true, {})
                     continue
 
                 X_train = X[train_idxs]
@@ -304,27 +309,38 @@ def main(args=None):
 
                 svm = SVC(kernel='linear')
 
-                # do MRMR-fitting separately from GridSearchCV to avoid
-                # performing MRMR on every iteration of the grid search,
-                # which would naturally take forever
-                mrmr = MRMR(
-                    estimator=svm,
-                    n_features_to_select=num_features,
-                    method=ARGS.MRMR_METHOD,
-                    normalize=ARGS.MRMR_NORMALIZE,
-                    similar=ARGS.SIMILAR
-                    )
-
-                mrmr.fit(X_train, y_train)
-
-                # train only using the MRMR-selected features
-                X_train_ = X_train[:, mrmr.support_]
+                if ARGS.RFE:
+                    X_train_ = X_train
+                    estimator = RFE(
+                        estimator=svm,
+                        n_features_to_select=num_features,
+                        step=ARGS.RFE_STEP
+                        )
+                    param_grid = {
+                        'estimator_params': [dict(C=c) for c in C_range(*ARGS.LOG2C)]
+                        }
+                else:
+                    # do MRMR-fitting separately from GridSearchCV to avoid
+                    # performing MRMR on every iteration of the grid search,
+                    # which would naturally take forever
+                    mrmr = MRMR(
+                        estimator=svm,
+                        n_features_to_select=num_features,
+                        method=ARGS.MRMR_METHOD,
+                        normalize=ARGS.MRMR_NORMALIZE,
+                        similar=ARGS.SIMILAR
+                        )
+                    mrmr.fit(X_train, y_train)
+                    # train only using the MRMR-selected features
+                    X_train_ = X_train[:, mrmr.support_]
+                    estimator = svm
+                    param_grid = {
+                        'C': list(C_range(*ARGS.LOG2C))
+                        }
 
                 clf = GridSearchCV(
-                    estimator=svm,
-                    param_grid={
-                        'C': list(C_range(*ARGS.LOG2C))
-                        },
+                    estimator=estimator,
+                    param_grid=param_grid,
                     score_func=scorer,
                     n_jobs=int(getenv('NCPU', -1)), # use all but 1 cpu
                     pre_dispatch='2 * n_jobs'
@@ -335,17 +351,24 @@ def main(args=None):
                 X_test = X[test_idxs]
                 y_true = y[test_idxs]
 
-                # use only the MRMR-selected features, like above
-                X_test_ = X_test[:, mrmr.support_]
+                if ARGS.RFE:
+                    coef_ = clf.best_estimator_.estimator_.coef_
+                    support_ = clf.best_estimator_.support_
+                    X_test_ = X_test
+                else:
+                    coef_ = clf.best_estimator_.coef_
+                    support_ = mrmr.support_
+                    # use only the MRMR-selected features, like above
+                    X_test_ = X_test[:, support_]
 
                 y_pred = clf.predict(X_test_)
 
                 coefs = {}
                 c = 0
-                for i, selected in enumerate(mrmr.support_):
+                for i, selected in enumerate(support_):
                     if selected:
                         coefs[i] = int(
-                            copysign(1, clf.best_estimator_.coef_[0, c])
+                            copysign(1, coef_[0, c])
                             )
                         c += 1
 

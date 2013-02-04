@@ -86,7 +86,9 @@ def _dumps_weights(weights, ident=0, similar=True):
 
     buf = prefix + '"weights": [\n'
 
-    if len(weights) > 0:
+    if len(weights) == 0:
+        output = ''
+    else:
         similar = False if 'similar' not in weights[0] else similar
         name_len = max(len(v['position']) for v in weights) + 3
         if isinstance(weights[0]['value'], dict):
@@ -101,34 +103,40 @@ def _dumps_weights(weights, ident=0, similar=True):
             raise RuntimeError('someone is fucking with us')
         if similar:
             similar_len = max(len(', '.join('"%s"' % r for r in v['similar'])) for v in weights)
-            output = (prefix + '  { "position": %-*s "value": %s, "similar": [ %-*s ] }' % (
+            output = ',\n'.join(prefix + '  { "position": %-*s "value": %s, "similar": [ %-*s ] }' % (
                 name_len, '"%s",' % v['position'],
                 fmt % (
                     (
                         v['value']['mean'],
                         v['value']['std'],
                         v['value']['N']
-                    ) if isinstance(v['value'], dict) else (
-                        v['value']
-                    )
-                ),
-                similar_len, ', '.join('"%s"' % r for r in sorted(v['similar'], key=lambda v: int(numeric.sub('', v))))
-            ) for v in sorted(weights, key=weightkey))
+                        ) if isinstance(v['value'], dict) else (
+                            v['value']
+                        )
+                    ),
+                    similar_len,
+                    ', '.join(
+                        '"%s"' % r for r in sorted(
+                            v['similar'],
+                            key=lambda v: int(numeric.sub('', v))
+                            )
+                        )
+                ) for v in sorted(weights, key=weightkey)) + '\n'
         else:
-            output = (prefix + '  { "position": %-*s "value": %s }' % (
+            output = ',\n'.join(prefix + '  { "position": %-*s "value": %s }' % (
                 name_len, '"%s",' % v['position'],
                 fmt % (
                     (
                         v['value']['mean'],
                         v['value']['std'],
                         v['value']['N']
-                    ) if isinstance(v['value'], dict) else (
-                        v['value']
+                        ) if isinstance(v['value'], dict) else (
+                            v['value']
+                        )
                     )
-                )
-            ) for v in sorted(weights, key=weightkey))
+                ) for v in sorted(weights, key=weightkey)) + '\n'
 
-    return buf + ',\n'.join(output) + '\n' + prefix + ']'
+    return buf + output + prefix + ']'
 
 
 class Results(dict):
@@ -193,9 +201,15 @@ class Results(dict):
         if self.__valid:
             return
 
+        # avoid division by zero errors
+        balance = (
+            self.__npos / self.__ntotal
+            if self.__ntotal else 0.0
+            )
+
         self['metadata'] = {
             'sequences': self.__ntotal,
-            'balance': self.__npos / self.__ntotal,
+            'balance': balance,
             'features': int(self.__nfeat.mean),
             'folds': self.__nfold
         }

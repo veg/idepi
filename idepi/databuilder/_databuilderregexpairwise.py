@@ -87,7 +87,10 @@ class DataBuilderRegexPairwise:
         else:
             nrow = len(globber)
 
-        data = zeros((nrow, len(self)), dtype=int)
+        data = zeros(
+            (nrow, len(self)),
+            dtype=int if globber is None else float
+            )
 
         if len(self) == 0:
             return data
@@ -100,9 +103,9 @@ class DataBuilderRegexPairwise:
 
         for i, seq in enumerate(alignment_):
             if globber is None:
-                r = i
+                r, weight = i, 1
             else:
-                r = globber[seq.id]
+                r, weight = globber[seq.id]
 
             # do NOT convert to alphabet coords
             cols, chars = zip(*[
@@ -135,7 +138,7 @@ class DataBuilderRegexPairwise:
                     k = (idx1, idx2)
                     if k in self.__filtercalls:
                         j = self.__filtercalls[k]
-                        data[r, j] += True
+                        data[r, j] += weight
 
         if normalize:
             return data / coverage

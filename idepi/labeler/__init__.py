@@ -59,7 +59,7 @@ class Labeler:
             if globber is None:
                 r = i
             else:
-                r = globber[seq.id]
+                r, _ = globber[seq.id]
             labels = sorted(label(seq), reverse=True)
             values = [discretize(x) for x in labels]
             if None in values:

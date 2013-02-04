@@ -38,10 +38,22 @@ class RegexGlobber(dict):
                     "key '%s' does not match supplied regular expression" % seq.id
                     )
             else:
-                row = ''.join(m.groups())
+                row, _ = RegexGlobber.__row_weight(m)
                 if row not in self._rows:
                     self._rows[row] = r
                     r += 1
+
+    @staticmethod
+    def __row_weight(m):
+        groups = m.groups()
+        try:
+            weight = m.group('weight')[0]
+            groups = [g for g in groups if g != weight]
+            weight = float(weight)
+        except IndexError:
+            weight = 1
+        row = ''.join(groups)
+        return row, weight
 
     def __getitem__(self, seqid):
         m = None
@@ -54,7 +66,8 @@ class RegexGlobber(dict):
                 "key '%s' does not match supplied regular expression" % seqid
                 )
         else:
-            return self._rows[''.join(m.groups())]
+            row, weight = RegexGlobber.__row_weight(m)
+            return self._rows[row], weight
 
     def __len__(self):
         return len(self._rows)
