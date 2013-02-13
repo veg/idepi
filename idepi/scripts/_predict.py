@@ -98,10 +98,12 @@ def main(args=None):
     parser = cv_args(parser)
 
     parser.add_argument('--tree', dest='TREE')
-    parser.add_argument('ANTIBODY', type=abtypefactory(ns.DATA))
+    parser.add_argument('ANTIBODY', type=abtypefactory(ns.DATA), nargs='+')
     parser.add_argument('SEQUENCES', type=PathType)
 
     ARGS = parse_args(parser, args, namespace=ns)
+
+    antibodies = tuple(ARGS.ANTIBODY)
 
     # do some argument parsing
     if ARGS.TEST:
@@ -114,15 +116,21 @@ def main(args=None):
         similar = False
 
     # set the util params
-    set_util_params(ARGS.REFSEQ_IDS, ARGS.IC50)
+    set_util_params(ARGS.REFSEQ_IDS, ARGS.CUTOFF)
 
     # fetch the alphabet, we'll probably need it later
     alph = Alphabet(mode=ARGS.ALPHABET)
 
+    # grab the relevant antibody from the SQLITE3 data
+    # format as SeqRecord so we can output as FASTA
+    # and generate an alignment using HMMER if it doesn't already exist
+    seqrecords, clonal, antibodies = ARGS.DATA.seqrecords(antibodies, ARGS.LABEL, ARGS.CLONAL, ARGS.DNA)
+
     ab_basename = ''.join((
-        ARGS.ANTIBODY,
+        '+'.join(antibodies),
+        '_%s' % ARGS.LABEL if len(ARGS.DATA.labels) else '',
         '_dna' if ARGS.DNA else '_amino',
-        '_clonal' if ARGS.CLONAL else ''
+        '_clonal' if clonal else ''
     ))
     alignment_basename = '_'.join((
         ab_basename,
@@ -135,16 +143,6 @@ def main(args=None):
         splitext(basename(ARGS.SEQUENCES))[0],
         __version__
     ))
-
-    # grab the relevant antibody from the SQLITE3 data
-    # format as SeqRecord so we can output as FASTA
-    # and generate an alignment using HMMER if it doesn't already exist
-    seqrecords, clonal = ARGS.DATA.seqrecords(ARGS.ANTIBODY, ARGS.CLONAL, ARGS.DNA)
-
-    # if clonal isn't supported, fallback to default
-    if clonal != ARGS.CLONAL:
-        ab_basename = ''.join(ab_basename.rsplit('_clonal', 1))
-        alignment_basename = ''.join(alignment_basename.rsplit('_clonal', 1))
 
     alignment = generate_alignment(seqrecords, alignment_basename, is_refseq, ARGS)
     refidx = alignment_identify_refidx(alignment, is_refseq)
@@ -209,7 +207,7 @@ def main(args=None):
     ylabeler = Labeler(
         seqrecord_get_ic50s,
         lambda seq: is_refseq(seq) or False, # TODO: again filtration function
-        lambda x: 1 if x > ARGS.IC50 else -1,
+        lambda x: 1 if x > ARGS.CUTOFF else -1,
         ARGS.AUTOBALANCE
     )
     yt, ic50 = ylabeler(alignment)
@@ -218,7 +216,7 @@ def main(args=None):
         (ic50 is not None and ARGS.AUTOBALANCE)
     )
     if ARGS.AUTOBALANCE:
-        ARGS.IC50 = ic50
+        ARGS.CUTOFF = ic50
 
     if ARGS.MRMR_NORMALIZE:
         DiscreteMrmr._NORMALIZED = True
@@ -253,7 +251,7 @@ def main(args=None):
     } for idx, featidx in enumerate(sgs_features)]
 
     ret = Results(similar)
-    ret.metadata(ARGS, len(alignment)-1, np.mean(yt), ARGS.ANTIBODY, forward_select=None)
+    ret.metadata(ARGS, len(alignment)-1, np.mean(yt), antibodies, forward_select=None)
     ret.weights(weights)
     ret.predictions([row.id for i, row in enumerate(fasta_aln) if i != refidx], yp)
 

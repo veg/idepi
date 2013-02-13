@@ -77,7 +77,7 @@ def seqrecord_get_ic50s(seqrecord):
     # cap ic50s to 25
     try:
         ic50s = [
-            min(float(ic50.strip().lstrip('<>')), 25.) for ic50 in seqrecord.description.rsplit('|', 2)[2].split(',')
+            min(float(ic50.strip().lstrip('<>')), 25.) for ic50 in seqrecord.description.rsplit('|', 1)[1].split(',')
         ] # subtype | ab | ic50
     except ValueError:
         raise ValueError('Cannot parse `%s\' for IC50 value' % seqrecord.description)
@@ -86,17 +86,17 @@ def seqrecord_get_ic50s(seqrecord):
 
 def seqrecord_get_subtype(seqrecord):
     try:
-        subtype = seqrecord.description.rsplit('|', 2)[0].upper()
+        subtype = seqrecord.description.split('|', 1)[0].upper()
     except ValueError:
         raise ValueError('Cannot parse `%s\' for HIV subtype' % seqrecord.description)
     return subtype
 
 
 def seqrecord_set_ic50(seqrecord, ic50):
-    vals = seqrecord.description.rsplit('|', 2)
-    while len(vals) < 3:
+    vals = seqrecord.description.rsplit('|', 3)
+    while len(vals) < 4:
         vals.append('')
-    vals[2] = str(ic50)
+    vals[3] = str(ic50)
     seqrecord.description = '|'.join(vals)
     return seqrecord
 

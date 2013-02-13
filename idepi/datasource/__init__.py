@@ -2,10 +2,10 @@
 from __future__ import division, print_function
 
 from csv import reader as csv_reader, Sniffer as csv_sniffer
-from logging import getLogger
 from os.path import basename, splitext
 from re import compile as re_compile
-from sqlite3 import OperationalError, connect
+from sqlite3 import connect
+from textwrap import dedent
 from warnings import warn
 
 from Bio import SeqIO
@@ -15,16 +15,8 @@ from Bio.SeqRecord import SeqRecord
 
 from BioExt.orflist import OrfList
 
-from ..logging import IDEPI_LOGGER
-
 
 __all__ = ['DataSource']
-
-
-_equivalencies = {}
-for k, v in [('PG9', 'NAC17'), ('PG16', 'NAC18')]:
-    _equivalencies[k] = [v]
-    _equivalencies[v] = [k]
 
 
 def DataSource(s):
@@ -53,41 +45,52 @@ class Sqlite3Db:
     @property
     def antibodies(self):
         conn = connect(self.__filename)
-        curr = conn.cursor()
-        curr.execute('''select distinct ANTIBODY from NEUT''')
-        valid_antibodies = [r[0] for r in curr]
+        cur = conn.cursor()
+        cur.execute('select distinct ANTIBODY from ANTIBODY')
+        valid_antibodies = [r[0] for r in cur]
         conn.close()
         return valid_antibodies
 
-    def seqrecords(self, antibody, clonal=False, dna=False):
+    @property
+    def labels(self):
+        conn = connect(self.__filename)
+        cur = conn.cursor()
+        cur.execute('select distinct TYPE from NEUT_TYPE')
+        valid_labels = [r[0] for r in cur]
+        conn.close()
+        return valid_labels
+
+    def seqrecords(self, antibodies, label, clonal=False, dna=False):
         conn = connect(self.__filename)
         cur = conn.cursor()
 
-        if antibody in _equivalencies:
-            antibodies = tuple([antibody, antibody] + _equivalencies[antibody])
-            ab_clause = ' OR '.join(['ANTIBODY = ?'] * len(antibodies[1:]))
-        else:
-            antibodies = (antibody, antibody,)
-            ab_clause = 'ANTIBODY = ?'
+        antibodies_ = set(antibodies)
 
-        try:
-            cur.execute('''
-            select distinct S.NO as NO, S.ID as ID, S.SEQ as SEQ, G.SUBTYPE as SUBTYPE, ? as AB, N.IC50 as IC50 from
-            (select SEQUENCE_NO as NO, SEQUENCE_ID as ID, RAW_SEQ as SEQ from SEQUENCE %s group by ID) as S join
-            (select SEQUENCE_ID as ID, SUBTYPE from GENO_REPORT group by ID) as G join
-            (select SEQUENCE_ID as ID, ANTIBODY as AB, group_concat(IC50, ',') as IC50 from NEUT where %s group by ID) as N
-            on N.ID = S.ID and G.ID = S.ID order by S.ID;
-            ''' % ('where IS_CLONAL = 1' if clonal else '', ab_clause), antibodies)
-        except OperationalError:
-            getLogger(IDEPI_LOGGER).debug('falling back to older database format, CLONAL feature is unsupported')
-            clonal = None
-            cur.execute('''
-            select distinct S.NO as NO, S.ID as ID, S.SEQ as SEQ, G.SUBTYPE as SUBTYPE, ? as AB, N.IC50 as IC50 from
-            (select SEQUENCE_NO as NO, ACCESSION_ID as ID, RAW_SEQ as SEQ from SEQUENCE group by ID) as S join
-            (select ACCESSION_ID as ID, SUBTYPE from GENO_REPORT group by ID) as G join
-            (select ACCESSION_ID as ID, ANTIBODY as AB, group_concat(IC50_STRING, ',') as IC50 from NEUT where %s group by ID) as N
-            on N.ID = S.ID and G.ID = S.ID order by S.ID;
-            ''' % ab_clause, antibodies)
+        ab_clause = ' or '.join(['ANTIBODY = ?'] * len(antibodies_))
+
+        equivalencies = set((
+            next(cur.execute(
+                'select distinct ALT_IDS from ANTIBODY where %s' % ab_clause,
+                tuple(antibodies_)
+                ))[0]
+            or ''
+            ).split(',')) - set([''])
+
+        if len(equivalencies):
+            antibodies_ |= equivalencies
+            ab_clause = ' or '.join(['ANTIBODY = ?'] * len(antibodies_))
+
+        antibodies__ = tuple(sorted(antibodies_))
+
+        stmt = dedent('''\
+        select distinct S.NO as NO, S.ID as ID, S.SEQ as SEQ, G.SUBTYPE as SUBTYPE, ? as AB, N.VALUE as VALUE from
+        (select SEQUENCE_NO as NO, SEQUENCE_ID as ID, RAW_SEQ as SEQ from SEQUENCE %s group by ID) as S join
+        (select SEQUENCE_ID as ID, SUBTYPE from GENO_REPORT group by ID) as G join
+        (select SEQUENCE_ID as ID, ANTIBODY as AB, group_concat(VALUE, ',') as VALUE from NEUT where TYPE = ? and (%s) group by ID) as N
+        on N.ID = S.ID and G.ID = S.ID order by S.ID;
+        ''' % ('where IS_CLONAL = 1' if clonal else '', ab_clause))
+        params = ('+'.join(antibodies__), label) + antibodies__
+        cur.execute(stmt, params)
 
         ids = {}
         seqrecords = []
@@ -101,13 +104,13 @@ class Sqlite3Db:
                     continue
                 cln_ic50s.append(str(v))
             if len(cln_ic50s) == 0:
-                warn("skipping sequence '%s', invalid IC50s '%s'" % (sid, ic50s))
+                warn("skipping sequence '%s', invalid values '%s'" % (sid, ic50s))
                 continue
             dnaseq = Seq(OrfList(seq, include_stops=False)[0], Gapped(generic_nucleotide))
             record = SeqRecord(
                 dnaseq if dna else dnaseq.translate(),
                 id=sid,
-                description='|'.join((subtype, ab, ','.join(cln_ic50s)))
+                description='|'.join((subtype, ab, label, ','.join(cln_ic50s)))
             )
             if sid in ids:
                 record.id += str(-ids[sid])
@@ -118,14 +121,14 @@ class Sqlite3Db:
 
         conn.close()
 
-        return seqrecords, clonal
+        return seqrecords, clonal, antibodies__
 
     @property
     def subtypes(self):
         conn = connect(self.__filename)
-        curr = conn.cursor()
-        curr.execute('''select distinct SUBTYPE from GENO_REPORT''')
-        valid_subtypes = [r[0] for r in curr if r[0].strip() != '']
+        cur = conn.cursor()
+        cur.execute('''select distinct SUBTYPE from GENO_REPORT''')
+        valid_subtypes = [r[0] for r in cur if r[0].strip() != '']
         conn.close()
         return valid_subtypes
 
@@ -166,15 +169,15 @@ class MonogramData:
                 break
         return antibodies
 
-    def seqrecords(self, antibody, clonal=False, dna=False):
+    @property
+    def labels(self):
+        return []
+
+    def seqrecords(self, antibodies, _, clonal=False, dna=False):
         if clonal:
             raise ValueError('clonal property is not available with Monogram datasets')
         if dna:
             raise ValueError('dna sequences are not available with Monogram datasets')
-
-        antibodies = [antibody]
-        if antibody in _equivalencies:
-            antibodies.append(_equivalencies[antibody])
 
         seqrecords = []
         with open(self.__fastafile) as fh:
@@ -198,8 +201,9 @@ class MonogramData:
             for i, row in enumerate(reader):
                 if columns is None:
                     columns = dict((v.strip(), j) for j, v in enumerate(row))
-                    if antibodies[0] not in columns:
-                        raise ValueError("antibody ('%s') not found!" % antibodies[0])
+                    missing = set(antibodies) - set(columns.keys())
+                    if len(missing):
+                        raise ValueError("antibodies ('%s') not found!" % "', '".join(missing))
                 else:
                     acc = underdash.sub(r'_\1', row[0])
                     try:
@@ -215,14 +219,14 @@ class MonogramData:
         for i, r in enumerate(seqrecords):
             if r.id not in ic50s or len(ic50s[r.id]) == 0:
                 drop.append(i)
-                warn("skipping sequence '%s', IC50 not found" % r.id)
+                warn("skipping sequence '%s', VALUE not found" % r.id)
             else:
-                r.description = '|'.join(('', antibody, ','.join(ic50s[r.id])))
+                r.description = '|'.join(('', '+'.join(antibodies), '', ','.join(ic50s[r.id])))
 
         for i in sorted(drop, reverse=True):
             del seqrecords[i]
 
-        return seqrecords, clonal
+        return seqrecords, clonal, antibodies
 
     @property
     def subtypes(self):

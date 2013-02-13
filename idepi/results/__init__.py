@@ -22,14 +22,20 @@ def _dumps_metadata(meta, ident=0):
         name_len,
         '"%s":' % k,
         '"%s"' % v if isinstance(v, str) else \
-        ' { %s }' % ', '.join(
-            ('"%s": %s' % (
-                k,
-                '"%s"' % v if isinstance(v, str) else
-                '%.6g' % v if isinstance(v, float) else
-                '%s' % str(v)
-            ) for k, v in v.items())
+        ' { %s }' % ', '.join((
+            '"%s": %s' % (
+                k_,
+                '"%s"' % v_ if isinstance(v_, str) else
+                '%.6g' % v_ if isinstance(v_, float) else
+                '%s' % str(v_)
+                ) for k_, v_ in v.items())
         ) if isinstance(v, dict) else \
+        ' [ %s ]' % ', '.join((
+            '"%s"' % v_ if isinstance(v_, str) else
+            '%.6g' % v_ if isinstance(v_, float) else
+            '%s' % str(v_)
+            ) for v_ in v
+        ) if isinstance(v, (list, tuple)) else \
         ' %.6g' % v if isinstance(v, float) else \
         ' %s' % str(v)
     ) for k, v in sorted(meta.items(), key=itemgetter(0)))
@@ -91,25 +97,33 @@ def _dumps_weights(weights, ident=0, similar=True):
     else:
         similar = False if 'similar' not in weights[0] else similar
         name_len = max(len(v['position']) for v in weights) + 3
+        N_len = max(len('%d' % v['N']) for v in weights) + 1
+        # rank
+        mean_len = max(len('%.2f' % v['rank']['mean']) for v in weights)
+        std_len = max(len('%.2f' % v['rank']['std']) for v in weights)
+        rank_fmt = '{ "mean": %%%d.2f, "std": %%%d.2f }' % (mean_len, std_len)
         if isinstance(weights[0]['value'], dict):
-            mean_len = max(len('% .6f' % v['value']['mean']) for v in weights)
-            std_len = max(len('%.6f' % v['value']['std']) for v in weights)
-            N_len = max(len('%d' % v['value']['N']) for v in weights)
-            fmt = '{ "mean": %%%d.6f, "std": %%%d.6f, "N": %%%dd }' % (mean_len, std_len, N_len)
+            mean_len = max(len('% .2f' % v['value']['mean']) for v in weights)
+            std_len = max(len('%.2f' % v['value']['std']) for v in weights)
+            val_fmt = '{ "mean": %% %d.2f, "std": %%%d.2f }' % (mean_len, std_len)
         elif isinstance(weights[0]['value'], int):
             val_len = max(len('% d' % v['value']) for v in weights)
-            fmt = '%% %dd' % val_len
+            val_fmt = '%% %dd' % val_len
         else:
             raise RuntimeError('someone is fucking with us')
         if similar:
             similar_len = max(len(', '.join('"%s"' % r for r in v['similar'])) for v in weights)
-            output = ',\n'.join(prefix + '  { "position": %-*s "value": %s, "similar": [ %-*s ] }' % (
+            output = ',\n'.join(prefix + '  { "position": %-*s "N": %-*s "rank": %s, "value": %s, "similar": [ %-*s ] }' % (
                 name_len, '"%s",' % v['position'],
-                fmt % (
+                N_len, '%d,' % v['N'],
+                rank_fmt % (
+                    v['rank']['mean'],
+                    v['rank']['std']
+                    ),
+                val_fmt % (
                     (
                         v['value']['mean'],
-                        v['value']['std'],
-                        v['value']['N']
+                        v['value']['std']
                         ) if isinstance(v['value'], dict) else (
                             v['value']
                         )
@@ -123,13 +137,17 @@ def _dumps_weights(weights, ident=0, similar=True):
                         )
                 ) for v in sorted(weights, key=weightkey)) + '\n'
         else:
-            output = ',\n'.join(prefix + '  { "position": %-*s "value": %s }' % (
+            output = ',\n'.join(prefix + '  { "position": %-*s "N": %-*s "rank": %s, "value": %s }' % (
                 name_len, '"%s",' % v['position'],
-                fmt % (
+                N_len, '%d,' % v['N'],
+                rank_fmt % (
+                    v['rank']['mean'],
+                    v['rank']['std']
+                    ),
+                val_fmt % (
                     (
                         v['value']['mean'],
-                        v['value']['std'],
-                        v['value']['N']
+                        v['value']['std']
                         ) if isinstance(v['value'], dict) else (
                             v['value']
                         )
@@ -155,15 +173,18 @@ class Results(dict):
             for i in range(len(self.__scorer))
             ]
         self.__coefs = [NormalValue(int) for _ in range(len(labels))]
+        self.__ranks = [NormalValue(int) for _ in range(len(labels))]
         self.__valid = False
 
-    def add(self, y_true, y_pred, coefs):
+    def add(self, y_true, y_pred, coefs, ranks):
         self.__nfeat.add(len(coefs))
         self.__nfold += 1
         self.__npos += (y_true > 0).sum()
         self.__ntotal += np.prod(y_true.shape)
         for i, coef in coefs.items():
             self.__coefs[i].add(coef)
+        for i, rank in ranks.items():
+            self.__ranks[i].add(rank)
         # update stats
         stats_ = self.__scorer.stats(y_true, y_pred)
         for i in range(len(self.__scorer)):
@@ -225,25 +246,31 @@ class Results(dict):
         weights = []
         for i, label in enumerate(self.__labels):
             v = self.__coefs[i]
+            r = self.__ranks[i]
             if len(v) == 0:
                 continue
             weights.append(
                 dict(
                     position=label,
+                    N=len(v),
+                    rank=dict(
+                        mean=r.mean,
+                        std=r.std
+                        ),
                     value=dict(
                         mean=v.mean,
                         std=v.std,
-                        N=len(v)
                         )
                     )
                 )
         self['weights'] = weights
         self.__valid = True
 
-    def metadata(self, antibody, ic50):
+    def metadata(self, antibodies, label, cutoff):
         Results.__compute(self)
-        self['metadata']['antibody'] = antibody
-        self['metadata']['discriminator'] = { 'orientation': 'gt', 'cutoff': ic50 }
+        self['metadata']['antibodies'] = antibodies
+        self['metadata']['discriminator'] = { 'orientation': 'gt', 'cutoff': cutoff }
+        self['metadata']['label'] = label
 
     def predictions(self, ids, preds):
         assert len(ids) == len(preds), 'ids and preds are not the same length!'

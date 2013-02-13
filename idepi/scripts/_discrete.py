@@ -117,11 +117,13 @@ def main(args=None):
     parser = cv_args(parser)
     parser = simulation_args(parser)
 
-    parser.add_argument('ANTIBODY', type=abtypefactory(ns.DATA))
+    parser.add_argument('ANTIBODY', type=abtypefactory(ns.DATA), nargs='+')
     parser.add_argument('--rfe', action='store_true', dest='RFE')
     parser.add_argument('--rfestep', type=int, dest='RFE_STEP')
 
     ARGS = parse_args(parser, args, namespace=ns)
+
+    type_ = 'IC50'
 
     # do some argument parsing
     if ARGS.TEST:
@@ -133,9 +135,7 @@ def main(args=None):
     if ARGS.MRMR_METHOD == 'MAXREL':
         ARGS.SIMILAR = 0.0
 
-    # validate the antibody argument, currently a hack exists to make PG9/PG16 work
-    # TODO: Fix pg9/16 hax
-    antibody = ARGS.ANTIBODY.strip()
+    antibodies = tuple(ARGS.ANTIBODY)
 
     if ARGS.SIM in (Simulation.EPITOPE, Simulation.SEQUENCE) and ARGS.DNA:
         raise ArgumentTypeError('randseq simulation target not compatible with DNA alphabet')
@@ -150,7 +150,7 @@ def main(args=None):
         ARGS.REFSEQ = translate(ARGS.REFSEQ)
 
     # set the util params
-    set_util_params(ARGS.REFSEQ_IDS, ARGS.IC50)
+    set_util_params(ARGS.REFSEQ_IDS, ARGS.CUTOFF)
 
     # fetch the alphabet, we'll probably need it later
     alph = Alphabet(mode=ARGS.ALPHABET)
@@ -164,31 +164,27 @@ def main(args=None):
         else:
             raise ValueError("Unknown simulation type '%s'" % ARGS.SIM)
 
+    # grab the relevant antibody from the SQLITE3 data
+    # format as SeqRecord so we can output as FASTA
+    # and generate an alignment using HMMER if it doesn't already exist
+    seqrecords, clonal, antibodies = ARGS.DATA.seqrecords(antibodies, ARGS.LABEL, ARGS.CLONAL, ARGS.DNA)
+
+    # if we're doing LOOCV, make sure we set CV_FOLDS appropriately
+    if ARGS.LOOCV:
+        ARGS.CV_FOLDS = len(seqrecords)
+
     ab_basename = ''.join((
-        antibody,
+        '+'.join(antibodies),
+        '_%s' % ARGS.LABEL if len(ARGS.DATA.labels) else '',
         '_randseq' if sim is not None and sim.mode == Simulation.SEQUENCE else '',
         '_dna' if ARGS.DNA else '_amino',
-        '_clonal' if ARGS.CLONAL else ''
+        '_clonal' if clonal else ''
         ))
     alignment_basename = '_'.join((
         ab_basename,
         ARGS.DATA.basename_root,
         __version__
         ))
-
-    # grab the relevant antibody from the SQLITE3 data
-    # format as SeqRecord so we can output as FASTA
-    # and generate an alignment using HMMER if it doesn't already exist
-    seqrecords, clonal = ARGS.DATA.seqrecords(antibody, ARGS.CLONAL, ARGS.DNA)
-
-    # if we're doing LOOCV, make sure we set CV_FOLDS appropriately
-    if ARGS.LOOCV:
-        ARGS.CV_FOLDS = len(seqrecords)
-
-    # if clonal isn't supported, fallback to default
-    if clonal != ARGS.CLONAL:
-        ab_basename = ''.join(ab_basename.rsplit('_clonal', 1))
-        alignment_basename = ''.join(alignment_basename.rsplit('_clonal', 1))
 
     alignment = generate_alignment(seqrecords, alignment_basename, is_refseq, ARGS)
     refidx = alignment_identify_refidx(alignment, is_refseq)
@@ -250,7 +246,7 @@ def main(args=None):
             ylabeler = Labeler(
                 seqrecord_get_ic50s,
                 is_refseq, # TODO: again, filtration function
-                lambda x: 1 if x > ARGS.IC50 else -1,
+                lambda x: 1 if x > ARGS.CUTOFF else -1,
                 ARGS.AUTOBALANCE
                 )
             y, ic50 = ylabeler(alignment)
@@ -260,7 +256,7 @@ def main(args=None):
                 (ic50 is not None and ARGS.AUTOBALANCE)
                 )
             if ARGS.AUTOBALANCE:
-                ARGS.IC50 = ic50
+                ARGS.CUTOFF = ic50
 
         # simulations, ho!
         for i in range(sim.runs if sim is not None else 1):
@@ -353,10 +349,12 @@ def main(args=None):
 
                 if ARGS.RFE:
                     coef_ = clf.best_estimator_.estimator_.coef_
+                    ranking_ = clf.best_estimator_.ranking_
                     support_ = clf.best_estimator_.support_
                     X_test_ = X_test
                 else:
                     coef_ = clf.best_estimator_.coef_
+                    ranking_ = mrmr.ranking_
                     support_ = mrmr.support_
                     # use only the MRMR-selected features, like above
                     X_test_ = X_test[:, support_]
@@ -364,15 +362,17 @@ def main(args=None):
                 y_pred = clf.predict(X_test_)
 
                 coefs = {}
-                c = 0
-                for i, selected in enumerate(support_):
+                ranks = {}
+                col = 0
+                for (i, (rank, selected)) in enumerate(zip(ranking_, support_)):
                     if selected:
                         coefs[i] = int(
-                            copysign(1, coef_[0, c])
+                            copysign(1, coef_[0, col])
                             )
-                        c += 1
+                        ranks[i] = int(rank)
+                        col += 1
 
-                results_.add(y_true, y_pred, coefs)
+                results_.add(y_true, y_pred, coefs, ranks)
 
             if results is not None and results_ <= results:
                 break
@@ -381,7 +381,7 @@ def main(args=None):
 
     # the alignment reflects the number of sequences either naturally,
     # or through SIM_EPI_N, which reflects the natural number anyway, less the refseq
-    results.metadata(antibody, ARGS.IC50)
+    results.metadata(antibodies, type_, ARGS.CUTOFF)
 
     print(results.dumps(), file=ARGS.OUTPUT)
 

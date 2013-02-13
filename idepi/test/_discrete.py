@@ -43,10 +43,10 @@ def test_discrete(ARGS):
     ARGS.MAX_CONSERVATION = 1.0
     ARGS.MAX_GAP_RATIO    = 1.0
     ARGS.MIN_CONSERVATION = 1.0
-    ARGS.IC50 = 20.
+    ARGS.CUTOFF = 20.
 
     # if we don't do this, DOOMBUNNIES
-    set_util_params(ARGS.REFSEQ_IDS, ARGS.IC50)
+    set_util_params(ARGS.REFSEQ_IDS, ARGS.CUTOFF)
 
     fd, sto_filename = mkstemp(); close(fd)
 
@@ -101,7 +101,7 @@ def test_discrete(ARGS):
             ylabeler = Labeler(
                 seqrecord_get_ic50s,
                 lambda row: is_refseq(row) or False, # TODO: again filtration function
-                lambda x: x >  ARGS.IC50,
+                lambda x: x > ARGS.CUTOFF,
                 False
             )
             y, ic50 = ylabeler(alignment)

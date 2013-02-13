@@ -219,13 +219,24 @@ def simulation_args(parser):
     return parser
 
 
-def ic50type(string):
+def cutofftype(string):
     try:
-        val = float(string)
-        assert 0 < val and val < 25
-        return val
+        return float(string)
     except:
-        raise ArgumentTypeError('must be a real in range (0, 25)')
+        raise ArgumentTypeError('must be a real')
+
+
+def labeltypefactory(data):
+    valid_labels = sorted(data.labels)
+    def labeltype(string):
+        if string not in valid_labels:
+            msg = "'%s' is not in the list of valid labels: %s" % (
+                string,
+                ', '.join("'%s'" % lab for lab in valid_labels)
+                )
+            raise ArgumentTypeError(msg)
+        return string
+    return labeltype
 
 
 def subtypefactory(data):
@@ -291,16 +302,18 @@ def init_args(description, args):
     args += deferred
 
     # setup a "subtypetype for the parser"
+    labeltype = labeltypefactory(ns.DATA)
     subtype = subtypefactory(ns.DATA)
 
     #                   option             action='store'       type                dest
     parser.add_argument('--autobalance',   action='store_true',                     dest='AUTOBALANCE')
     parser.add_argument('--log',                                type=logtype,       dest='LOGGING')
+    parser.add_argument('--label',                              type=labeltype,     dest='LABEL')
     parser.add_argument('--filter',                             type=csvtype,       dest='FILTER')
     parser.add_argument('--clonal',        action='store_true',                     dest='CLONAL')
     parser.add_argument('--subtypes',                           type=subtype,       dest='SUBTYPES')
     parser.add_argument('--weighting',     action='store_true',                     dest='WEIGHTING')
-    parser.add_argument('--ic50',                               type=ic50type,      dest='IC50')
+    parser.add_argument('--cutoff',                             type=cutofftype,    dest='CUTOFF')
     parser.add_argument('--refseq',                             type=str,           dest='REFSEQ')
     parser.add_argument('--ids',                                type=csvtype,       dest='REFSEQ_IDS')
     parser.add_argument('--test',          action='store_true',                     dest='TEST')
@@ -312,11 +325,12 @@ def init_args(description, args):
     parser.set_defaults(
         AUTOBALANCE=False,
         LOGGING    =None,
+        LABEL      ='IC50',
         FILTER     =[],
         CLONAL     =False,
         SUBTYPES   =[],
         WEIGHTING  =False,
-        IC50       =20.,
+        CUTOFF     =20.,
         REFSEQ     =refseq,
         REFSEQ_IDS =[refseq.id],
         RAND_SEED  =42, # magic number for determinism
