@@ -27,7 +27,7 @@ from __future__ import division, print_function
 
 import sys
 
-from argparse import ArgumentTypeError
+from functools import partial
 from math import copysign
 from os import getenv
 from os.path import join
@@ -53,7 +53,6 @@ from idepi.argument import (
     filter_args,
     svm_args,
     cv_args,
-    simulation_args,
     finalize_args,
     parse_args,
     abtypefactory
@@ -66,21 +65,18 @@ from idepi.databuilder import (
     DataReducer
     )
 from idepi.filter import naivefilter
-from idepi.labeler import Labeler
+from idepi.labeler import (
+    Labeler,
+    expression
+    )
 from idepi.logging import init_log
 from idepi.results import Results
 from idepi.scorer import Scorer
-from idepi.simulation import (
-    DumbSimulation,
-    MarkovSimulation,
-    Simulation
-    )
 from idepi.test import test_discrete
 from idepi.util import (
     alignment_identify_refidx,
     generate_alignment,
     is_refseq,
-    seqrecord_get_ic50s,
     set_util_params,
     C_range
     )
@@ -115,15 +111,12 @@ def main(args=None):
     parser = filter_args(parser)
     parser = svm_args(parser)
     parser = cv_args(parser)
-    parser = simulation_args(parser)
 
     parser.add_argument('ANTIBODY', type=abtypefactory(ns.DATA), nargs='+')
     parser.add_argument('--rfe', action='store_true', dest='RFE')
     parser.add_argument('--rfestep', type=int, dest='RFE_STEP')
 
     ARGS = parse_args(parser, args, namespace=ns)
-
-    type_ = 'IC50'
 
     # do some argument parsing
     if ARGS.TEST:
@@ -137,9 +130,6 @@ def main(args=None):
 
     antibodies = tuple(ARGS.ANTIBODY)
 
-    if ARGS.SIM in (Simulation.EPITOPE, Simulation.SEQUENCE) and ARGS.DNA:
-        raise ArgumentTypeError('randseq simulation target not compatible with DNA alphabet')
-
     if len(ARGS.FILTER) != 0:
         if ARGS.NUM_FEATURES > len(ARGS.FILTER):
             ARGS.NUM_FEATURES = len(ARGS.FILTER)
@@ -150,24 +140,15 @@ def main(args=None):
         ARGS.REFSEQ = translate(ARGS.REFSEQ)
 
     # set the util params
-    set_util_params(ARGS.REFSEQ_IDS, ARGS.CUTOFF)
+    set_util_params(ARGS.REFSEQ_IDS)
 
     # fetch the alphabet, we'll probably need it later
     alph = Alphabet(mode=ARGS.ALPHABET)
 
-    sim = None
-    if ARGS.SIM is not None:
-        if ARGS.SIM == Simulation.DUMB:
-            sim = DumbSimulation(ARGS.SIM_RUNS, Simulation.EPITOPE, str(ARGS.REFSEQ.seq))
-        elif ARGS.SIM in (Simulation.EPITOPE, Simulation.SEQUENCE):
-            sim = MarkovSimulation(ARGS.SIM_RUNS, ARGS.SIM, RAND_HIV_ENV_PEP_STOFILE)
-        else:
-            raise ValueError("Unknown simulation type '%s'" % ARGS.SIM)
-
     # grab the relevant antibody from the SQLITE3 data
     # format as SeqRecord so we can output as FASTA
     # and generate an alignment using HMMER if it doesn't already exist
-    seqrecords, clonal, antibodies = ARGS.DATA.seqrecords(antibodies, ARGS.LABEL, ARGS.CLONAL, ARGS.DNA)
+    seqrecords, clonal, antibodies = ARGS.DATA.seqrecords(antibodies, ARGS.CLONAL, ARGS.DNA)
 
     # if we're doing LOOCV, make sure we set CV_FOLDS appropriately
     if ARGS.LOOCV:
@@ -175,8 +156,6 @@ def main(args=None):
 
     ab_basename = ''.join((
         '+'.join(antibodies),
-        '_%s' % ARGS.LABEL if len(ARGS.DATA.labels) else '',
-        '_randseq' if sim is not None and sim.mode == Simulation.SEQUENCE else '',
         '_dna' if ARGS.DNA else '_amino',
         '_clonal' if clonal else ''
         ))
@@ -187,7 +166,6 @@ def main(args=None):
         ))
 
     alignment = generate_alignment(seqrecords, alignment_basename, is_refseq, ARGS)
-    refidx = alignment_identify_refidx(alignment, is_refseq)
     filter = naivefilter(
         ARGS.MAX_CONSERVATION,
         ARGS.MIN_CONSERVATION,
@@ -196,43 +174,58 @@ def main(args=None):
 
     re_pngs = re_compile(r'N[^P][TS][^P]', re_I)
 
-    if sim is None:
-        builder = DataReducer(
-            DataBuilder(
-                alignment,
-                alph,
-                refidx,
-                filter
-                ),
-            DataBuilderPairwise(
-                alignment,
-                alph,
-                refidx,
-                filter,
-                ARGS.RADIUS
-                ),
-            DataBuilderRegex(
-                alignment,
-                alph,
-                refidx,
-                re_pngs,
-                4,
-                label='PNGS'
-                ),
-            DataBuilderRegexPairwise(
-                alignment,
-                alph,
-                refidx,
-                re_pngs,
-                4,
-                label='PNGS'
-                )
+    # this is stupid but works generally speaking
+    if ARGS.AUTOBALANCE:
+        ARGS.LABEL = ARGS.LABEL.split()[0]
+
+    ylabeler = Labeler(
+        partial(expression, label=ARGS.LABEL),
+        is_refseq, # TODO: again, filtration function
+        ARGS.AUTOBALANCE
+        )
+    alignment, y, threshold = ylabeler(alignment)
+    assert (
+        (threshold is None and not ARGS.AUTOBALANCE) or
+        (threshold is not None and ARGS.AUTOBALANCE)
+        )
+    if ARGS.AUTOBALANCE:
+        ARGS.LABEL = '{0} > {1}'.format(ARGS.LABEL.strip(), threshold)
+
+    refidx = alignment_identify_refidx(alignment, is_refseq)
+    builder = DataReducer(
+        DataBuilder(
+            alignment,
+            alph,
+            refidx,
+            filter
+            ),
+        DataBuilderPairwise(
+            alignment,
+            alph,
+            refidx,
+            filter,
+            ARGS.RADIUS
+            ),
+        DataBuilderRegex(
+            alignment,
+            alph,
+            refidx,
+            re_pngs,
+            4,
+            label='PNGS'
+            ),
+        DataBuilderRegexPairwise(
+            alignment,
+            alph,
+            refidx,
+            re_pngs,
+            4,
+            label='PNGS'
             )
-        X = builder(alignment, refidx)
-        colnames = builder.labels
-    else:
-        if ARGS.SIM_EPI_N is None:
-            ARGS.SIM_EPI_N = len(seqrecords)
+        )
+    X = builder(alignment, refidx)
+    assert y.shape[0] == X.shape[0], "number of classes doesn't match the data: %d vs %d" % (y.shape[0], X.shape[0])
+    colnames = builder.labels
 
     scorer = Scorer(ARGS.OPTSTAT)
 
@@ -242,146 +235,94 @@ def main(args=None):
     for num_features in range(forward_initval, ARGS.NUM_FEATURES + 1):
         results_ = Results(colnames, scorer, ARGS.SIMILAR)
 
-        if sim is None:
-            ylabeler = Labeler(
-                seqrecord_get_ic50s,
-                is_refseq, # TODO: again, filtration function
-                lambda x: 1 if x > ARGS.CUTOFF else -1,
-                ARGS.AUTOBALANCE
-                )
-            y, ic50 = ylabeler(alignment)
-            assert y.shape[0] == X.shape[0], "number of classes doesn't match the data: %d vs %d" % (y.shape[0], X.shape[0])
-            assert(
-                (ic50 is None and not ARGS.AUTOBALANCE) or
-                (ic50 is not None and ARGS.AUTOBALANCE)
-                )
-            if ARGS.AUTOBALANCE:
-                ARGS.CUTOFF = ic50
+        for train_idxs, test_idxs in StratifiedKFold(y, ARGS.CV_FOLDS):
 
-        # simulations, ho!
-        for i in range(sim.runs if sim is not None else 1):
-
-            # here is where the sequences must be generated for the random sequence and random epitope simulations
-            if sim is not None:
-                alignment = sim.generate_sequences(
-                    N=ARGS.SIM_EPI_N,
-                    idfmt='%s|||',
-                    noise=ARGS.SIM_EPI_NOISE,
-                    mutation_rate=ARGS.SIM_EPI_MUT_RATE,
-                    alphabet=alph
-                    )
-
-                builder = DataBuilder(
-                    alignment,
-                    alph,
-                    refidx,
-                    filter
-                    )
-                X = builder(alignment, refidx)
-                colnames = builder.labels
-
-                # simulates the epitope and assigns the appropriate class
-                epi_def = sim.simulate_epitope(
-                    alignment,
-                    alph,
-                    colnames,
-                    ARGS.SIM_EPI_SIZE,
-                    ARGS.SIM_EPI_PERCENTILE,
-                    )
-
-                if epi_def is not None:
-                    print('********************* SIMULATED EPITOPE DESCRIPTION (%d) *********************\n' % ARGS.SIM_EPI_SIZE, file=sys.stdout)
-                    print('%s\n' % str(epi_def), file=sys.stdout)
-
-            for train_idxs, test_idxs in StratifiedKFold(y, ARGS.CV_FOLDS):
-
-                if train_idxs.sum() < 1 or test_idxs.sum() < 1:
-                    y_true = y[test_idxs]
-                    results_.add(y_true, y_true, {})
-                    continue
-
-                X_train = X[train_idxs]
-                y_train = y[train_idxs]
-
-                svm = SVC(kernel='linear')
-
-                if ARGS.RFE:
-                    X_train_ = X_train
-                    estimator = RFE(
-                        estimator=svm,
-                        n_features_to_select=num_features,
-                        step=ARGS.RFE_STEP
-                        )
-                    param_grid = {
-                        'estimator_params': [dict(C=c) for c in C_range(*ARGS.LOG2C)]
-                        }
-                else:
-                    # do MRMR-fitting separately from GridSearchCV to avoid
-                    # performing MRMR on every iteration of the grid search,
-                    # which would naturally take forever
-                    mrmr = MRMR(
-                        estimator=svm,
-                        n_features_to_select=num_features,
-                        method=ARGS.MRMR_METHOD,
-                        normalize=ARGS.MRMR_NORMALIZE,
-                        similar=ARGS.SIMILAR
-                        )
-                    mrmr.fit(X_train, y_train)
-                    # train only using the MRMR-selected features
-                    X_train_ = X_train[:, mrmr.support_]
-                    estimator = svm
-                    param_grid = {
-                        'C': list(C_range(*ARGS.LOG2C))
-                        }
-
-                clf = GridSearchCV(
-                    estimator=estimator,
-                    param_grid=param_grid,
-                    score_func=scorer,
-                    n_jobs=int(getenv('NCPU', -1)), # use all but 1 cpu
-                    pre_dispatch='2 * n_jobs'
-                    )
-
-                clf.fit(X_train_, y_train, cv=ARGS.CV_FOLDS-1)
-
-                X_test = X[test_idxs]
+            if train_idxs.sum() < 1 or test_idxs.sum() < 1:
                 y_true = y[test_idxs]
+                results_.add(y_true, y_true, {})
+                continue
 
-                if ARGS.RFE:
-                    coef_ = clf.best_estimator_.estimator_.coef_
-                    ranking_ = clf.best_estimator_.ranking_
-                    support_ = clf.best_estimator_.support_
-                    X_test_ = X_test
-                else:
-                    coef_ = clf.best_estimator_.coef_
-                    ranking_ = mrmr.ranking_
-                    support_ = mrmr.support_
-                    # use only the MRMR-selected features, like above
-                    X_test_ = X_test[:, support_]
+            X_train = X[train_idxs]
+            y_train = y[train_idxs]
 
-                y_pred = clf.predict(X_test_)
+            svm = SVC(kernel='linear')
 
-                coefs = {}
-                ranks = {}
-                col = 0
-                for (i, (rank, selected)) in enumerate(zip(ranking_, support_)):
-                    if selected:
-                        coefs[i] = int(
-                            copysign(1, coef_[0, col])
-                            )
-                        ranks[i] = int(rank)
-                        col += 1
+            if ARGS.RFE:
+                X_train_ = X_train
+                estimator = RFE(
+                    estimator=svm,
+                    n_features_to_select=num_features,
+                    step=ARGS.RFE_STEP
+                    )
+                param_grid = {
+                    'estimator_params': [dict(C=c) for c in C_range(*ARGS.LOG2C)]
+                    }
+            else:
+                # do MRMR-fitting separately from GridSearchCV to avoid
+                # performing MRMR on every iteration of the grid search,
+                # which would naturally take forever
+                mrmr = MRMR(
+                    estimator=svm,
+                    n_features_to_select=num_features,
+                    method=ARGS.MRMR_METHOD,
+                    normalize=ARGS.MRMR_NORMALIZE,
+                    similar=ARGS.SIMILAR
+                    )
+                mrmr.fit(X_train, y_train)
+                # train only using the MRMR-selected features
+                X_train_ = X_train[:, mrmr.support_]
+                estimator = svm
+                param_grid = {
+                    'C': list(C_range(*ARGS.LOG2C))
+                    }
 
-                results_.add(y_true, y_pred, coefs, ranks)
+            clf = GridSearchCV(
+                estimator=estimator,
+                param_grid=param_grid,
+                score_func=scorer,
+                n_jobs=int(getenv('NCPU', -1)), # use all but 1 cpu
+                pre_dispatch='2 * n_jobs'
+                )
 
-            if results is not None and results_ <= results:
-                break
+            clf.fit(X_train_, y_train, cv=ARGS.CV_FOLDS-1)
 
-            results = results_
+            X_test = X[test_idxs]
+            y_true = y[test_idxs]
 
-    # the alignment reflects the number of sequences either naturally,
-    # or through SIM_EPI_N, which reflects the natural number anyway, less the refseq
-    results.metadata(antibodies, type_, ARGS.CUTOFF)
+            if ARGS.RFE:
+                coef_ = clf.best_estimator_.estimator_.coef_
+                ranking_ = clf.best_estimator_.ranking_
+                support_ = clf.best_estimator_.support_
+                X_test_ = X_test
+            else:
+                coef_ = clf.best_estimator_.coef_
+                ranking_ = mrmr.ranking_
+                support_ = mrmr.support_
+                # use only the MRMR-selected features, like above
+                X_test_ = X_test[:, support_]
+
+            y_pred = clf.predict(X_test_)
+
+            coefs = {}
+            ranks = {}
+            col = 0
+            for (i, (rank, selected)) in enumerate(zip(ranking_, support_)):
+                if selected:
+                    coefs[i] = int(
+                        copysign(1, coef_[0, col])
+                        )
+                    ranks[i] = int(rank)
+                    col += 1
+
+            results_.add(y_true, y_pred, coefs, ranks)
+
+        if results is not None and results_ <= results:
+            break
+
+        results = results_
+
+    # the alignment reflects the number of sequences either naturally
+    results.metadata(antibodies, ARGS.LABEL)
 
     print(results.dumps(), file=ARGS.OUTPUT)
 

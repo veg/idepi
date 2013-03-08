@@ -2,6 +2,7 @@
 from __future__ import division, print_function
 
 from csv import reader as csv_reader, Sniffer as csv_sniffer
+from json import dumps as json_dumps
 from os.path import basename, splitext
 from re import compile as re_compile
 from sqlite3 import connect
@@ -60,7 +61,7 @@ class Sqlite3Db:
         conn.close()
         return valid_labels
 
-    def seqrecords(self, antibodies, label, clonal=False, dna=False):
+    def seqrecords(self, antibodies, clonal=False, dna=False):
         conn = connect(self.__filename)
         cur = conn.cursor()
 
@@ -86,31 +87,38 @@ class Sqlite3Db:
         select distinct S.NO as NO, S.ID as ID, S.SEQ as SEQ, G.SUBTYPE as SUBTYPE, ? as AB, N.VALUE as VALUE from
         (select SEQUENCE_NO as NO, SEQUENCE_ID as ID, RAW_SEQ as SEQ from SEQUENCE %s group by ID) as S join
         (select SEQUENCE_ID as ID, SUBTYPE from GENO_REPORT group by ID) as G join
-        (select SEQUENCE_ID as ID, ANTIBODY as AB, group_concat(VALUE, ',') as VALUE from NEUT where TYPE = ? and (%s) group by ID) as N
+        (select SEQUENCE_ID as ID, ANTIBODY as AB, group_concat(TYPE || ':' || VALUE, ',') as VALUE from NEUT where (%s) group by ID) as N
         on N.ID = S.ID and G.ID = S.ID order by S.ID;
         ''' % ('where IS_CLONAL = 1' if clonal else '', ab_clause))
-        params = ('+'.join(antibodies__), label) + antibodies__
+        params = ('+'.join(antibodies__),) + antibodies__
         cur.execute(stmt, params)
 
         ids = {}
         seqrecords = []
         for row in cur:
-            nno, sid, seq, subtype, ab, ic50s = row[:6]
-            cln_ic50s = []
-            for ic50 in ic50s.split(','):
+            nno, sid, seq, subtype, ab, values = row[:6]
+            values_ = {}
+            for kv in values.split(','):
+                k, v = kv.split(':')
                 try:
-                    v = min(float(ic50.strip().lstrip('<>')), 25.)
+                    v_ = float(v.strip().lstrip('<>'))
                 except ValueError:
                     continue
-                cln_ic50s.append(str(v))
-            if len(cln_ic50s) == 0:
-                warn("skipping sequence '%s', invalid values '%s'" % (sid, ic50s))
+                if k not in values_:
+                    values_[k] = []
+                values_[k].append(v_)
+            if len(values_) == 0:
+                warn("skipping sequence '%s', invalid values '%s'" % (sid, values))
                 continue
             dnaseq = Seq(OrfList(seq, include_stops=False)[0], Gapped(generic_nucleotide))
             record = SeqRecord(
                 dnaseq if dna else dnaseq.translate(),
                 id=sid,
-                description='|'.join((subtype, ab, label, ','.join(cln_ic50s)))
+                description=json_dumps({
+                    'subtype': subtype,
+                    'ab': ab,
+                    'values': values_
+                    })
             )
             if sid in ids:
                 record.id += str(-ids[sid])
@@ -173,7 +181,7 @@ class MonogramData:
     def labels(self):
         return []
 
-    def seqrecords(self, antibodies, _, clonal=False, dna=False):
+    def seqrecords(self, antibodies, clonal=False, dna=False):
         if clonal:
             raise ValueError('clonal property is not available with Monogram datasets')
         if dna:

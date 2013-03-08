@@ -71,8 +71,8 @@ from idepi.util import (
     is_refseq,
     C_range,
     set_util_params,
-    seqrecord_get_ic50s,
-    seqrecord_set_ic50
+    seqrecord_get_values,
+    seqrecord_set_values
 )
 
 from mrmr import DiscreteMrmr
@@ -124,11 +124,10 @@ def main(args=None):
     # grab the relevant antibody from the SQLITE3 data
     # format as SeqRecord so we can output as FASTA
     # and generate an alignment using HMMER if it doesn't already exist
-    seqrecords, clonal, antibodies = ARGS.DATA.seqrecords(antibodies, ARGS.LABEL, ARGS.CLONAL, ARGS.DNA)
+    seqrecords, clonal, antibodies = ARGS.DATA.seqrecords(antibodies, ARGS.CLONAL, ARGS.DNA)
 
     ab_basename = ''.join((
         '+'.join(antibodies),
-        '_%s' % ARGS.LABEL if len(ARGS.DATA.labels) else '',
         '_dna' if ARGS.DNA else '_amino',
         '_clonal' if clonal else ''
     ))
@@ -145,7 +144,6 @@ def main(args=None):
     ))
 
     alignment = generate_alignment(seqrecords, alignment_basename, is_refseq, ARGS)
-    refidx = alignment_identify_refidx(alignment, is_refseq)
 
     seqfilefmt = 'stockholm' if splitext(ARGS.SEQUENCES)[1].find('sto') == 1 else 'fasta'
 
@@ -179,6 +177,21 @@ def main(args=None):
     with open(fasta_stofile) as fh:
         fasta_aln = AlignIO.read(fh, 'stockholm')
 
+    # compute features
+    ylabeler = Labeler(
+        seqrecord_get_values,
+        lambda seq: is_refseq(seq) or False, # TODO: again filtration function
+        lambda x: 1 if x > ARGS.CUTOFF else -1,
+        ARGS.AUTOBALANCE
+    )
+    alignment, yt, ic50 = ylabeler(alignment)
+    assert(
+        (ic50 is None and not ARGS.AUTOBALANCE) or
+        (ic50 is not None and ARGS.AUTOBALANCE)
+    )
+    if ARGS.AUTOBALANCE:
+        ARGS.CUTOFF = ic50
+
     try:
         assert(alignment.get_alignment_length() == fasta_aln.get_alignment_length())
     except AssertionError:
@@ -190,6 +203,7 @@ def main(args=None):
         ARGS.MIN_CONSERVATION,
         ARGS.MAX_GAP_RATIO
     )
+    refidx = alignment_identify_refidx(alignment, is_refseq)
     builder = DataBuilder(
         alignment,
         alph,
@@ -202,21 +216,6 @@ def main(args=None):
     if ARGS.TREE is not None:
         tree, fasta_aln = Phylo()([r for r in fasta_aln if not is_refseq(r)])
     xp = builder(fasta_aln)
-
-    # compute features
-    ylabeler = Labeler(
-        seqrecord_get_ic50s,
-        lambda seq: is_refseq(seq) or False, # TODO: again filtration function
-        lambda x: 1 if x > ARGS.CUTOFF else -1,
-        ARGS.AUTOBALANCE
-    )
-    yt, ic50 = ylabeler(alignment)
-    assert(
-        (ic50 is None and not ARGS.AUTOBALANCE) or
-        (ic50 is not None and ARGS.AUTOBALANCE)
-    )
-    if ARGS.AUTOBALANCE:
-        ARGS.CUTOFF = ic50
 
     if ARGS.MRMR_NORMALIZE:
         DiscreteMrmr._NORMALIZED = True
@@ -258,7 +257,7 @@ def main(args=None):
     print(ret.dumps(), file=ARGS.OUTPUT)
 
     if ARGS.TREE is not None:
-        tree_seqrecords = [seqrecord_set_ic50(r, yp[i]) for i, r in enumerate(fasta_aln)]
+        tree_seqrecords = [seqrecord_set_values(r, 'IC50', [yp[i]]) for i, r in enumerate(fasta_aln)]
         PhyloGzFile.write(ARGS.TREE, tree, tree_seqrecords, colnames, ret['metadata'])
 
     finalize_args(ARGS)

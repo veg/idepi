@@ -10,7 +10,7 @@ from numpy import mean
 
 from idepi.argument import PathType
 from idepi.phylogeny import PhyloGzFile
-from idepi.util import seqrecord_get_ic50s
+from idepi.util import seqrecord_get_values
 
 
 NUMERIC = re_compile(r'[^0-9]+')
@@ -47,7 +47,7 @@ def main(args=None):
                 labels[i] = r.seq[idx]
             i += 1
         try:
-            labels[0] = '%.3g' % mean(seqrecord_get_ic50s(r))
+            labels[0] = '%.3g' % mean(seqrecord_get_values(r))
         except ValueError:
             if not (len(r.id) > 4 and r.id[:4].lower() == 'node'):
                 print(r)

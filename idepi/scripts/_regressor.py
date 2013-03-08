@@ -53,7 +53,7 @@ from idepi import (
     is_HXB2,
     regressor_classes,
     pretty_fmt_results,
-    seqrecord_get_ic50s,
+    seqrecord_get_values,
     set_util_params,
     __file__ as _idepi_file,
     __version__ as _idepi_version
@@ -198,7 +198,6 @@ def run_tests():
         fh.close()
 
         alignment = AlignIO.read(sto_filename, 'stockholm')
-        refidx = alignment_identify_ref(alignment, is_HXB2)
 
         for OPTIONS.STANFEL in (True, False):
 
@@ -213,11 +212,19 @@ def run_tests():
 
             alph = Alphabet(Alphabet.STANFEL if OPTIONS.STANFEL else Alphabet.DNA if OPTIONS.DNA else Alphabet.AMINO)
 
+            # test mRMR and LSVM file generation
+            ylabeler = Labeler(
+                seqrecord_get_values,
+                lambda seq: is_HXB2(seq) or False, # TODO: again filtration function
+            )
+            alignment, y, ic50gt = ylabeler(alignment)
+
             filter = naivefilter(
                 OPTIONS.MAX_CONSERVATION,
                 OPTIONS.MIN_CONSERVATION,
                 OPTIONS.MAX_GAP_RATIO
             )
+            refidx = alignment_identify_ref(alignment, is_HXB2)
             builder = DataBuilder(
                 alignment,
                 alph,
@@ -240,13 +247,6 @@ def run_tests():
                     raise AssertionError('ERROR: \'%s\' not found in %s' % (name, ', '.join(colnames)))
 
             assert(np.all(_TEST_X == x))
-
-            # test mRMR and LSVM file generation
-            ylabeler = Labeler(
-                seqrecord_get_ic50s,
-                lambda seq: is_HXB2(seq) or False, # TODO: again filtration function
-            )
-            y, ic50gt = ylabeler(alignment)
 
             assert(np.all(_TEST_Y == y))
 
@@ -365,13 +365,19 @@ def main(argv=sys.argv):
         alignment_basename = ''.join(alignment_basename.rsplit('_clonal', 1))
 
     alignment = generate_alignment(seqrecords, alignment_basename, is_HXB2, OPTIONS)
-    refidx = alignment_identify_ref(alignment, is_HXB2)
+
+    ylabeler = Labeler(
+        seqrecord_get_values,
+        lambda seq: is_HXB2(seq) or False, # TODO: again filtration function
+    )
+    alignment, y, ic50gt = ylabeler(alignment)
 
     filter = naivefilter(
         OPTIONS.MAX_CONSERVATION,
         OPTIONS.MIN_CONSERVATION,
         OPTIONS.MAX_GAP_RATIO,
     )
+    refidx = alignment_identify_ref(alignment, is_HXB2)
     builder = DataBuilder(
         alignment,
         alph,
@@ -380,12 +386,6 @@ def main(argv=sys.argv):
     )
     x = builder(alignment, refidx)
     colnames = builder.labels
-
-    ylabeler = Labeler(
-        seqrecord_get_ic50s,
-        lambda seq: is_HXB2(seq) or False, # TODO: again filtration function
-    )
-    y, ic50gt = ylabeler(alignment)
 
     crossvalidator = CrossValidator(
         classifier_cls=Regressor,

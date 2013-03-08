@@ -144,10 +144,10 @@ def generate_alignment_from_seqrecords(seq_records, my_basename, opts):
         remove(hmm_filename)
 
 
-def get_noise(seqrecord):
-    from .util import seqrecord_get_ic50s
+def get_noise(seqrecord, label='IC50'):
+    from .util import seqrecord_get_values
     # just return the "mean" as noise
-    return np.mean(seqrecord_get_ic50s(seqrecord.description))
+    return np.mean(seqrecord_get_values(seqrecord.description, label))
 
 
 def sanitize_seq(seq, alphabet):

@@ -266,10 +266,9 @@ class Results(dict):
         self['weights'] = weights
         self.__valid = True
 
-    def metadata(self, antibodies, label, cutoff):
+    def metadata(self, antibodies, label):
         Results.__compute(self)
         self['metadata']['antibodies'] = antibodies
-        self['metadata']['discriminator'] = { 'orientation': 'gt', 'cutoff': cutoff }
         self['metadata']['label'] = label
 
     def predictions(self, ids, preds):

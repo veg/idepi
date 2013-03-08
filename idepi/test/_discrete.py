@@ -19,7 +19,7 @@ from idepi.labeler import Labeler
 from idepi.util import (
     alignment_identify_refidx,
     is_refseq,
-    seqrecord_get_ic50s,
+    seqrecord_get_values,
     set_util_params
 )
 
@@ -56,7 +56,6 @@ def test_discrete(ARGS):
         fh.close()
 
         alignment = AlignIO.read(sto_filename, 'stockholm')
-        refidx = alignment_identify_refidx(alignment, is_refseq)
 
         for ARGS.ALPHABET in (Alphabet.AMINO, Alphabet.STANFEL):
 
@@ -69,11 +68,21 @@ def test_discrete(ARGS):
 
             alph = Alphabet(mode=ARGS.ALPHABET)
 
+            # test mRMR and LSVM file generation
+            ylabeler = Labeler(
+                seqrecord_get_values,
+                lambda row: is_refseq(row) or False, # TODO: again filtration function
+                lambda x: x > ARGS.CUTOFF,
+                False
+            )
+            alignment, y, ic50 = ylabeler(alignment)
+
             filter = naivefilter(
                 ARGS.MAX_CONSERVATION,
                 ARGS.MIN_CONSERVATION,
                 ARGS.MAX_GAP_RATIO,
             )
+            refidx = alignment_identify_refidx(alignment, is_refseq)
             builder = DataBuilder(
                 alignment,
                 alph,
@@ -96,15 +105,6 @@ def test_discrete(ARGS):
                     raise AssertionError('ERROR: \'%s\' not found in %s' % (name, ', '.join(colnames)))
 
             assert(np.all(TEST_X == x))
-
-            # test mRMR and LSVM file generation
-            ylabeler = Labeler(
-                seqrecord_get_ic50s,
-                lambda row: is_refseq(row) or False, # TODO: again filtration function
-                lambda x: x > ARGS.CUTOFF,
-                False
-            )
-            y, ic50 = ylabeler(alignment)
 
             assert(np.all(TEST_Y == y))
 

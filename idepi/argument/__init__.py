@@ -308,12 +308,11 @@ def init_args(description, args):
     #                   option             action='store'       type                dest
     parser.add_argument('--autobalance',   action='store_true',                     dest='AUTOBALANCE')
     parser.add_argument('--log',                                type=logtype,       dest='LOGGING')
-    parser.add_argument('--label',                              type=labeltype,     dest='LABEL')
+    parser.add_argument('--label',                              type=str,           dest='LABEL')
     parser.add_argument('--filter',                             type=csvtype,       dest='FILTER')
     parser.add_argument('--clonal',        action='store_true',                     dest='CLONAL')
     parser.add_argument('--subtypes',                           type=subtype,       dest='SUBTYPES')
     parser.add_argument('--weighting',     action='store_true',                     dest='WEIGHTING')
-    parser.add_argument('--cutoff',                             type=cutofftype,    dest='CUTOFF')
     parser.add_argument('--refseq',                             type=str,           dest='REFSEQ')
     parser.add_argument('--ids',                                type=csvtype,       dest='REFSEQ_IDS')
     parser.add_argument('--test',          action='store_true',                     dest='TEST')
@@ -325,12 +324,11 @@ def init_args(description, args):
     parser.set_defaults(
         AUTOBALANCE=False,
         LOGGING    =None,
-        LABEL      ='IC50',
+        LABEL      ='any(v > 20 for v in IC50)',
         FILTER     =[],
         CLONAL     =False,
         SUBTYPES   =[],
         WEIGHTING  =False,
-        CUTOFF     =20.,
         REFSEQ     =refseq,
         REFSEQ_IDS =[refseq.id],
         RAND_SEED  =42, # magic number for determinism

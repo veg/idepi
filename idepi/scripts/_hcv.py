@@ -108,7 +108,17 @@ def main(args=None):
         is_refseq,
         lambda x: x
         )
-    y, _ = ylabeler(alignment, globber=globber)
+    alignment, y, _ = ylabeler(alignment, globber=globber)
+
+    # do not break, as we need to completely iterate through alignment
+    # so as to hit StopIteration and reset the __iter__ generator
+    refidx = -1
+    for i, seq in enumerate(alignment):
+        if is_refseq(seq):
+            refidx = i
+
+    if refidx < 0:
+        raise RuntimeError('no reference found in alignment')
 
     builder = DataReducer(
         DataBuilder(

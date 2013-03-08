@@ -24,6 +24,7 @@
 
 from __future__ import division, print_function
 
+from json import dumps as json_dumps, loads as json_loads
 from os.path import exists
 
 import numpy as np
@@ -39,9 +40,9 @@ from ..hmmer import Hmmer
 __all__ = [
     'set_util_params',
     'is_refseq',
-    'seqrecord_get_ic50s',
+    'seqrecord_get_values',
     'seqrecord_get_subtype',
-    'seqrecord_set_ic50',
+    'seqrecord_set_values',
     'ystoconfusionmatrix',
     'alignment_identify_refidx',
     'extract_feature_weights_similar',
@@ -51,15 +52,12 @@ __all__ = [
 ]
 
 __REFSEQ_IDS = []
-__IC50 = None
 
 
-def set_util_params(refseq_ids=None, ic50=None):
-    global __REFSEQ_IDS, __IC50
+def set_util_params(refseq_ids=None):
+    global __REFSEQ_IDS
     if refseq_ids is not None:
         __REFSEQ_IDS = refseq_ids
-    if ic50 is not None:
-        __IC50 = ic50
 
 
 def is_refseq(seqrecord):
@@ -73,31 +71,34 @@ def is_refseq(seqrecord):
     return False
 
 
-def seqrecord_get_ic50s(seqrecord):
+def seqrecord_get_values(seqrecord, label='IC50'):
     # cap ic50s to 25
     try:
-        ic50s = [
-            min(float(ic50.strip().lstrip('<>')), 25.) for ic50 in seqrecord.description.rsplit('|', 1)[1].split(',')
-        ] # subtype | ab | ic50
+        values = json_loads(seqrecord.description)['values'][label]
     except ValueError:
-        raise ValueError('Cannot parse `%s\' for IC50 value' % seqrecord.description)
-    return ic50s
+        raise ValueError("Cannot parse `{0}' for {1} value".format(
+            seqrecord.description,
+            label
+            ))
+    except KeyError:
+        return None
+    return values
 
 
 def seqrecord_get_subtype(seqrecord):
     try:
-        subtype = seqrecord.description.split('|', 1)[0].upper()
+        subtype = json_loads(seqrecord.description)['subtype']
     except ValueError:
-        raise ValueError('Cannot parse `%s\' for HIV subtype' % seqrecord.description)
+        raise ValueError("Cannot parse `%s' for HIV subtype".format(
+            seqrecord.description
+            ))
     return subtype
 
 
-def seqrecord_set_ic50(seqrecord, ic50):
-    vals = seqrecord.description.rsplit('|', 3)
-    while len(vals) < 4:
-        vals.append('')
-    vals[3] = str(ic50)
-    seqrecord.description = '|'.join(vals)
+def seqrecord_set_values(seqrecord, label, values):
+    desc = json_loads(seqrecord.description)
+    desc['values'][label] = values
+    seqrecord.description = json_dumps(desc)
     return seqrecord
 
 
