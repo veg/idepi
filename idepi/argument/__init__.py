@@ -124,17 +124,26 @@ def encoding_args(parser):
     return parser
 
 
+def feature_args(parser):
+    #                   option             action                type      dest
+    parser.add_argument('--no-pngs',       action='store_false',           dest='PNGS')
+    parser.add_argument('--no-pngs-pairs', action='store_false',           dest='PNGS_PAIRS')
+    parser.add_argument('--radius',                              type=int, dest='RADIUS')
+    parser.set_defaults(
+        RADIUS=0
+        )
+    return parser
+
+
 def filter_args(parser):
     #                   option      type        dest
     parser.add_argument('--maxcon', type=float, dest='MAX_CONSERVATION')
     parser.add_argument('--maxgap', type=float, dest='MAX_GAP_RATIO')
     parser.add_argument('--mincon', type=float, dest='MIN_CONSERVATION')
-    parser.add_argument('--radius', type=int,   dest='RADIUS')
     parser.set_defaults(
         MAX_CONSERVATION=1.0, # 93.,
         MAX_GAP_RATIO   =0.1, # 93.,
         MIN_CONSERVATION=1.0, # 33.,
-        RADIUS          =0
         )
     return parser
 
@@ -324,7 +333,7 @@ def init_args(description, args):
     parser.set_defaults(
         AUTOBALANCE=False,
         LOGGING    =None,
-        LABEL      ='any(v > 20 for v in IC50)',
+        LABEL      ='max(IC50) > 20',
         FILTER     =[],
         CLONAL     =False,
         SUBTYPES   =[],

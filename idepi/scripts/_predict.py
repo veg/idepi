@@ -116,7 +116,7 @@ def main(args=None):
         similar = False
 
     # set the util params
-    set_util_params(ARGS.REFSEQ_IDS, ARGS.CUTOFF)
+    set_util_params(ARGS.REFSEQ_IDS)
 
     # fetch the alphabet, we'll probably need it later
     alph = Alphabet(mode=ARGS.ALPHABET)

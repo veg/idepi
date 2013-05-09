@@ -47,6 +47,7 @@ from idepi.argument import (
     init_args,
     hmmer_args,
     featsel_args,
+    feature_args,
     mrmr_args,
     optstat_args,
     encoding_args,
@@ -105,6 +106,7 @@ def main(args=None):
 
     parser = hmmer_args(parser)
     parser = featsel_args(parser)
+    parser = feature_args(parser)
     parser = mrmr_args(parser)
     parser = optstat_args(parser)
     parser = encoding_args(parser)
@@ -180,7 +182,7 @@ def main(args=None):
 
     ylabeler = Labeler(
         partial(expression, label=ARGS.LABEL),
-        is_refseq, # TODO: again, filtration function
+        is_refseq,  # TODO: again, filtration function
         ARGS.AUTOBALANCE
         )
     alignment, y, threshold = ylabeler(alignment)
@@ -192,39 +194,55 @@ def main(args=None):
         ARGS.LABEL = '{0} > {1}'.format(ARGS.LABEL.strip(), threshold)
 
     refidx = alignment_identify_refidx(alignment, is_refseq)
-    builder = DataReducer(
+
+    builders = [
         DataBuilder(
             alignment,
             alph,
             refidx,
             filter
-            ),
-        DataBuilderPairwise(
-            alignment,
-            alph,
-            refidx,
-            filter,
-            ARGS.RADIUS
-            ),
-        DataBuilderRegex(
-            alignment,
-            alph,
-            refidx,
-            re_pngs,
-            4,
-            label='PNGS'
-            ),
-        DataBuilderRegexPairwise(
-            alignment,
-            alph,
-            refidx,
-            re_pngs,
-            4,
-            label='PNGS'
             )
-        )
+        ]
+
+    if ARGS.RADIUS:
+        builders.append(
+            DataBuilderPairwise(
+                alignment,
+                alph,
+                refidx,
+                filter,
+                ARGS.RADIUS
+                )
+            )
+
+    if ARGS.PNGS:
+        builders.append(
+            DataBuilderRegex(
+                alignment,
+                alph,
+                refidx,
+                re_pngs,
+                4,
+                label='PNGS'
+                )
+            )
+
+    if ARGS.PNGS_PAIRS:
+        builders.append(
+            DataBuilderRegexPairwise(
+                alignment,
+                alph,
+                refidx,
+                re_pngs,
+                4,
+                label='PNGS'
+                )
+            )
+
+    builder = DataReducer(*builders)
     X = builder(alignment, refidx)
-    assert y.shape[0] == X.shape[0], "number of classes doesn't match the data: %d vs %d" % (y.shape[0], X.shape[0])
+    assert y.shape[0] == X.shape[0], \
+        "number of classes doesn't match the data: %d vs %d" % (y.shape[0], X.shape[0])
     colnames = builder.labels
 
     scorer = Scorer(ARGS.OPTSTAT)
@@ -280,11 +298,11 @@ def main(args=None):
                 estimator=estimator,
                 param_grid=param_grid,
                 score_func=scorer,
-                n_jobs=int(getenv('NCPU', -1)), # use all but 1 cpu
+                n_jobs=int(getenv('NCPU', -1)),  # use all but 1 cpu
                 pre_dispatch='2 * n_jobs'
                 )
 
-            clf.fit(X_train_, y_train, cv=ARGS.CV_FOLDS-1)
+            clf.fit(X_train_, y_train, cv=ARGS.CV_FOLDS - 1)
 
             X_test = X[test_idxs]
             y_true = y[test_idxs]

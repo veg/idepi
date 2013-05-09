@@ -46,7 +46,7 @@ def test_discrete(ARGS):
     ARGS.CUTOFF = 20.
 
     # if we don't do this, DOOMBUNNIES
-    set_util_params(ARGS.REFSEQ_IDS, ARGS.CUTOFF)
+    set_util_params(ARGS.REFSEQ_IDS)
 
     fd, sto_filename = mkstemp(); close(fd)
 

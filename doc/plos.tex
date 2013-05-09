@@ -137,8 +137,10 @@ Other biochemical and structural methods suffer similar caveats:
 x-ray crystallography often requires the use of chimeric constructs to facilitate crystallization.
 In addition to the promise of rapid results, computational approaches to epitope mapping offer, somewhat paradoxically, more biologically realistic results.
 
-<talk about other computational approaches, e.g. CHAVI, possibly miguel, and others>
-<talk about limitations in their approaches, either due to speed or unsimulatability> I propose one such method here, and demonstrate its efficacy on a variety of previously-characterized bnAb epitopes, and validate its performance across a variety of simulated inputs.
+% talk about other computational approaches, e.g. CHAVI, possibly miguel, and others
+% talk about limitations in their approaches, either due to speed or unsimulatability
+I propose one such method here, and demonstrate its efficacy on a variety of previously-characterized bnAb epitopes.
+%, and validate its performance across a variety of simulated inputs.
 
 For a given neutralizing agent,
 the \idepi{} pipeline uses predictive modeling to identify frequent mutations characterizing sequences of low sensitivity from sequences of high sensitivity.
@@ -148,39 +150,42 @@ We hypothesize that common compensatory mutations will often lie within the epit
 \section*{Results}
 
 We demonstrate the effectiveness of the \idepi{} epitope prediction pipeline on the well-characterized b12 and 2F5 bnAbs,
-and produce epitope predictions for the PG9 and PG16 bnAbs and the recently-discovered PGT-family of bnAbs.
+and offer epitope predictions for the PG9 and PG16 bnAbs and several members of the recently-discovered PGT-family of bnAbs.
 
 \subsection*{\idepi{} epitope predictions}
 
-\subsubsection*{2F5}
-For bnAb 2F5, our data is composed of 241 sequences from a variety of subtypes,
-predominantly subtype B (\N{} = 68) and C (\N{} = 49),
-with a total of 243 independent \hmic{} samplings.
-Of note is that when a sequence has more than a single corresponding \hmic{},
-the largest value is assumed.
-For 101 of the samples, the \hmic{} is considered ``saturated'' with an $\textrm{{IC}}_{50} \ge 25{\mu}g/mL$.
-We threshold the \hmic{}s at $20{\mu}g/mL$,
-so that approximately 43.6\% of the samples are classified resistant.
-Using forward selection, \idepi{} determined the optimum number of features to choose is 2,
-with 20-fold cross-validation producing the following statistics on average:
-accuracy - 95.1\%,
-sensitivity - 96.3\%,
-specificity - 94.4\%,
-and F-score - 94.4\%.
-Additionally, \idepi{} identifies sequence features K665K and A667A in more than 80\% of the cross-validation folds,
-suggesting they are robust.
-These positions are within the previously-described, canonical epitope,
-validating \idepi{} capacity for short linear epitopes like 2F5.
-
-\subsubsection*{b12}
-For bnAb b12, our data is composed of 384 sequences from a variety of subtypes,
-predominantly B (\N{} = 84) and C (\N{} = 64),
-with a total of 394 independent \hmic{} samplings.
-
-\subsubsection*{PG9 and PG16}
-For bnAb PG9 and PG16, our data is composed of 
-
-\subsubsection*{PGT-family}
+%\subsubsection*{2F5}
+%For bnAb 2F5, our data is composed of 241 sequences from a variety of subtypes,
+%predominantly subtype B (\N{} = 68) and C (\N{} = 49),
+%with a total of 243 independent \hmic{} samples.
+%Of note is that when a sequence has more than a single corresponding \hmic{},
+%the largest value is assumed.
+%For 101 of the samples, the \hmic{} is considered ``saturated'' with an $\textrm{{IC}}_{50} \ge 25{\mu}g/mL$.
+%We threshold the \hmic{}s at $20{\mu}g/mL$,
+%so that approximately 43.6\% of the samples are classified resistant.
+%Using forward selection, \idepi{} determined the optimum number of features to choose is 2,
+%with 10-fold cross-validation producing the following statistics on average:
+%accuracy - 95.1\%,
+%sensitivity - 96.3\%,
+%specificity - 94.4\%,
+%and F-score - 94.4\%.
+%Additionally, \idepi{} identifies sequence features K665K and A667A in more than 80\% of the cross-validation folds,
+%suggesting they are robust.
+%These positions are within the previously-described, canonical epitope,
+%validating \idepi{} for short linear epitopes like 2F5.
+%
+%\subsubsection*{b12}
+%For bnAb b12, our data is composed of 384 sequences from a variety of subtypes,
+%predominantly B (\N{} = 84) and C (\N{} = 64),
+%with a total of 394 independent \hmic{} samples,
+%with 70.5\% samples classified as resistant.
+%Using forward selection, \idepi{} determined the optimum number of features to choose was 1,
+%with 10
+%
+%\subsubsection*{PG9 and PG16}
+%For bnAb PG9 and PG16, our data is composed of 
+%
+%\subsubsection*{PGT-family}
 
 
 
@@ -219,39 +224,43 @@ The results demonstrate the effectiveness of \idepi{} on ...
 Data were obtained using a Monogram neutralization assay,
 which measures the half-maximal inhibitory concentration (\hmic{})
 of a neutralizing agent (monoclonal antibody or polyclonal sera) in a model system composed of a chimeric \hiv{} construct expressing a known envelope sequence.
-This assay was performed for 64 distinct neutralizing agents against 9 to 421 envelope sequences per agent (median 116).
+This assay was performed for 64 distinct neutralizing agents, each against a panel of 9 to 421 envelope sequences (median 116).
 
 The \idepi{} pipeline is composed of the following stages:
 1) collate the \hmic{} values and corresponding envelope sequences for our neutralizing agent of interest,
 2) iteratively construct a multiple sequence alignment from the collated sequences using the {HMMER} multiple sequence alignment tool,
-3) binarize the data by thresholding the \hmic{} values (at some natural or biologically-relevant value)
+3) convert the multiple sequence alignment into a binary matrix form using a variety of ``feature functions''.% thresholding the \hmic{} values (at some natural or biologically-relevant value)
 and transforming each column of the MSA into a vector of 23 binary states representing the presence (1) or absence (0) of a given amino-acid or gap at any given position,
-4) partition the sequences into $k$ approximately equally-sized bins,
-5) for each bin $B_i$,
-5a) set $B_i$ aside to use as test data, while using the remaining $k-1$ bins as training data to learn a predictive model,
-5b) test the performance of the predictive model on the test data in bin $B_i$,
-6) collate and present the predictive model performance and the features chosen by the model as estimations of confidence and inferred epitope positions, respectively.
+4) $k$-fold cross-validate a predictive model,
+5) present cross-validation performance and the features chosen by the model as estimations of confidence and inferred epitope positions, respectively.
+
+The binary matrix form is created from ``feature functions'',
+which are indicator functions parameterized by the column of the multiple sequence alignment
+and the sequence features present. Currently, there are 4 types of feature functions including:
+1) per-position indicators of amino-acid identity (e.g. N301N),
+2) per-position-pair indicators of amino-acid identity (e.g. N301N+T303T),
+3) N-anchored indicators of a potential N-linked glycosylation site (e.g. PNGS(N160)),
+and 4) pairwise N-anchored indicators of potential N-linked glycosylation sites (e.g. PNGS(N301+N332)).
+\idepi{} is designed in a modular fashion to make the addition or removal of features a simple procedure.
 
 Predictive models are learned from training data using a feature selection algorithm,
 in this case \mrmr{}, followed by a dot-product (linear) support vector machine.
 The dot-product kernel is used in lieu of the more flexible radial basis function kernel or sigmoid kernel
 due to the interpretability of its model coefficients,
-which are nigh-uninterpretable for other kernels due to their capacity to embed samples in high-dimensional spaces.
+which are nigh-uninterpretable for other kernels due to their ability to embed samples in high-dimensional spaces.
 
 The \mrmr{} algorithm is used for its high speed and capacity to greedily select still-informative features.
 The number of features $k$ is either chosen \emph{a priori},
-or more frequently by forward selection,
-which iteratively increments $k$ until cross-validation performance as measured by F-score no longer improves.
+or by forward selection,
+which iteratively increments $k$ until cross-validation performance as measured by Matthew's Correlation Coefficient (MCC) no longer improves.
 This selects the minimum number of features necessary to achieve good performance.
 
 \idepi{} itself is implemented in the Python programming language,
 and leverages common scientific computing routines implemented in NumPy, SciPy, BioPython,
-and the Python machine-learning library MLPy.
+and the Python machine-learning library Scikit-Learn.
 Functionality not immediately available was implemented in modules that are well-abstracted and reusable,
 all of which are now available via the PyPI package manager:
-mrmr - implements the \mrmr{} feature selection algorithm,
-fakemp - implements concurrent MapReduce-esque functionality and non-concurrent fallback routines,
-pyxval - implements generic cross-validation, nested cross-validation, and grid-searching routines,
+sklmrmr - implements the \mrmr{} feature selection algorithm using Scikit-Learn interfaces,
 BioExt - implements miscellaneous computational biology routines not provided by BioPython.
 
 
