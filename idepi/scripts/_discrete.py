@@ -243,7 +243,6 @@ def main(args=None):
     X = builder(alignment, refidx)
     assert y.shape[0] == X.shape[0], \
         "number of classes doesn't match the data: %d vs %d" % (y.shape[0], X.shape[0])
-    colnames = builder.labels
 
     scorer = Scorer(ARGS.OPTSTAT)
 
@@ -251,7 +250,7 @@ def main(args=None):
     forward_initval = 1 if ARGS.FORWARD_SELECT else ARGS.NUM_FEATURES
     results = None
     for num_features in range(forward_initval, ARGS.NUM_FEATURES + 1):
-        results_ = Results(colnames, scorer, ARGS.SIMILAR)
+        results_ = Results(builder.labels, scorer, ARGS.SIMILAR)
 
         for train_idxs, test_idxs in StratifiedKFold(y, ARGS.CV_FOLDS):
 

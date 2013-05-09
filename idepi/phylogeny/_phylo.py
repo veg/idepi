@@ -40,6 +40,8 @@ class Phylo(HyphyInterface):
 
     def getphylo(self, seqs, quiet=True):
 
+        seqs = list(seqs)
+
         if self.__inputfile is None or not exists(self.__inputfile):
             fd, self.__inputfile = mkstemp(); close(fd)
 

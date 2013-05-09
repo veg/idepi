@@ -18,27 +18,31 @@ def _dumps_metadata(meta, ident=0):
     buf = prefix + '"metadata": {\n'
 
     name_len = max(len(k) for k in meta.keys()) + 3
-    output = (prefix + '  %-*s %s' % (
-        name_len,
-        '"%s":' % k,
-        '"%s"' % v if isinstance(v, str) else \
-        ' { %s }' % ', '.join((
-            '"%s": %s' % (
-                k_,
+    output = (
+        prefix + '  %-*s %s' % (
+            name_len,
+            '"%s":' % k,
+            '"%s"' % v if isinstance(v, str) else
+            ' { %s }' % ', '.join((
+                '"%s": %s' % (
+                    k_,
+                    '"%s"' % v_ if isinstance(v_, str) else
+                    '%.6g' % v_ if isinstance(v_, float) else
+                    '%s' % str(v_)
+                    ) for k_, v_ in v.items())
+            ) if isinstance(v, dict) else
+            ' [ %s ]' % ', '.join((
                 '"%s"' % v_ if isinstance(v_, str) else
                 '%.6g' % v_ if isinstance(v_, float) else
                 '%s' % str(v_)
-                ) for k_, v_ in v.items())
-        ) if isinstance(v, dict) else \
-        ' [ %s ]' % ', '.join((
-            '"%s"' % v_ if isinstance(v_, str) else
-            '%.6g' % v_ if isinstance(v_, float) else
-            '%s' % str(v_)
-            ) for v_ in v
-        ) if isinstance(v, (list, tuple)) else \
-        ' %.6g' % v if isinstance(v, float) else \
-        ' %s' % str(v)
-    ) for k, v in sorted(meta.items(), key=itemgetter(0)))
+                ) for v_ in v
+            ) if isinstance(v, (list, tuple)) else
+            ' %.6g' % v if isinstance(v, float) else
+            ' %s' % str(v)
+        )
+        for k, v in sorted(meta.items(), key=itemgetter(0))
+        if not isinstance(v, int) or v
+        )
 
     return buf + ',\n'.join(output) + '\n' + prefix + '}'
 
@@ -50,7 +54,7 @@ def _dumps_predictions(preds, ident=0):
 
     id_len = max(len(id) for id, _ in preds) + 3
 
-    output = (prefix + '  %-*s %d' % (
+    output = (prefix + '  %-*s % d' % (
         id_len,
         '"%s":' % id,
         pred
@@ -85,6 +89,7 @@ def _dumps_statistics(stats, ident=0):
 
 def _dumps_weights(weights, ident=0, similar=True):
     numeric = re_compile(r'[^0-9]+')
+
     def weightkey(v):
         return int(numeric.sub('', v['position']))
 
@@ -128,13 +133,13 @@ def _dumps_weights(weights, ident=0, similar=True):
                             v['value']
                         )
                     ),
-                    similar_len,
-                    ', '.join(
-                        '"%s"' % r for r in sorted(
-                            v['similar'],
-                            key=lambda v: int(numeric.sub('', v))
-                            )
+                similar_len,
+                ', '.join(
+                    '"%s"' % r for r in sorted(
+                        v['similar'],
+                        key=lambda v: int(numeric.sub('', v))
                         )
+                    )
                 ) for v in sorted(weights, key=weightkey)) + '\n'
         else:
             output = ',\n'.join(prefix + '  { "position": %-*s "N": %-*s "rank": %s, "value": %s }' % (
@@ -159,10 +164,10 @@ def _dumps_weights(weights, ident=0, similar=True):
 
 class Results(dict):
 
-    def __init__(self, labels, scorer, similar=False):
+    def __init__(self, labels, scorer, similar=0.0):
         super(Results, self).__init__()
         self.__labels = labels
-        self.__similar = similar
+        self.__similar = similar > 0.0
         self.__nfeat = NormalValue(int)
         self.__nfold = 0
         self.__npos = 0
@@ -177,18 +182,24 @@ class Results(dict):
         self.__valid = False
 
     def add(self, y_true, y_pred, coefs, ranks):
+        # skip fold data if not present
+        if y_true is not None and y_pred is not None:
+            self.__nfold += 1
+            stats_ = self.__scorer.stats(y_true, y_pred)
+            for i in range(len(self.__scorer)):
+                self.__stats[i].add(stats_[i])
+
+        if y_true is not None:
+            self.__npos += (y_true > 0).sum()
+            self.__ntotal += np.prod(y_true.shape)
+
         self.__nfeat.add(len(coefs))
-        self.__nfold += 1
-        self.__npos += (y_true > 0).sum()
-        self.__ntotal += np.prod(y_true.shape)
+
         for i, coef in coefs.items():
             self.__coefs[i].add(coef)
         for i, rank in ranks.items():
             self.__ranks[i].add(rank)
-        # update stats
-        stats_ = self.__scorer.stats(y_true, y_pred)
-        for i in range(len(self.__scorer)):
-            self.__stats[i].add(stats_[i])
+
         # invalidate state
         self.__valid = False
 
@@ -278,7 +289,7 @@ class Results(dict):
     def dumps(self, keys=None):
         Results.__compute(self)
         if keys is None:
-            keys = sorted(self.keys())
+            keys = sorted(self.keys() if self.__nfold else set(self.keys()) - set(['statistics']))
         ret = ['{\n']
         for i, key in enumerate(keys):
             if i > 0:

@@ -87,7 +87,6 @@ def mrmr_args(parser):
     parser.set_defaults(
         MRMR_METHOD   ='MID',
         MRMR_NORMALIZE=False,
-        MAXREL        =False,
         SIMILAR       =0.0 # no similar features by default
         )
     return parser

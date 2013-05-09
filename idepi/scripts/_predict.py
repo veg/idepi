@@ -27,16 +27,18 @@ from __future__ import division, print_function
 
 import sys
 
+from functools import partial
 from math import copysign
-from os import close, remove
-from os.path import basename, exists, splitext
-from re import compile as re_compile
-from tempfile import mkstemp
+from os import getenv
+from os.path import basename, splitext
+from re import compile as re_compile, I as re_I
 
 import numpy as np
 
-from Bio import AlignIO, SeqIO
-from Bio.Seq import Seq
+from Bio import SeqIO
+from Bio.Align import MultipleSeqAlignment
+
+from BioExt.misc import gapless, translate
 
 from idepi import (
     __version__
@@ -47,6 +49,7 @@ from idepi.argument import (
     init_args,
     hmmer_args,
     featsel_args,
+    feature_args,
     mrmr_args,
     optstat_args,
     encoding_args,
@@ -57,13 +60,21 @@ from idepi.argument import (
     finalize_args,
     abtypefactory
 )
-from idepi.databuilder import DataBuilder
+from idepi.databuilder import (
+    DataBuilder,
+    DataBuilderPairwise,
+    DataBuilderRegex,
+    DataBuilderRegexPairwise,
+    DataReducer
+    )
 from idepi.filter import naivefilter
-from idepi.hmmer import Hmmer
-from idepi.labeler import Labeler
+from idepi.labeler import (
+    Labeler,
+    expression
+    )
 from idepi.phylogeny import Phylo, PhyloGzFile
 from idepi.results import Results
-from idepi.svm import LinearSvm
+from idepi.scorer import Scorer
 from idepi.test import test_discrete
 from idepi.util import (
     alignment_identify_refidx,
@@ -71,13 +82,13 @@ from idepi.util import (
     is_refseq,
     C_range,
     set_util_params,
-    seqrecord_get_values,
     seqrecord_set_values
 )
 
-from mrmr import DiscreteMrmr
+from sklearn.grid_search import GridSearchCV
+from sklearn.svm import SVC
 
-from pyxval import CrossValidator, DiscretePerfStats, SelectingGridSearcher
+from sklmrmr import MRMR
 
 
 def main(args=None):
@@ -90,6 +101,7 @@ def main(args=None):
 
     parser = hmmer_args(parser)
     parser = featsel_args(parser)
+    parser = feature_args(parser)
     parser = mrmr_args(parser)
     parser = optstat_args(parser)
     parser = encoding_args(parser)
@@ -105,15 +117,18 @@ def main(args=None):
 
     antibodies = tuple(ARGS.ANTIBODY)
 
+    # convert the hxb2 reference to amino acid, including loop definitions
+    if not ARGS.DNA:
+        ARGS.REFSEQ = translate(ARGS.REFSEQ)
+
     # do some argument parsing
     if ARGS.TEST:
         test_discrete(ARGS)
         finalize_args(ARGS)
         return {}
 
-    similar = True
-    if ARGS.MRMR_METHOD == DiscreteMrmr.MAXREL:
-        similar = False
+    if ARGS.MRMR_METHOD == 'MAXREL':
+        ARGS.SIMILAR = 0.0
 
     # set the util params
     set_util_params(ARGS.REFSEQ_IDS)
@@ -134,135 +149,169 @@ def main(args=None):
     alignment_basename = '_'.join((
         ab_basename,
         ARGS.DATA.basename_root,
-        __version__
-    ))
-    fasta_basename = '_'.join((
-        ab_basename,
-        ARGS.DATA.basename_root,
         splitext(basename(ARGS.SEQUENCES))[0],
         __version__
     ))
 
+    partition = len(seqrecords)
+
+    with open(ARGS.SEQUENCES) as seqfh:
+        seqfmt = 'stockholm' if splitext(ARGS.SEQUENCES)[1].find('sto') == 1 else 'fasta'
+        seqrecords.extend(gapless(record) for record in SeqIO.parse(seqfh, seqfmt))
+
     alignment = generate_alignment(seqrecords, alignment_basename, is_refseq, ARGS)
 
-    seqfilefmt = 'stockholm' if splitext(ARGS.SEQUENCES)[1].find('sto') == 1 else 'fasta'
+    train_msa = MultipleSeqAlignment([], alphabet=alignment._alphabet)
+    test_msa = MultipleSeqAlignment([], alphabet=alignment._alphabet)
+    for i, record in enumerate(alignment):
+        if i < partition:
+            train_msa.append(record)
+        else:
+            test_msa.append(record)
 
-    # create a temporary file wherein space characters have been removed
-    try:
-        fd, tmpseq = mkstemp(); close(fd)
-        with open(ARGS.SEQUENCES) as oldfh:
-            with open(tmpseq, 'w') as tmpfh:
-                re_spaces = re_compile(r'[-._]+')
-                def spaceless_seqrecord(record):
-                    # you must clear the letter annotations before altering seq or BioPython barfs
-                    record.letter_annotations.clear()
-                    record.seq = Seq(re_spaces.sub('', str(record.seq)), record.seq.alphabet)
-                    return record
-                SeqIO.write([spaceless_seqrecord(record) for record in SeqIO.parse(oldfh, seqfilefmt)], tmpfh, 'fasta')
+    re_pngs = re_compile(r'N[^P][TS][^P]', re_I)
 
-        fasta_stofile = fasta_basename + '.sto'
-        if not exists(fasta_stofile):
-            hmmer = Hmmer(ARGS.HMMER_ALIGN_BIN, ARGS.HMMER_BUILD_BIN)
-            hmmer.align(
-                alignment_basename + '.hmm',
-                tmpseq,
-                output=fasta_stofile,
-                alphabet=Hmmer.DNA if ARGS.DNA else Hmmer.AMINO,
-                outformat=Hmmer.PFAM
-            )
-    finally:
-        if exists(tmpseq):
-            remove(tmpseq)
-
-    with open(fasta_stofile) as fh:
-        fasta_aln = AlignIO.read(fh, 'stockholm')
+    # this is stupid but works generally speaking
+    if ARGS.AUTOBALANCE:
+        ARGS.LABEL = ARGS.LABEL.split()[0]
 
     # compute features
     ylabeler = Labeler(
-        seqrecord_get_values,
-        lambda seq: is_refseq(seq) or False, # TODO: again filtration function
-        lambda x: 1 if x > ARGS.CUTOFF else -1,
+        partial(expression, label=ARGS.LABEL),
+        is_refseq,  # TODO: again, filtration function
         ARGS.AUTOBALANCE
     )
-    alignment, yt, ic50 = ylabeler(alignment)
-    assert(
-        (ic50 is None and not ARGS.AUTOBALANCE) or
-        (ic50 is not None and ARGS.AUTOBALANCE)
-    )
+    train_msa, y_train, threshold = ylabeler(train_msa)
+    assert (
+        (threshold is None and not ARGS.AUTOBALANCE) or
+        (threshold is not None and ARGS.AUTOBALANCE)
+        )
     if ARGS.AUTOBALANCE:
-        ARGS.CUTOFF = ic50
-
-    try:
-        assert(alignment.get_alignment_length() == fasta_aln.get_alignment_length())
-    except AssertionError:
-        print(alignment.get_alignment_length(), fasta_aln.get_alignment_length())
-        raise
+        ARGS.LABEL = '{0} > {1}'.format(ARGS.LABEL.strip(), threshold)
 
     filter = naivefilter(
         ARGS.MAX_CONSERVATION,
         ARGS.MIN_CONSERVATION,
         ARGS.MAX_GAP_RATIO
     )
-    refidx = alignment_identify_refidx(alignment, is_refseq)
-    builder = DataBuilder(
-        alignment,
-        alph,
-        refidx,
-        filter
-    )
-    xt = builder(alignment, refidx)
-    colnames = builder.labels
+
+    refidx = alignment_identify_refidx(train_msa, is_refseq)
+
+    builders = [
+        DataBuilder(
+            alignment,
+            alph,
+            refidx,
+            filter
+            )
+        ]
+
+    if ARGS.RADIUS:
+        builders.append(
+            DataBuilderPairwise(
+                alignment,
+                alph,
+                refidx,
+                filter,
+                ARGS.RADIUS
+                )
+            )
+
+    if ARGS.PNGS:
+        builders.append(
+            DataBuilderRegex(
+                alignment,
+                alph,
+                refidx,
+                re_pngs,
+                4,
+                label='PNGS'
+                )
+            )
+
+    if ARGS.PNGS_PAIRS:
+        builders.append(
+            DataBuilderRegexPairwise(
+                alignment,
+                alph,
+                refidx,
+                re_pngs,
+                4,
+                label='PNGS'
+                )
+            )
+
+    builder = DataReducer(*builders)
+    X_train = builder(train_msa, refidx)
 
     if ARGS.TREE is not None:
-        tree, fasta_aln = Phylo()([r for r in fasta_aln if not is_refseq(r)])
-    xp = builder(fasta_aln)
+        tree, test_msa = Phylo()(r for r in test_msa if not is_refseq(r))
 
-    if ARGS.MRMR_NORMALIZE:
-        DiscreteMrmr._NORMALIZED = True
+    X_pred = builder(test_msa)
 
-    sgs = SelectingGridSearcher(
-        classifier_cls=LinearSvm,
-        selector_cls=DiscreteMrmr,
-        validator_cls=CrossValidator,
-        gridsearch_kwargs={ 'C': C_range(*ARGS.LOG2C) },
-        classifier_kwargs={},
-        selector_kwargs={
-            'num_features': ARGS.NUM_FEATURES,
-            'method': ARGS.MRMR_METHOD
-        },
-        validator_kwargs={
-            'folds': ARGS.CV_FOLDS,
-            'scorer_cls': DiscretePerfStats,
-            'scorer_kwargs': { 'optstat': ARGS.OPTSTAT }
-        },
-        weights_func='weights' # we MUST specify this or it will be set to lambda: None
-    )
+    svm = SVC(kernel='linear')
 
-    sgs.learn(xt, yt)
-    yp = sgs.predict(xp).astype(int)
+    mrmr = MRMR(
+        estimator=svm,
+        n_features_to_select=ARGS.NUM_FEATURES,
+        method=ARGS.MRMR_METHOD,
+        normalize=ARGS.MRMR_NORMALIZE,
+        similar=ARGS.SIMILAR
+        )
 
-    sgs_weights = sgs.weights()
-    sgs_features = sgs.features()
+    mrmr.fit(X_train, y_train)
 
-    weights = [{
-        'position': colnames[featidx],
-        'value': int(copysign(1, sgs_weights[idx])) if idx < len(sgs_weights) else 0
-    } for idx, featidx in enumerate(sgs_features)]
+    # train only using the MRMR-selected features
+    X_train_ = X_train[:, mrmr.support_]
 
-    ret = Results(similar)
-    ret.metadata(ARGS, len(alignment)-1, np.mean(yt), antibodies, forward_select=None)
-    ret.weights(weights)
-    ret.predictions([row.id for i, row in enumerate(fasta_aln) if i != refidx], yp)
+    scorer = Scorer(ARGS.OPTSTAT)
 
-    print(ret.dumps(), file=ARGS.OUTPUT)
+    clf = GridSearchCV(
+        estimator=svm,
+        param_grid={'C': list(C_range(*ARGS.LOG2C))},
+        score_func=scorer,
+        n_jobs=int(getenv('NCPU', -1)),  # use all but 1 cpu
+        pre_dispatch='2 * n_jobs'
+        )
+
+    clf.fit(X_train_, y_train, cv=ARGS.CV_FOLDS)
+
+    coef_ = clf.best_estimator_.coef_
+    ranking_ = mrmr.ranking_
+    support_ = mrmr.support_
+    # use only the MRMR-selected features, like above
+    X_pred_ = X_pred[:, support_]
+    y_pred = clf.predict(X_pred_)
+
+    coefs = {}
+    ranks = {}
+    col = 0
+    for (i, (rank, selected)) in enumerate(zip(ranking_, support_)):
+        if selected:
+            coefs[i] = int(
+                copysign(1, coef_[0, col])
+                )
+            ranks[i] = int(rank)
+            col += 1
+
+    results = Results(builder.labels, scorer, ARGS.SIMILAR)
+    results.add(y_train, None, coefs, ranks)
+    results.metadata(antibodies, ARGS.LABEL)
+    results.predictions([r.id for r in test_msa if not is_refseq(r)], y_pred)
+
+    print(results.dumps(), file=ARGS.OUTPUT)
 
     if ARGS.TREE is not None:
-        tree_seqrecords = [seqrecord_set_values(r, 'IC50', [yp[i]]) for i, r in enumerate(fasta_aln)]
-        PhyloGzFile.write(ARGS.TREE, tree, tree_seqrecords, colnames, ret['metadata'])
+        tree_seqrecords = [
+            seqrecord_set_values(r, 'IC50', [y_pred[i]])
+            for i, r
+            in enumerate(test_msa)
+            ]
+        PhyloGzFile.write(ARGS.TREE, tree, tree_seqrecords, builder.labels, results['metadata'])
 
     finalize_args(ARGS)
 
-    return ret
+    return results
 
 
 if __name__ == '__main__':

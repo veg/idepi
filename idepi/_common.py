@@ -94,20 +94,14 @@ def generate_alignment_from_seqrecords(seq_records, my_basename, opts):
 
     try:
         # get the FASTA format file so we can HMMER it
-        fafh = open(ab_fasta_filename, 'w')
+        with open(ab_fasta_filename, 'w') as fafh:
 
-        # insert the reference sequence
-        seq_records.append(opts.REFSEQ)
+            def records():
+                yield opts.REFSEQ
+                for record in seq_records:
+                    yield record
 
-        # type errors here?
-        try:
-            SeqIO.write(seq_records, fafh, 'fasta')
-        except TypeError as e:
-            print(seq_records, file=stderr)
-            raise e
-
-        # close the handles in this order because BioPython wiki does so
-        fafh.close()
+            SeqIO.write(records(), fafh, 'fasta')
 
         # make the tempfiles for the alignments, and close them out after we use them
         with open(sto_filename, 'w') as fh:
