@@ -26,7 +26,10 @@ from __future__ import division, print_function
 
 from os import environ
 from os.path import exists, join
+from re import compile as re_compile
 from subprocess import Popen, PIPE
+
+from Bio.Seq import Seq
 
 
 __all__ = ['HMMER']
@@ -132,3 +135,17 @@ class HMMER:
 
         if logfile is None:
             return out
+
+    @staticmethod
+    def valid(record, dna=False):
+        if dna:
+            regexp = re_compile(r'[^ACGT]')
+        else:
+            regexp = re_compile(r'[^ACDEFGHIKLMNPQRSTVWY]')
+
+        seq = regexp.sub('', str(record.seq))
+
+        record.letter_annotations.clear()
+        record.seq = Seq(seq, record.seq.alphabet)
+
+        return record

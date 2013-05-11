@@ -93,15 +93,15 @@ def generate_alignment_from_seqrecords(seq_records, my_basename, opts):
         with open(ab_fasta_filename, 'w') as fafh:
 
             def records():
-                yield opts.REFSEQ
+                yield HMMER.valid(opts.REFSEQ)
                 for record in seq_records:
-                    yield record
+                    yield HMMER.valid(record)
 
             SeqIO.write(records(), fafh, 'fasta')
 
         # make the tempfiles for the alignments, and close them out after we use them
         with open(sto_filename, 'w') as fh:
-            SeqIO.write([opts.REFSEQ], fh, 'stockholm')
+            SeqIO.write([HMMER.valid(opts.REFSEQ)], fh, 'stockholm')
 
         hmmer = HMMER(opts.HMMER_ALIGN_BIN, opts.HMMER_BUILD_BIN)
 
@@ -149,7 +149,10 @@ def sanitize_seq(seq, alphabet):
         seq = re_sub(r'[%s]' % Alphabet.GAPS, '-', seq)
         seq = re_sub(r'[^%s]' % ''.join(alphdict.keys()), 'X', seq)
     except TypeError:
-        raise RuntimeError('something is amiss with things:\n  GAPS = %s\n  seq = %s\n  alphabet = %s\n' % (Alphabet.GAPS, seq, alphdict))
+        raise RuntimeError(
+            'something is amiss with things:\n  GAPS = %s\n  seq = %s\n  alphabet = %s\n' % (
+                Alphabet.GAPS, seq, alphdict)
+            )
     return seq
 
 

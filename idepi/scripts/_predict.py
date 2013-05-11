@@ -170,7 +170,7 @@ def main(args=None):
         fd, tmpaln = mkstemp(); close(fd)
 
         with open(tmpseq, 'w') as tmpfh:
-            SeqIO.write(seqrecords, tmpfh, 'fasta')
+            SeqIO.write((HMMER.valid(record) for record in seqrecords), tmpfh, 'fasta')
 
         if not exists(alignment_basename + '.hmm'):
             raise RuntimeError('missing HMM profile for alignment')
@@ -184,8 +184,15 @@ def main(args=None):
             outformat=HMMER.PFAM
             )
 
+        if not exists(tmpaln):
+            raise RuntimeError('unable to align test sequences')
+
         with open(tmpaln) as tmpfh:
             alignment = AlignIO.read(tmpfh, 'stockholm')
+    except ValueError:
+        with open(tmpaln) as tmpfh:
+            print(tmpfh.read(), file=sys.stderr)
+        raise
     finally:
         if exists(tmpseq):
             remove(tmpseq)
