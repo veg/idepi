@@ -29,13 +29,14 @@ import sys
 
 from functools import partial
 from math import copysign
-from os import getenv
-from os.path import basename, splitext
+from os import close, getenv, remove
+from os.path import exists, splitext
 from re import compile as re_compile, I as re_I
+from tempfile import mkstemp
 
 import numpy as np
 
-from Bio import SeqIO
+from Bio import AlignIO, SeqIO
 from Bio.Align import MultipleSeqAlignment
 
 from BioExt.misc import gapless, translate
@@ -68,6 +69,7 @@ from idepi.databuilder import (
     DataReducer
     )
 from idepi.filter import naivefilter
+from idepi.hmmer import HMMER
 from idepi.labeler import (
     Labeler,
     expression
@@ -145,21 +147,50 @@ def main(args=None):
         '+'.join(antibodies),
         '_dna' if ARGS.DNA else '_amino',
         '_clonal' if clonal else ''
-    ))
+        ))
     alignment_basename = '_'.join((
         ab_basename,
         ARGS.DATA.basename_root,
-        splitext(basename(ARGS.SEQUENCES))[0],
         __version__
-    ))
+        ))
 
+    generate_alignment(seqrecords, alignment_basename, is_refseq, ARGS, load=False)
+
+    # remember the number of original sequences
+    seqrecords.append(gapless(ARGS.REFSEQ))
     partition = len(seqrecords)
 
     with open(ARGS.SEQUENCES) as seqfh:
         seqfmt = 'stockholm' if splitext(ARGS.SEQUENCES)[1].find('sto') == 1 else 'fasta'
         seqrecords.extend(gapless(record) for record in SeqIO.parse(seqfh, seqfmt))
 
-    alignment = generate_alignment(seqrecords, alignment_basename, is_refseq, ARGS)
+     # create a temporary file wherein space characters have been removed
+    try:
+        fd, tmpseq = mkstemp(); close(fd)
+        fd, tmpaln = mkstemp(); close(fd)
+
+        with open(tmpseq, 'w') as tmpfh:
+            SeqIO.write(seqrecords, tmpfh, 'fasta')
+
+        if not exists(alignment_basename + '.hmm'):
+            raise RuntimeError('missing HMM profile for alignment')
+
+        hmmer = HMMER(ARGS.HMMER_ALIGN_BIN, ARGS.HMMER_BUILD_BIN)
+        hmmer.align(
+            alignment_basename + '.hmm',
+            tmpseq,
+            output=tmpaln,
+            alphabet=HMMER.DNA if ARGS.DNA else HMMER.AMINO,
+            outformat=HMMER.PFAM
+            )
+
+        with open(tmpaln) as tmpfh:
+            alignment = AlignIO.read(tmpfh, 'stockholm')
+    finally:
+        if exists(tmpseq):
+            remove(tmpseq)
+        if exists(tmpaln):
+            remove(tmpaln)
 
     train_msa = MultipleSeqAlignment([], alphabet=alignment._alphabet)
     test_msa = MultipleSeqAlignment([], alphabet=alignment._alphabet)

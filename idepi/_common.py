@@ -2,17 +2,15 @@
 from __future__ import division, print_function
 
 from logging import getLogger
-from operator import itemgetter
 from os import close, remove
 from re import sub as re_sub
 from shutil import copyfile
-from sys import stderr
 from tempfile import mkstemp
 
 from Bio import SeqIO
 
 from .alphabet import Alphabet
-from .hmmer import Hmmer
+from .hmmer import HMMER
 from .logging import IDEPI_LOGGER
 
 import numpy as np
@@ -22,8 +20,6 @@ __all__ = [
     'BASE_ALPH',
     'base_10_to_n',
     'base_26_to_alph',
-#     'alph_to_base_26',
-#     'base_n_to_10',
     'generate_alignment_from_seqrecords',
     'get_noise',
     'sanitize_seq',
@@ -34,31 +30,31 @@ BASE_ALPH = 26
 
 
 def base_10_to_n(n, N):
-     if n < 0:
-         sign = -1
-     elif n == 0:
-         return [0]
-     else:
-         sign = 1
-     n *= sign
-     digits = []
-     while n:
-         digits.append(n % N)
-         n //= N
-     return digits
+    if n < 0:
+        sign = -1
+    elif n == 0:
+        return [0]
+    else:
+        sign = 1
+    n *= sign
+    digits = []
+    while n:
+        digits.append(n % N)
+        n //= N
+    return digits
 
 
 def base_26_to_alph(cols):
-     for i, v in enumerate(cols):
-         if v <= 0 and (i + 1) < len(cols):
-             cols[i + 1] -= 1
-             cols[i] += 26
-     if cols[-1] == 0:
-         cols.pop()
-     alph = ''
-     for v in reversed(cols):
-         alph += chr(ord('a') + v - 1)
-     return alph
+    for i, v in enumerate(cols):
+        if v <= 0 and (i + 1) < len(cols):
+            cols[i + 1] -= 1
+            cols[i] += 26
+    if cols[-1] == 0:
+        cols.pop()
+    alph = ''
+    for v in reversed(cols):
+        alph += chr(ord('a') + v - 1)
+    return alph
 
 
 # def alph_to_base_26(str):
@@ -107,21 +103,21 @@ def generate_alignment_from_seqrecords(seq_records, my_basename, opts):
         with open(sto_filename, 'w') as fh:
             SeqIO.write([opts.REFSEQ], fh, 'stockholm')
 
-        hmmer = Hmmer(opts.HMMER_ALIGN_BIN, opts.HMMER_BUILD_BIN)
+        hmmer = HMMER(opts.HMMER_ALIGN_BIN, opts.HMMER_BUILD_BIN)
 
         numseqs = len(seq_records)
 
         log.debug('beginning alignment')
 
         for i in range(opts.HMMER_ITER):
-            log.debug('aligning %d sequences (%d of %d)' % (numseqs, i+1, opts.HMMER_ITER))
+            log.debug('aligning %d sequences (%d of %d)' % (numseqs, i + 1, opts.HMMER_ITER))
             hmmer.build(hmm_filename, sto_filename)
             hmmer.align(
                 hmm_filename,
                 ab_fasta_filename,
                 output=sto_filename,
-                alphabet=Hmmer.DNA if opts.DNA else Hmmer.AMINO,
-                outformat=Hmmer.PFAM
+                alphabet=HMMER.DNA if opts.DNA else HMMER.AMINO,
+                outformat=HMMER.PFAM
             )
 
         # rename the final alignment to its destination

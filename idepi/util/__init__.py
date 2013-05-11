@@ -34,7 +34,7 @@ from Bio import SeqIO
 from BioExt.io import LazyAlignIO as AlignIO
 
 from .._common import generate_alignment_from_seqrecords
-from ..hmmer import Hmmer
+from ..hmmer import HMMER
 
 
 __all__ = [
@@ -105,8 +105,8 @@ def seqrecord_set_values(seqrecord, label, values):
 # very heavily based on the design of friedmanchisquare in scipy
 try:
     from scipy.special import fdtrc
-    def durbin(*args):
 
+    def durbin(*args):
         # taken verbatim from scipy.stats._support.abut
         def _abut(source, *args):
             source = np.asarray(source)
@@ -145,9 +145,9 @@ try:
                 oldrank += 1
                 sumranks += oldrank
                 dupcount += 1
-                if i == n-1 or a[i] != a[i+1]:
+                if i == n - 1 or a[i] != a[i + 1]:
                     averrank = float(sumranks) / float(dupcount) + 1
-                    for j in range(i-dupcount+1, i+1):
+                    for j in range(i - dupcount + 1, i + 1):
                         newarray[b[j]] = averrank
                     sumranks = 0
                     dupcount = 0
@@ -171,9 +171,9 @@ try:
         for i in range(len(data)):
             data[i] = _rankposdata(data[i])
             for j in range(len(data[i])):
-                A += pow(data[i,j], 2.)
-                R[j] += data[i,j]
-                if data[i,j] > 0.:
+                A += pow(data[i, j], 2.)
+                R[j] += data[i, j]
+                if data[i, j] > 0.:
                     rs[j] += 1
 
         r = np.mean(rs)
@@ -181,14 +181,14 @@ try:
         b = float(b)
         k = float(k)
         C = b * k * pow(k + 1, 2) / 4
-        T1 = (t-1) * sum([pow(x, 2) - r*C for x in R]) / (A-C)
-        T2 = (T1 / (t-1)) / ((b*k - b - T1) / (b*k - b - t + 1))
+        T1 = (t - 1) * sum([pow(x, 2) - r * C for x in R]) / (A - C)
+        T2 = (T1 / (t - 1)) / ((b * k - b - T1) / (b * k - b - t + 1))
 
         print(data)
         print(R)
         print("r = %g, t = %g, b = %g, k = %g, C = %g, A = %g, T1 = %g" % (r, t, b, k, C, A, T1))
 
-        return T2, fdtrc(k-1, b*k-b-t+1, T2)
+        return T2, fdtrc(k - 1, b * k - b - t + 1, T2)
 
     __all__ += ['durbin']
 except ImportError:
@@ -220,7 +220,7 @@ def alignment_identify_refidx(alignment, ref_id_func=None):
 def extract_feature_weights_similar(instance, similar=True):
     ret = {
         'features': instance.features(),
-        'weights':  instance.classifier.weights()
+        'weights': instance.classifier.weights()
     }
     if similar:
         ret['similar'] = instance.selector.related()
@@ -231,7 +231,7 @@ def extract_feature_weights(instance):
     return extract_feature_weights_similar(instance, False)
 
 
-def generate_alignment(seqrecords, my_basename, ref_id_func, opts):
+def generate_alignment(seqrecords, my_basename, ref_id_func, opts, load=True):
     from ..simulation import Simulation
 
     sto_filename = my_basename + '.sto'
@@ -249,14 +249,17 @@ def generate_alignment(seqrecords, my_basename, ref_id_func, opts):
         )
 
     if not exists(hmm_filename):
-        hmmer = Hmmer(opts.HMMER_ALIGN_BIN, opts.HMMER_BUILD_BIN)
+        hmmer = HMMER(opts.HMMER_ALIGN_BIN, opts.HMMER_BUILD_BIN)
         hmmer.build(hmm_filename, sto_filename)
 
-    with open(sto_filename) as fh:
-        msa = AlignIO.read(fh, 'stockholm')
+    if load:
+        with open(sto_filename) as fh:
+            msa = AlignIO.read(fh, 'stockholm')
 
-    # we store the antibody information in the description, so grab it
-    return msa
+        # we store the antibody information in the description, so grab it
+        return msa
+
+    return None
 
 
 def C_range(begin, end, step):

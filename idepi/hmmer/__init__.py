@@ -24,16 +24,15 @@
 
 from __future__ import division, print_function
 
-from os import close, environ
+from os import environ
 from os.path import exists, join
 from subprocess import Popen, PIPE
-from tempfile import mkstemp
 
 
-__all__ = ['Hmmer']
+__all__ = ['HMMER']
 
 
-class Hmmer:
+class HMMER:
     AMINO, DNA, RNA = 0, 1, 2
     FASTA, EMBL, GENBANK, UNIPROT = 'FASTA', 'EMBL', 'Genbank', 'Uniprot'
     STOCKHOLM, PFAM, A2M, PSIBLAST = 'Stockholm', 'Pfam', 'A2M', 'PSIBLAST'
@@ -56,17 +55,17 @@ class Hmmer:
     def align(self, hmmfile, seqfile, output=None, allcol=False, mapali=None, trim=False, alphabet=None, informat=None, outformat=None):
 
         if alphabet is None:
-            alphabet = Hmmer.AMINO
+            alphabet = HMMER.AMINO
         if informat is None:
-            informat = Hmmer.FASTA
+            informat = HMMER.FASTA
         if outformat is None:
-            outformat = Hmmer.STOCKHOLM
+            outformat = HMMER.STOCKHOLM
 
-        if alphabet not in (Hmmer.AMINO, Hmmer.DNA, Hmmer.RNA):
+        if alphabet not in (HMMER.AMINO, HMMER.DNA, HMMER.RNA):
             raise ValueError('alphabet needs to be one of the idepi-provided constants: AMINO, DNA, RNA')
-        if informat not in (Hmmer.FASTA, Hmmer.EMBL, Hmmer.GENBANK, Hmmer.UNIPROT):
+        if informat not in (HMMER.FASTA, HMMER.EMBL, HMMER.GENBANK, HMMER.UNIPROT):
             raise ValueError('informat needs to be one of the idepi-provided constants: FASTA, EMBL, GENBANK, UNIPROT')
-        if outformat not in (Hmmer.STOCKHOLM, Hmmer.PFAM, Hmmer.A2M, Hmmer.PSIBLAST):
+        if outformat not in (HMMER.STOCKHOLM, HMMER.PFAM, HMMER.A2M, HMMER.PSIBLAST):
             raise ValueError('outformat needs to be one of the idepi-provided constants: STOCKHOLM, PFAM, A2M, PSIBLAST')
 
         # I don't think this is necessary code
@@ -83,11 +82,11 @@ class Hmmer:
         if trim is True:
             args.append('--trim')
         if alphabet is not None:
-            if alphabet == Hmmer.AMINO:
+            if alphabet == HMMER.AMINO:
                 args.append('--amino')
-            if alphabet == Hmmer.DNA:
+            if alphabet == HMMER.DNA:
                 args.append('--dna')
-            if alphabet == Hmmer.RNA:
+            if alphabet == HMMER.RNA:
                 args.append('--rna')
         if informat is not None:
             args.extend(['--informat', informat])
