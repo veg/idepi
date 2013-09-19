@@ -164,10 +164,10 @@ class MonogramData:
     def antibodies(self):
         antibodies = []
         with open(self.__csvfile) as fh:
+            sample = fh.read(2048)
             sniffer = csv_sniffer()
-            dialect = sniffer.sniff(fh.read(8192))
-            fh.seek(0)
-            if not sniffer.has_header(fh.read(8192)):
+            dialect = sniffer.sniff(sample)
+            if not sniffer.has_header(sample):
                 raise ValueError(MonogramData.__no_header_msg)
             fh.seek(0)
             reader = csv_reader(fh, dialect)
