@@ -173,7 +173,7 @@ def main(args=None):
             param_grid={
                 'estimator_params': [dict(C=c) for c in C_range(*ARGS.LOG2C)]
                 },
-            score_func=scorer,
+            scoring=scorer,
             n_jobs=int(getenv('NCPU', -1)), # use all but 1 cpu
             pre_dispatch='2 * n_jobs'
             )

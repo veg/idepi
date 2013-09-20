@@ -166,16 +166,23 @@ def main(args=None):
 
      # create a temporary file wherein space characters have been removed
     try:
+        fd, tmphmm = mkstemp(); close(fd)
         fd, tmpseq = mkstemp(); close(fd)
         fd, tmpaln = mkstemp(); close(fd)
 
         with open(tmpseq, 'w') as tmpfh:
             SeqIO.write((HMMER.valid(record) for record in seqrecords), tmpfh, 'fasta')
 
-        if not exists(alignment_basename + '.hmm'):
-            raise RuntimeError('missing HMM profile for alignment')
+        with open(opts.REFMSA) as msa_fh:
+            with open(tmpaln, 'w') as sto_fh:
+                SeqIO.write(
+                    (r if ARGS.DNA else translate(r) for r in SeqIO.parse(msa_fh, 'stockholm')),
+                    sto_fh,
+                    'stockholm'
+                    )
 
         hmmer = HMMER(ARGS.HMMER_ALIGN_BIN, ARGS.HMMER_BUILD_BIN)
+        hmmer.build(tmphmm, tmpaln, alphabet=HMMER.DNA if ARGS.DNA else HMMER.AMINO)
         hmmer.align(
             alignment_basename + '.hmm',
             tmpseq,
@@ -184,16 +191,11 @@ def main(args=None):
             outformat=HMMER.PFAM
             )
 
-        if not exists(tmpaln):
-            raise RuntimeError('unable to align test sequences')
-
         with open(tmpaln) as tmpfh:
             alignment = AlignIO.read(tmpfh, 'stockholm')
-    except ValueError:
-        with open(tmpaln) as tmpfh:
-            print(tmpfh.read(), file=sys.stderr)
-        raise
     finally:
+        if exists(tmphmm):
+            remove(tmphmm)
         if exists(tmpseq):
             remove(tmpseq)
         if exists(tmpaln):
@@ -307,12 +309,13 @@ def main(args=None):
     clf = GridSearchCV(
         estimator=svm,
         param_grid={'C': list(C_range(*ARGS.LOG2C))},
-        score_func=scorer,
+        scoring=scorer,
         n_jobs=int(getenv('NCPU', -1)),  # use all but 1 cpu
-        pre_dispatch='2 * n_jobs'
+        pre_dispatch='2 * n_jobs',
+        cv=ARGS.CV_FOLDS
         )
 
-    clf.fit(X_train_, y_train, cv=ARGS.CV_FOLDS)
+    clf.fit(X_train_, y_train)
 
     coef_ = clf.best_estimator_.coef_
     ranking_ = mrmr.ranking_

@@ -8,6 +8,7 @@ from shutil import copyfile
 from tempfile import mkstemp
 
 from Bio import SeqIO
+from BioExt.misc import translate
 
 from .alphabet import Alphabet
 from .hmmer import HMMER
@@ -99,26 +100,26 @@ def generate_alignment_from_seqrecords(seq_records, my_basename, opts):
 
             SeqIO.write(records(), fafh, 'fasta')
 
-        # make the tempfiles for the alignments, and close them out after we use them
-        with open(sto_filename, 'w') as fh:
-            SeqIO.write([HMMER.valid(opts.REFSEQ)], fh, 'stockholm')
+        with open(opts.REFMSA) as msa_fh:
+            with open(sto_filename, 'w') as sto_fh:
+                SeqIO.write(
+                    (r if opts.DNA else translate(r) for r in SeqIO.parse(msa_fh, 'stockholm')),
+                    sto_fh,
+                    'stockholm'
+                    )
 
         hmmer = HMMER(opts.HMMER_ALIGN_BIN, opts.HMMER_BUILD_BIN)
-
         numseqs = len(seq_records)
 
-        log.debug('beginning alignment')
-
-        for i in range(opts.HMMER_ITER):
-            log.debug('aligning %d sequences (%d of %d)' % (numseqs, i + 1, opts.HMMER_ITER))
-            hmmer.build(hmm_filename, sto_filename)
-            hmmer.align(
-                hmm_filename,
-                ab_fasta_filename,
-                output=sto_filename,
-                alphabet=HMMER.DNA if opts.DNA else HMMER.AMINO,
-                outformat=HMMER.PFAM
-            )
+        log.debug('aligning {0:d} sequences'.format(numseqs))
+        hmmer.build(hmm_filename, sto_filename, alphabet=HMMER.DNA if opts.DNA else HMMER.AMINO)
+        hmmer.align(
+            hmm_filename,
+            ab_fasta_filename,
+            output=sto_filename,
+            alphabet=HMMER.DNA if opts.DNA else HMMER.AMINO,
+            outformat=HMMER.PFAM
+        )
 
         # rename the final alignment to its destination
         finished = True
@@ -127,7 +128,6 @@ def generate_alignment_from_seqrecords(seq_records, my_basename, opts):
         # cleanup these files
         if finished:
             copyfile(sto_filename, my_basename + '.sto')
-            copyfile(hmm_filename, my_basename + '.hmm')
             log.debug('finished alignment, output moved to %s.sto' % my_basename)
         remove(sto_filename)
         remove(ab_fasta_filename)

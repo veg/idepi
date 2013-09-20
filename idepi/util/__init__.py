@@ -235,11 +235,10 @@ def generate_alignment(seqrecords, my_basename, ref_id_func, opts, load=True):
     from ..simulation import Simulation
 
     sto_filename = my_basename + '.sto'
-    hmm_filename = my_basename + '.hmm'
 
     if hasattr(opts, 'SIM') and opts.SIM == Simulation.DUMB:
         # we're assuming pre-aligned because they're all generated from the same refseq
-        with open(hmm_filename, 'w') as fh:
+        with open(sto_filename, 'w') as fh:
             SeqIO.write(seqrecords, fh, 'stockholm')
     elif not exists(sto_filename):
         generate_alignment_from_seqrecords(
@@ -247,10 +246,6 @@ def generate_alignment(seqrecords, my_basename, ref_id_func, opts, load=True):
             my_basename,
             opts
         )
-
-    if not exists(hmm_filename):
-        hmmer = HMMER(opts.HMMER_ALIGN_BIN, opts.HMMER_BUILD_BIN)
-        hmmer.build(hmm_filename, sto_filename)
 
     if load:
         with open(sto_filename) as fh:

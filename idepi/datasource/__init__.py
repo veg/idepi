@@ -14,6 +14,7 @@ from Bio.Alphabet import Gapped, generic_nucleotide
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
+from BioExt.misc import translate
 from BioExt.orflist import OrfList
 
 
@@ -142,6 +143,7 @@ class Sqlite3Db:
 
 
 class MonogramData:
+    __sample_len = 2048
     __no_header_msg = 'input data is not a valid Monogram dataset (no column headers)'
 
     def __init__(self, fastafile, csvfile):
@@ -164,7 +166,7 @@ class MonogramData:
     def antibodies(self):
         antibodies = []
         with open(self.__csvfile) as fh:
-            sample = fh.read(2048)
+            sample = fh.read(MonogramData.__sample_len)
             sniffer = csv_sniffer()
             dialect = sniffer.sniff(sample)
             if not sniffer.has_header(sample):
@@ -186,10 +188,12 @@ class MonogramData:
             raise ValueError('clonal property is not available with Monogram datasets')
         if dna:
             raise ValueError('dna sequences are not available with Monogram datasets')
+        if len(antibodies) > 1:
+            raise ValueError('only one antibody can be interrogated with Monogram datasets')
 
         seqrecords = []
         with open(self.__fastafile) as fh:
-            seqrecords = [r for r in SeqIO.parse(fh, 'fasta')]
+            seqrecords = [r if dna else translate(r) for r in SeqIO.parse(fh, 'fasta')]
 
         underdash = re_compile(r'[_-](\d+)$')
         for r in seqrecords:
@@ -198,10 +202,10 @@ class MonogramData:
         ic50s = dict((r.id, []) for r in seqrecords)
 
         with open(self.__csvfile) as fh:
+            sample = fh.read(MonogramData.__sample_len)
             sniffer = csv_sniffer()
-            dialect = sniffer.sniff(fh.read(8192))
-            fh.seek(0)
-            if not sniffer.has_header(fh.read(8192)):
+            dialect = sniffer.sniff(sample)
+            if not sniffer.has_header(sample):
                 raise ValueError(MonogramData.__no_header_msg)
             fh.seek(0)
             reader = csv_reader(fh, dialect)
@@ -216,7 +220,7 @@ class MonogramData:
                     acc = underdash.sub(r'_\1', row[0])
                     try:
                         if acc in ic50s:
-                            cln_ic50s = [str(min(float(row[columns[ab]].strip().lstrip('<>')), 25.))
+                            cln_ic50s = [float(row[columns[ab]].strip().lstrip('<>'))
                                          for ab in antibodies
                                          if ab in columns and columns[ab] < len(row)]
                             ic50s[acc].extend(cln_ic50s)
@@ -229,7 +233,10 @@ class MonogramData:
                 drop.append(i)
                 warn("skipping sequence '%s', VALUE not found" % r.id)
             else:
-                r.description = '|'.join(('', '+'.join(antibodies), '', ','.join(ic50s[r.id])))
+                r.description = json_dumps({
+                    'ab': antibodies[0],
+                    'values': {'IC50': ic50s[r.id]}
+                    })
 
         for i in sorted(drop, reverse=True):
             del seqrecords[i]

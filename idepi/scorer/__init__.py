@@ -42,7 +42,8 @@ class Scorer:
     def optstat(self):
         return self.__optstat
 
-    def __call__(self, y_true, y_pred):
+    def __call__(self, clf, X_pred, y_true):
+        y_pred = clf.predict(X_pred)
         return Scorer.stats(y_true, y_pred)[self.__optstat]
 
     @staticmethod

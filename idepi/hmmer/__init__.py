@@ -87,9 +87,9 @@ class HMMER:
         if alphabet is not None:
             if alphabet == HMMER.AMINO:
                 args.append('--amino')
-            if alphabet == HMMER.DNA:
+            elif alphabet == HMMER.DNA:
                 args.append('--dna')
-            if alphabet == HMMER.RNA:
+            elif alphabet == HMMER.RNA:
                 args.append('--rna')
         if informat is not None:
             args.extend(['--informat', informat])
@@ -112,7 +112,7 @@ class HMMER:
         if output is None:
             return out
 
-    def build(self, hmmfile, alignmentfile, name=None, logfile=None, annotated=None):
+    def build(self, hmmfile, alignmentfile, name=None, logfile=None, annotated=None, alphabet=None):
 
         args = [self.__buildbin]
         if name is not None:
@@ -121,6 +121,15 @@ class HMMER:
             args.extend(['-o', logfile])
         if annotated is not None:
             args.extend(['-O', annotated])
+        if alphabet is not None:
+            if alphabet == HMMER.AMINO:
+                args.append('--amino')
+            elif alphabet == HMMER.DNA:
+                args.append('--dna')
+            elif alphabet == HMMER.RNA:
+                args.append('--rna')
+            else:
+                raise ValueError('unknown alphabet passed to HMMER')
         args.extend([hmmfile, alignmentfile])
 
         kwargs = {}

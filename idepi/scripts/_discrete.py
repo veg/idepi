@@ -296,12 +296,13 @@ def main(args=None):
             clf = GridSearchCV(
                 estimator=estimator,
                 param_grid=param_grid,
-                score_func=scorer,
+                scoring=scorer,
                 n_jobs=int(getenv('NCPU', -1)),  # use all but 1 cpu
-                pre_dispatch='2 * n_jobs'
+                pre_dispatch='2 * n_jobs',
+                cv=ARGS.CV_FOLDS - 1
                 )
 
-            clf.fit(X_train_, y_train, cv=ARGS.CV_FOLDS - 1)
+            clf.fit(X_train_, y_train)
 
             X_test = X[test_idxs]
             y_true = y[test_idxs]

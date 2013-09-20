@@ -56,11 +56,9 @@ def hmmer_args(parser):
     #                   option        type      dest
     parser.add_argument('--hmmalign', type=str, dest='HMMER_ALIGN_BIN')
     parser.add_argument('--hmmbuild', type=str, dest='HMMER_BUILD_BIN')
-    parser.add_argument('--hmmiter',  type=int, dest='HMMER_ITER')
     parser.set_defaults(
         HMMER_ALIGN_BIN='hmmalign',
         HMMER_BUILD_BIN='hmmbuild',
-        HMMER_ITER     =8
         )
     return parser
 
@@ -321,6 +319,7 @@ def init_args(description, args):
     parser.add_argument('--clonal',        action='store_true',                     dest='CLONAL')
     parser.add_argument('--subtypes',                           type=subtype,       dest='SUBTYPES')
     parser.add_argument('--weighting',     action='store_true',                     dest='WEIGHTING')
+    parser.add_argument('--refmsa',                             type=str,           dest='REFMSA')
     parser.add_argument('--refseq',                             type=str,           dest='REFSEQ')
     parser.add_argument('--ids',                                type=csvtype,       dest='REFSEQ_IDS')
     parser.add_argument('--test',          action='store_true',                     dest='TEST')
@@ -337,6 +336,7 @@ def init_args(description, args):
         CLONAL     =False,
         SUBTYPES   =[],
         WEIGHTING  =False,
+        REFMSA     =join(idepi_path[0], 'data', 'HIV1_FLT_2012_env_DNA.sto'),
         REFSEQ     =refseq,
         REFSEQ_IDS =[refseq.id],
         RAND_SEED  =42, # magic number for determinism
