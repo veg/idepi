@@ -22,7 +22,7 @@ from __future__ import division, print_function
 import logging, sys
 
 from argparse import ArgumentParser, ArgumentTypeError, FileType
-from os.path import exists, join
+from os.path import isfile, join
 from random import seed
 
 from BioExt.references import hxb2
@@ -150,7 +150,7 @@ def log2ctype(string):
         begin, end, step = string.split(',')
         return (int(begin), int(end), float(step))
     except ValueError:
-        ArgumentTypeError("'%s' is not a triple of form (int, int, float)" % string)
+        raise ArgumentTypeError("'%s' is not a triple of form (int, int, float)" % string)
 
 
 def svm_args(parser):
@@ -183,7 +183,7 @@ def simtype(string):
     elif string == 'randtarget':
         return Simulation.TARGET
     else:
-        ArgumentTypeError("'%s' is not one of %s" % (string, ', '.join(Simulation.VALUES)))
+        raise ArgumentTypeError("'%s' is not one of %s" % (string, ', '.join(Simulation.VALUES)))
 
 
 def probtype(string):
@@ -279,7 +279,7 @@ def abtypefactory(data):
 
 def PathType(string):
     from argparse import ArgumentTypeError
-    if not exists(string):
+    if not isfile(string):
         raise ArgumentTypeError("file '%s' does not exist!" % string)
     return string
 
@@ -319,7 +319,7 @@ def init_args(description, args):
     parser.add_argument('--clonal',        action='store_true',                     dest='CLONAL')
     parser.add_argument('--subtypes',                           type=subtype,       dest='SUBTYPES')
     parser.add_argument('--weighting',     action='store_true',                     dest='WEIGHTING')
-    parser.add_argument('--refmsa',                             type=str,           dest='REFMSA')
+    parser.add_argument('--refmsa',                             type=PathType,      dest='REFMSA')
     parser.add_argument('--refseq',                             type=str,           dest='REFSEQ')
     parser.add_argument('--ids',                                type=csvtype,       dest='REFSEQ_IDS')
     parser.add_argument('--test',          action='store_true',                     dest='TEST')
@@ -336,7 +336,7 @@ def init_args(description, args):
         CLONAL     =False,
         SUBTYPES   =[],
         WEIGHTING  =False,
-        REFMSA     =join(idepi_path[0], 'data', 'HIV1_FLT_2012_env_DNA.sto'),
+        REFMSA     =PathType(join(idepi_path[0], 'data', 'HIV1_FLT_2012_env_DNA.sto')),
         REFSEQ     =refseq,
         REFSEQ_IDS =[refseq.id],
         RAND_SEED  =42, # magic number for determinism

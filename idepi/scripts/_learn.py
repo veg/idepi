@@ -31,6 +31,7 @@ from functools import partial
 from math import copysign
 from os import close, getenv, remove
 from os.path import exists, splitext
+from pickle import dump as pickle_dump
 from re import compile as re_compile, I as re_I
 from tempfile import mkstemp
 
@@ -113,7 +114,7 @@ def main(args=None):
 
     parser.add_argument('--tree', dest='TREE')
     parser.add_argument('ANTIBODY', type=abtypefactory(ns.DATA), nargs='+')
-    parser.add_argument('SEQUENCES', type=PathType)
+    parser.add_argument('MODEL', type=str)
 
     ARGS = parse_args(parser, args, namespace=ns)
 
@@ -154,58 +155,7 @@ def main(args=None):
         __version__
         ))
 
-    generate_alignment(seqrecords, alignment_basename, is_refseq, ARGS, load=False)
-
-    # remember the number of original sequences
-    seqrecords.append(gapless(ARGS.REFSEQ))
-    partition = len(seqrecords)
-
-    with open(ARGS.SEQUENCES) as seqfh:
-        seqfmt = 'stockholm' if splitext(ARGS.SEQUENCES)[1].find('sto') == 1 else 'fasta'
-        seqrecords.extend(gapless(record) for record in SeqIO.parse(seqfh, seqfmt))
-
-     # create a temporary file wherein space characters have been removed
-    try:
-        fd, tmpseq = mkstemp(); close(fd)
-        fd, tmpaln = mkstemp(); close(fd)
-
-        with open(tmpseq, 'w') as tmpfh:
-            SeqIO.write((HMMER.valid(record) for record in seqrecords), tmpfh, 'fasta')
-
-        if not exists(alignment_basename + '.hmm'):
-            raise RuntimeError('missing HMM profile for alignment')
-
-        hmmer = HMMER(ARGS.HMMER_ALIGN_BIN, ARGS.HMMER_BUILD_BIN)
-        hmmer.align(
-            alignment_basename + '.hmm',
-            tmpseq,
-            output=tmpaln,
-            alphabet=HMMER.DNA if ARGS.DNA else HMMER.AMINO,
-            outformat=HMMER.PFAM
-            )
-
-        if not exists(tmpaln):
-            raise RuntimeError('unable to align test sequences')
-
-        with open(tmpaln) as tmpfh:
-            alignment = AlignIO.read(tmpfh, 'stockholm')
-    except ValueError:
-        with open(tmpaln) as tmpfh:
-            print(tmpfh.read(), file=sys.stderr)
-        raise
-    finally:
-        if exists(tmpseq):
-            remove(tmpseq)
-        if exists(tmpaln):
-            remove(tmpaln)
-
-    train_msa = MultipleSeqAlignment([], alphabet=alignment._alphabet)
-    test_msa = MultipleSeqAlignment([], alphabet=alignment._alphabet)
-    for i, record in enumerate(alignment):
-        if i < partition:
-            train_msa.append(record)
-        else:
-            test_msa.append(record)
+    alignment = generate_alignment(seqrecords, alignment_basename, is_refseq, ARGS)
 
     re_pngs = re_compile(r'N[^P][TS][^P]', re_I)
 
@@ -219,7 +169,7 @@ def main(args=None):
         is_refseq,  # TODO: again, filtration function
         ARGS.AUTOBALANCE
     )
-    train_msa, y_train, threshold = ylabeler(train_msa)
+    alignment, y, threshold = ylabeler(alignment)
     assert (
         (threshold is None and not ARGS.AUTOBALANCE) or
         (threshold is not None and ARGS.AUTOBALANCE)
@@ -233,7 +183,7 @@ def main(args=None):
         ARGS.MAX_GAP_RATIO
     )
 
-    refidx = alignment_identify_refidx(train_msa, is_refseq)
+    refidx = alignment_identify_refidx(alignment, is_refseq)
 
     builders = [
         DataBuilder(
@@ -280,12 +230,7 @@ def main(args=None):
             )
 
     builder = DataReducer(*builders)
-    X_train = builder(train_msa, refidx)
-
-    if ARGS.TREE is not None:
-        tree, test_msa = Phylo()(r for r in test_msa if not is_refseq(r))
-
-    X_pred = builder(test_msa)
+    X = builder(alignment, refidx)
 
     svm = SVC(kernel='linear')
 
@@ -297,10 +242,10 @@ def main(args=None):
         similar=ARGS.SIMILAR
         )
 
-    mrmr.fit(X_train, y_train)
+    mrmr.fit(X, y)
 
     # train only using the MRMR-selected features
-    X_train_ = X_train[:, mrmr.support_]
+    X_ = X[:, mrmr.support_]
 
     scorer = Scorer(ARGS.OPTSTAT)
 
@@ -313,44 +258,14 @@ def main(args=None):
         cv=ARGS.CV_FOLDS
         )
 
-    clf.fit(X_train_, y_train)
+    clf.fit(X_, y)
 
-    coef_ = clf.best_estimator_.coef_
-    ranking_ = mrmr.ranking_
-    support_ = mrmr.support_
-    # use only the MRMR-selected features, like above
-    X_pred_ = X_pred[:, support_]
-    y_pred = clf.predict(X_pred_)
-
-    coefs = {}
-    ranks = {}
-    col = 0
-    for (i, (rank, selected)) in enumerate(zip(ranking_, support_)):
-        if selected:
-            coefs[i] = int(
-                copysign(1, coef_[0, col])
-                )
-            ranks[i] = int(rank)
-            col += 1
-
-    results = Results(builder.labels, scorer, ARGS.SIMILAR)
-    results.add(y_train, None, coefs, ranks)
-    results.metadata(antibodies, ARGS.LABEL)
-    results.predictions([r.id for r in test_msa if not is_refseq(r)], y_pred)
-
-    print(results.dumps(), file=ARGS.OUTPUT)
-
-    if ARGS.TREE is not None:
-        tree_seqrecords = [
-            seqrecord_set_values(r, 'IC50', [y_pred[i]])
-            for i, r
-            in enumerate(test_msa)
-            ]
-        PhyloGzFile.write(ARGS.TREE, tree, tree_seqrecords, builder.labels, results['metadata'])
+    with open(ARGS.MODEL, 'wb') as fh:
+        pickle_dump((mrmr, clf), fh)
 
     finalize_args(ARGS)
 
-    return results
+    return ARGS.MODEL
 
 
 if __name__ == '__main__':
