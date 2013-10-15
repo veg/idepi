@@ -292,8 +292,7 @@ def generate_alignment_(seqrecords, hmmfile, opts, refseq=None):
             tmpseq,
             output=tmpaln,
             alphabet=HMMER.DNA if opts.DNA else HMMER.AMINO,
-            outformat=HMMER.PFAM,
-            allcol=True
+            outformat=HMMER.PFAM
         )
 
         # rename the final alignment to its destination

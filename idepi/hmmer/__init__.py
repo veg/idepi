@@ -55,7 +55,7 @@ class HMMER:
             if not ex:
                 raise Exception('Executable %s not found.' % bin)
 
-    def align(self, hmmfile, seqfile, output=None, allcol=False, mapali=None, trim=False, alphabet=None, informat=None, outformat=None):
+    def align(self, hmmfile, seqfile, output=None, mapali=None, trim=False, alphabet=None, informat=None, outformat=None):
 
         if alphabet is None:
             alphabet = HMMER.AMINO
@@ -78,8 +78,6 @@ class HMMER:
 #             tmp = True # TODO something with this variable...?
 
         args = [self.__alignbin]
-        if allcol is True:
-            args.append('--allcol')
         if mapali is not None:
             args.extend(['--mapali', mapali])
         if trim is True:
