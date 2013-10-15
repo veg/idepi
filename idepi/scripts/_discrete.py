@@ -167,7 +167,8 @@ def main(args=None):
         ))
     sto_filename = alignment_basename + '.sto'
 
-    alignment = generate_alignment(seqrecords, sto_filename, is_refseq, ARGS)
+    # don't capture the second variable, let it be gc'd
+    alignment = generate_alignment(seqrecords, sto_filename, is_refseq, ARGS)[0]
     filter = naivefilter(
         ARGS.MAX_CONSERVATION,
         ARGS.MIN_CONSERVATION,

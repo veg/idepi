@@ -366,7 +366,7 @@ def main(argv=sys.argv):
 
     sto_filename = alignment_basename + '.sto'
 
-    alignment = generate_alignment(seqrecords, sto_filename, is_refidx, OPTIONS)
+    alignment = generate_alignment(seqrecords, sto_filename, is_refidx, OPTIONS)[0]
 
     ylabeler = Labeler(
         seqrecord_get_values,

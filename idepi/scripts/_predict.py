@@ -28,9 +28,10 @@ from __future__ import division, print_function
 import sys
 
 from gzip import open as gzip_open
-from os import remove
+from os import close, remove
 from os.path import exists
 from pickle import load as pickle_load
+from tempfile import mkstemp
 
 import numpy as np
 
@@ -68,7 +69,7 @@ def main(args=None):
     ARGS = parse_args(parser, args, namespace=ns)
 
     with gzip_open(ARGS.MODEL, 'rb') as fh:
-        ARGS.DNA, ARGS.LABEL, builder, mrmr, clf = pickle_load(fh)
+        ARGS.DNA, ARGS.LABEL, hmm, builder, mrmr, clf = pickle_load(fh)
 
     # create a temporary file wherein space characters have been removed
     with open(ARGS.SEQUENCES) as seq_fh:
@@ -82,9 +83,16 @@ def main(args=None):
                 yield r
 
         try:
-            tmpaln = generate_alignment_(seqrecords(), ARGS)
+            fd, tmphmm = mkstemp(); close(fd)
+            with open(tmphmm, 'wb') as hmm_fh:
+                hmm_fh.write(hmm)
+                # explicitly gc hmm
+                hmm = None
+            tmpaln = generate_alignment_(seqrecords(), tmphmm, ARGS)
             alignment = load_stockholm(tmpaln, trim=True)
         finally:
+            if exists(tmphmm):
+                remove(tmphmm)
             if exists(tmpaln):
                 remove(tmpaln)
 

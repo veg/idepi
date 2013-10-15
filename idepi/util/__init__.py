@@ -243,9 +243,30 @@ def seqfile_format(filename):
     return 'stockholm' if splitext(filename)[1].find('sto') == 1 else 'fasta'
 
 
-def generate_alignment_(seqrecords, opts, refseq=None):
-    fd, tmpseq = mkstemp(); close(fd)
+def generate_hmm_(opts):
     fd, tmphmm = mkstemp(); close(fd)
+    fd, tmpaln = mkstemp(); close(fd)
+
+    try:
+        with open(opts.REFMSA) as msa_fh:
+            msa_fmt = seqfile_format(opts.REFMSA)
+            with open(tmpaln, 'w') as aln_fh:
+                SeqIO.write(
+                    (r if opts.DNA else translate(r) for r in SeqIO.parse(msa_fh, msa_fmt)),
+                    aln_fh,
+                    'stockholm')
+
+        hmmer = HMMER(opts.HMMER_ALIGN_BIN, opts.HMMER_BUILD_BIN)
+        hmmer.build(tmphmm, tmpaln, alphabet=HMMER.DNA if opts.DNA else HMMER.AMINO)
+    finally:
+        if exists(tmpaln):
+            remove(tmpaln)
+
+    return tmphmm
+
+
+def generate_alignment_(seqrecords, hmmfile, opts, refseq=None):
+    fd, tmpseq = mkstemp(); close(fd)
     fd, tmpaln = mkstemp(); close(fd)
     finished = False
 
@@ -263,21 +284,11 @@ def generate_alignment_(seqrecords, opts, refseq=None):
 
             SeqIO.write(records(), seq_fh, 'fasta')
 
-        with open(opts.REFMSA) as msa_fh:
-            msa_fmt = seqfile_format(opts.REFMSA)
-            with open(tmpaln, 'w') as aln_fh:
-                SeqIO.write(
-                    (r if opts.DNA else translate(r) for r in SeqIO.parse(msa_fh, msa_fmt)),
-                    aln_fh,
-                    'stockholm'
-                    )
-
         log.debug('aligning sequences')
 
         hmmer = HMMER(opts.HMMER_ALIGN_BIN, opts.HMMER_BUILD_BIN)
-        hmmer.build(tmphmm, tmpaln, alphabet=HMMER.DNA if opts.DNA else HMMER.AMINO)
         hmmer.align(
-            tmphmm,
+            hmmfile,
             tmpseq,
             output=tmpaln,
             alphabet=HMMER.DNA if opts.DNA else HMMER.AMINO,
@@ -288,18 +299,20 @@ def generate_alignment_(seqrecords, opts, refseq=None):
         finished = True
     finally:
         # cleanup these files
-        if exists(tmphmm):
-            remove(tmphmm)
         if exists(tmpseq):
             remove(tmpseq)
-        if finished:
-            return tmpaln
+
+    if not finished:
+        raise RuntimeError("failed to generate alignment")
+
+    return tmpaln
 
 
 def generate_alignment(seqrecords, sto_filename, ref_id_func, opts, load=True):
     from ..simulation import Simulation
 
     log = getLogger(IDEPI_LOGGER)
+    hmm = None
 
     if hasattr(opts, 'SIM') and opts.SIM == Simulation.DUMB:
         # we're assuming pre-aligned because they're all generated from the same refseq
@@ -307,10 +320,15 @@ def generate_alignment(seqrecords, sto_filename, ref_id_func, opts, load=True):
             SeqIO.write(seqrecords, fh, 'stockholm')
     elif not exists(sto_filename):
         try:
-            tmpaln = generate_alignment_(seqrecords, opts, refseq=opts.REFSEQ)
+            tmphmm = generate_hmm_(opts)
+            with open(tmphmm, 'rb') as hmm_fh:
+                hmm = hmm_fh.read()
+            tmpaln = generate_alignment_(seqrecords, tmphmm, opts, refseq=opts.REFSEQ)
             copyfile(tmpaln, sto_filename)
             log.debug('finished alignment, output moved to {0:s}'.format(sto_filename))
         finally:
+            if exists(tmphmm):
+                remove(tmphmm)
             if exists(tmpaln):
                 remove(tmpaln)
 
@@ -320,9 +338,9 @@ def generate_alignment(seqrecords, sto_filename, ref_id_func, opts, load=True):
         refidx = reference_index(msa, ref_id_func)
         msa = LabeledMSA.from_msa_with_ref(msa, refidx)
         ranges = stockholm_rf_ranges(sto_filename)
-        return trim_msa_to_ranges(msa, ranges)
+        return trim_msa_to_ranges(msa, ranges), hmm
 
-    return None
+    return None, hmm
 
 
 def C_range(begin, end, step):

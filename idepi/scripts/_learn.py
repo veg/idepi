@@ -145,7 +145,7 @@ def main(args=None):
         ))
     sto_filename = alignment_basename + '.sto'
 
-    alignment = generate_alignment(seqrecords, sto_filename, is_refseq, ARGS)
+    alignment, hmm = generate_alignment(seqrecords, sto_filename, is_refseq, ARGS)
 
     re_pngs = re_compile(r'N[^P][TS][^P]', re_I)
 
@@ -246,7 +246,7 @@ def main(args=None):
     clf.fit(X_, y)
 
     with gzip_open(ARGS.MODEL, 'wb') as fh:
-        pickle_dump((ARGS.DNA, ARGS.LABEL, builder, mrmr, clf), fh)
+        pickle_dump((ARGS.DNA, ARGS.LABEL, hmm, builder, mrmr, clf), fh)
 
     finalize_args(ARGS)
 
