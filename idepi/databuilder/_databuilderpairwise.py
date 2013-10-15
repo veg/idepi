@@ -20,7 +20,7 @@ def clamp(min, max, val):
 
 class DataBuilderPairwise:
 
-    def __init__(self, alignment, alphabet, refidx, filter=nofilter, radius=0):
+    def __init__(self, alignment, alphabet, filter=nofilter, radius=0):
         if radius < 0:
             raise ValueError('radius expects a positive integer')
 
@@ -33,13 +33,11 @@ class DataBuilderPairwise:
             return
 
         # save these around
-        pstream = list(posstream(alignment, alphabet, refidx))
+        pstream = list(posstream(alignment, alphabet))
 
         calls = {}
 
         for idx, seq in enumerate(alignment):
-            if idx == refidx:
-                continue
             # take care to convert to alphabet coords
             seqp = [
                 (col, alphabet(char))
@@ -105,12 +103,12 @@ class DataBuilderPairwise:
     def __len__(self):
         return self.__length
 
-    def __call__(self, alignment, refidx=None, globber=None, normalize=False):
+    def __call__(self, alignment, globber=None, normalize=False):
         if self.__length is None:
             raise RuntimeError('no filter model computed! programmer error!')
 
         if globber is None:
-            nrow = len(alignment) - (0 if refidx is None else 1)
+            nrow = len(alignment)
         else:
             nrow = len(globber)
 
@@ -122,12 +120,10 @@ class DataBuilderPairwise:
         if len(self) == 0:
             return data
 
-        alignment_ = (seq for i, seq in enumerate(alignment) if i != refidx)
-
         if normalize:
             coverage = zeros((len(self),), dtype=int)
 
-        for i, seq in enumerate(alignment_):
+        for i, seq in enumerate(alignment):
             if globber is None:
                 r, weight = i, 1
             else:

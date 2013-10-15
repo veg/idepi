@@ -28,26 +28,20 @@ from __future__ import division, print_function
 import sys
 
 from functools import partial
-from math import copysign
-from os import close, getenv, remove
-from os.path import exists, splitext
+from gzip import open as gzip_open
+from os import getenv
 from pickle import dump as pickle_dump
 from re import compile as re_compile, I as re_I
-from tempfile import mkstemp
 
 import numpy as np
 
-from Bio import AlignIO, SeqIO
-from Bio.Align import MultipleSeqAlignment
-
-from BioExt.misc import gapless, translate
+from BioExt.misc import translate
 
 from idepi import (
     __version__
 )
 from idepi.alphabet import Alphabet
 from idepi.argument import (
-    PathType,
     init_args,
     hmmer_args,
     featsel_args,
@@ -70,22 +64,17 @@ from idepi.databuilder import (
     DataReducer
     )
 from idepi.filter import naivefilter
-from idepi.hmmer import HMMER
 from idepi.labeler import (
     Labeler,
     expression
     )
-from idepi.phylogeny import Phylo, PhyloGzFile
-from idepi.results import Results
 from idepi.scorer import Scorer
 from idepi.test import test_discrete
 from idepi.util import (
-    alignment_identify_refidx,
     generate_alignment,
     is_refseq,
     C_range,
-    set_util_params,
-    seqrecord_set_values
+    set_util_params
 )
 
 from sklearn.grid_search import GridSearchCV
@@ -170,6 +159,7 @@ def main(args=None):
         ARGS.AUTOBALANCE
     )
     alignment, y, threshold = ylabeler(alignment)
+
     assert (
         (threshold is None and not ARGS.AUTOBALANCE) or
         (threshold is not None and ARGS.AUTOBALANCE)
@@ -183,13 +173,10 @@ def main(args=None):
         ARGS.MAX_GAP_RATIO
     )
 
-    refidx = alignment_identify_refidx(alignment, is_refseq)
-
     builders = [
         DataBuilder(
             alignment,
             alph,
-            refidx,
             filter
             )
         ]
@@ -199,7 +186,6 @@ def main(args=None):
             DataBuilderPairwise(
                 alignment,
                 alph,
-                refidx,
                 filter,
                 ARGS.RADIUS
                 )
@@ -210,7 +196,6 @@ def main(args=None):
             DataBuilderRegex(
                 alignment,
                 alph,
-                refidx,
                 re_pngs,
                 4,
                 label='PNGS'
@@ -222,7 +207,6 @@ def main(args=None):
             DataBuilderRegexPairwise(
                 alignment,
                 alph,
-                refidx,
                 re_pngs,
                 4,
                 label='PNGS'
@@ -230,7 +214,7 @@ def main(args=None):
             )
 
     builder = DataReducer(*builders)
-    X = builder(alignment, refidx)
+    X = builder(alignment)
 
     svm = SVC(kernel='linear')
 
@@ -260,8 +244,8 @@ def main(args=None):
 
     clf.fit(X_, y)
 
-    with open(ARGS.MODEL, 'wb') as fh:
-        pickle_dump((mrmr, clf), fh)
+    with gzip_open(ARGS.MODEL, 'wb') as fh:
+        pickle_dump((ARGS.DNA, ARGS.LABEL, builder, mrmr, clf), fh)
 
     finalize_args(ARGS)
 

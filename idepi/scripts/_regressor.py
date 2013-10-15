@@ -364,7 +364,7 @@ def main(argv=sys.argv):
         ab_basename = ''.join(ab_basename.rsplit('_clonal', 1))
         alignment_basename = ''.join(alignment_basename.rsplit('_clonal', 1))
 
-    alignment = generate_alignment(seqrecords, alignment_basename, is_HXB2, OPTIONS)
+    alignment = generate_alignment(seqrecords, alignment_basename, is_refidx, OPTIONS)
 
     ylabeler = Labeler(
         seqrecord_get_values,

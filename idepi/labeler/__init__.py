@@ -5,8 +5,6 @@ from json import loads as json_loads
 
 from numpy import median, zeros
 
-from Bio.Align import MultipleSeqAlignment
-
 
 __all__ = [
     'Labeler',
@@ -39,10 +37,7 @@ class Labeler:
 
         labels = [None for _ in range(size)]
 
-        alignment_ = MultipleSeqAlignment(
-            [],
-            alphabet=alignment._alphabet
-            )
+        alignment_ = alignment[:0]
         i = 0
         for seq in alignment:
             if self.__skip(seq):

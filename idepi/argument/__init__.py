@@ -19,7 +19,8 @@
 
 from __future__ import division, print_function
 
-import logging, sys
+import logging
+import sys
 
 from argparse import ArgumentParser, ArgumentTypeError, FileType
 from os.path import isfile, join
@@ -28,7 +29,7 @@ from random import seed
 from BioExt.references import hxb2
 
 from ..alphabet import Alphabet as ALPH
-from ..datasource import DataSource as DataType
+from ..datasource import DataSource
 from ..scorer import Scorer
 from ..simulation import Simulation
 
@@ -289,8 +290,8 @@ def init_args(description, args):
 
     parser = ArgumentParser(description=description)
 
-    parser.add_argument('--data', type=DataType, dest='DATA')
-    parser.set_defaults(DATA=DataType(join(idepi_path[0], 'data', 'allneuts.sqlite3')))
+    parser.add_argument('--data', type=PathType, dest='_DATA', nargs='*',
+            default=[join(idepi_path[0], 'data', 'allneuts.sqlite3')])
 
     # rather than removing the help and making a new parser,
     # if help options are passed defer them to the next parsing
@@ -308,6 +309,7 @@ def init_args(description, args):
     args += deferred
 
     # setup a "subtypetype for the parser"
+    ns.DATA = DataSource(*ns._DATA)
     labeltype = labeltypefactory(ns.DATA)
     subtype = subtypefactory(ns.DATA)
 
@@ -350,7 +352,8 @@ def init_args(description, args):
 def parse_args(parser, args, namespace=None):
     ns = parser.parse_args(args=args, namespace=namespace)
     seed(ns.RAND_SEED)
-    setattr(ns, 'DNA', ns.ALPHABET == ALPH.DNA)
+    if hasattr(ns, 'ALPHABET'):
+        ns.DNA = ns.ALPHABET == ALPH.DNA
     return ns
 
 

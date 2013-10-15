@@ -15,7 +15,7 @@ from idepi.phylogeny import (
     PhyloGzFile
 )
 from idepi.util import (
-    alignment_identify_refidx,
+    reference_index,
     is_refseq
 )
 
@@ -34,7 +34,7 @@ def main(args=None):
         msa = AlignIO.read(fh, 'stockholm')
 
     try:
-        refidx = alignment_identify_refidx(msa, is_refseq)
+        refidx = reference_index(msa, is_refseq)
     except IndexError:
         raise RuntimeError('No reference sequence found!')
 

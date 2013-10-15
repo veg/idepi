@@ -1,18 +1,9 @@
 
 from __future__ import division, print_function
 
-from logging import getLogger
-from os import close, remove
 from re import sub as re_sub
-from shutil import copyfile
-from tempfile import mkstemp
-
-from Bio import SeqIO
-from BioExt.misc import translate
 
 from .alphabet import Alphabet
-from .hmmer import HMMER
-from .logging import IDEPI_LOGGER
 
 import numpy as np
 
@@ -21,7 +12,6 @@ __all__ = [
     'BASE_ALPH',
     'base_10_to_n',
     'base_26_to_alph',
-    'generate_alignment_from_seqrecords',
     'get_noise',
     'sanitize_seq',
     'clamp'
@@ -79,59 +69,6 @@ def base_26_to_alph(cols):
 #     for k, v in cols.items():
 #         num += pow(N, k) * v
 #     return num
-
-
-def generate_alignment_from_seqrecords(seq_records, my_basename, opts):
-    fd, ab_fasta_filename = mkstemp(); close(fd)
-    fd, hmm_filename = mkstemp(); close(fd)
-    fd, sto_filename = mkstemp(); close(fd)
-    finished = False
-
-    log = getLogger(IDEPI_LOGGER)
-
-    try:
-        # get the FASTA format file so we can HMMER it
-        with open(ab_fasta_filename, 'w') as fafh:
-
-            def records():
-                yield HMMER.valid(opts.REFSEQ)
-                for record in seq_records:
-                    yield HMMER.valid(record)
-
-            SeqIO.write(records(), fafh, 'fasta')
-
-        with open(opts.REFMSA) as msa_fh:
-            with open(sto_filename, 'w') as sto_fh:
-                SeqIO.write(
-                    (r if opts.DNA else translate(r) for r in SeqIO.parse(msa_fh, 'stockholm')),
-                    sto_fh,
-                    'stockholm'
-                    )
-
-        hmmer = HMMER(opts.HMMER_ALIGN_BIN, opts.HMMER_BUILD_BIN)
-        numseqs = len(seq_records)
-
-        log.debug('aligning {0:d} sequences'.format(numseqs))
-        hmmer.build(hmm_filename, sto_filename, alphabet=HMMER.DNA if opts.DNA else HMMER.AMINO)
-        hmmer.align(
-            hmm_filename,
-            ab_fasta_filename,
-            output=sto_filename,
-            alphabet=HMMER.DNA if opts.DNA else HMMER.AMINO,
-            outformat=HMMER.PFAM
-        )
-
-        # rename the final alignment to its destination
-        finished = True
-
-    finally:
-        # cleanup these files
-        if finished:
-            copyfile(sto_filename, my_basename + '.sto')
-            log.debug('finished alignment, output moved to %s.sto' % my_basename)
-        remove(sto_filename)
-        remove(ab_fasta_filename)
-        remove(hmm_filename)
 
 
 def get_noise(seqrecord, label='IC50'):

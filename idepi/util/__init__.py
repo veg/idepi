@@ -25,30 +25,38 @@
 from __future__ import division, print_function
 
 from json import dumps as json_dumps, loads as json_loads
-from os.path import exists
+from logging import getLogger
+from os import close, remove
+from os.path import exists, splitext
+from re import compile as re_compile, I as re_I
+from shutil import copyfile
+from tempfile import mkstemp
 
 import numpy as np
 
-from Bio import SeqIO
+from Bio import AlignIO, SeqIO
 
-from BioExt.io import LazyAlignIO as AlignIO
+from BioExt.misc import translate
 
-from .._common import generate_alignment_from_seqrecords
-from ..hmmer import HMMER
+from idepi.hmmer import HMMER
+from idepi.labeledmsa import LabeledMSA
+from idepi.logging import IDEPI_LOGGER
 
 
 __all__ = [
+    'seqfile_format',
     'set_util_params',
     'is_refseq',
     'seqrecord_get_values',
     'seqrecord_get_subtype',
     'seqrecord_set_values',
     'ystoconfusionmatrix',
-    'alignment_identify_refidx',
+    'reference_index',
     'extract_feature_weights_similar',
     'extract_feature_weights',
     'generate_alignment',
-    'C_range'
+    'C_range',
+    'load_stockholm'
 ]
 
 __REFSEQ_IDS = []
@@ -205,7 +213,7 @@ def ystoconfusionmatrix(truth, preds):
     return np.array([[tp, fn], [fp, tn]], dtype=int)
 
 
-def alignment_identify_refidx(alignment, ref_id_func=None):
+def reference_index(alignment, ref_id_func=None):
     refidx = None
     if ref_id_func is not None:
         for i, seq in enumerate(alignment):
@@ -231,28 +239,88 @@ def extract_feature_weights(instance):
     return extract_feature_weights_similar(instance, False)
 
 
-def generate_alignment(seqrecords, my_basename, ref_id_func, opts, load=True):
+def seqfile_format(filename):
+    return 'stockholm' if splitext(filename)[1].find('sto') == 1 else 'fasta'
+
+
+def generate_alignment_(seqrecords, opts, refseq=None):
+    fd, tmpseq = mkstemp(); close(fd)
+    fd, tmphmm = mkstemp(); close(fd)
+    fd, tmpaln = mkstemp(); close(fd)
+    finished = False
+
+    log = getLogger(IDEPI_LOGGER)
+
+    try:
+        # get the FASTA format file so we can HMMER it
+        with open(tmpseq, 'w') as seq_fh:
+
+            def records():
+                if refseq:
+                    yield HMMER.valid(refseq)
+                for record in seqrecords:
+                    yield HMMER.valid(record)
+
+            SeqIO.write(records(), seq_fh, 'fasta')
+
+        with open(opts.REFMSA) as msa_fh:
+            msa_fmt = seqfile_format(opts.REFMSA)
+            with open(tmpaln, 'w') as aln_fh:
+                SeqIO.write(
+                    (r if opts.DNA else translate(r) for r in SeqIO.parse(msa_fh, msa_fmt)),
+                    aln_fh,
+                    'stockholm'
+                    )
+
+        log.debug('aligning sequences')
+
+        hmmer = HMMER(opts.HMMER_ALIGN_BIN, opts.HMMER_BUILD_BIN)
+        hmmer.build(tmphmm, tmpaln, alphabet=HMMER.DNA if opts.DNA else HMMER.AMINO)
+        hmmer.align(
+            tmphmm,
+            tmpseq,
+            output=tmpaln,
+            alphabet=HMMER.DNA if opts.DNA else HMMER.AMINO,
+            outformat=HMMER.PFAM
+        )
+
+        # rename the final alignment to its destination
+        finished = True
+    finally:
+        # cleanup these files
+        if exists(tmphmm):
+            remove(tmphmm)
+        if exists(tmpseq):
+            remove(tmpseq)
+        if finished:
+            return tmpaln
+
+
+def generate_alignment(seqrecords, sto_filename, ref_id_func, opts, load=True):
     from ..simulation import Simulation
 
-    sto_filename = my_basename + '.sto'
+    log = getLogger(IDEPI_LOGGER)
 
     if hasattr(opts, 'SIM') and opts.SIM == Simulation.DUMB:
         # we're assuming pre-aligned because they're all generated from the same refseq
         with open(sto_filename, 'w') as fh:
             SeqIO.write(seqrecords, fh, 'stockholm')
     elif not exists(sto_filename):
-        generate_alignment_from_seqrecords(
-            seqrecords,
-            my_basename,
-            opts
-        )
+        try:
+            tmpaln = generate_alignment_(seqrecords, opts, refseq=opts.REFSEQ)
+            copyfile(tmpaln, sto_filename)
+            log.debug('finished alignment, output moved to {0:s}'.format(sto_filename))
+        finally:
+            if exists(tmpaln):
+                remove(tmpaln)
 
     if load:
         with open(sto_filename) as fh:
             msa = AlignIO.read(fh, 'stockholm')
-
-        # we store the antibody information in the description, so grab it
-        return msa
+        refidx = reference_index(msa, ref_id_func)
+        msa = LabeledMSA.from_msa_with_ref(msa, refidx)
+        ranges = stockholm_rf_ranges(sto_filename)
+        return trim_msa_to_ranges(msa, ranges)
 
     return None
 
@@ -264,3 +332,49 @@ def C_range(begin, end, step):
         begin, end = int(recip * begin), int(recip * end)
         step = 1
     return [pow(2., float(c) / recip) for c in range(begin, end + 1, step)]
+
+
+def stockholm_rf_ranges(filename):
+    hdr = re_compile('^#=GC\s+RF\s+(.+)$', re_I)
+    keep = []
+    with open(filename) as h:
+        for line in h:
+            m = hdr.match(line)
+            if m:
+                keep = [l not in '.-~' for l in m.group(1)]
+                break
+    ranges = []
+    lwr = 0
+    val = keep[lwr]
+    for i, v in enumerate(keep):
+        if v != val:
+            # transition T->F, so append range
+            if val:
+                ranges.append((lwr, i))
+            # transition F->T, so update lower bound
+            else:
+                lwr = i
+            # update val
+            val = v
+    # if we have a terminal val, append final range
+    if val:
+        ranges.append((lwr, len(keep)))
+    return ranges
+
+
+def trim_msa_to_ranges(msa, ranges):
+    ranges_ = iter(ranges)
+    lwr, upr = next(ranges_)
+    msa2 = msa[:, lwr:upr]
+    for lwr, upr in ranges_:
+        msa2 += msa[:, lwr:upr]
+    return msa2
+
+
+def load_stockholm(filename, trim=False):
+    with open(filename) as h:
+        msa = AlignIO.read(h, 'stockholm')
+    if trim:
+        ranges = stockholm_rf_ranges(filename)
+        msa = trim_msa_to_ranges(msa, ranges)
+    return msa

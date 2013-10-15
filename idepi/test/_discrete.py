@@ -17,7 +17,7 @@ from idepi.databuilder import DataBuilder
 from idepi.filter import naivefilter
 from idepi.labeler import Labeler
 from idepi.util import (
-    alignment_identify_refidx,
+    reference_index,
     is_refseq,
     seqrecord_get_values,
     set_util_params
@@ -82,7 +82,7 @@ def test_discrete(ARGS):
                 ARGS.MIN_CONSERVATION,
                 ARGS.MAX_GAP_RATIO,
             )
-            refidx = alignment_identify_refidx(alignment, is_refseq)
+            refidx = reference_index(alignment, is_refseq)
             builder = DataBuilder(
                 alignment,
                 alph,

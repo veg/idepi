@@ -11,14 +11,14 @@ __all__ = ['DataBuilder']
 
 class DataBuilder:
 
-    def __init__(self, alignment, alphabet, refidx, filter=nofilter):
+    def __init__(self, alignment, alphabet, filter=nofilter):
         self.__alphabet = alphabet
         self.__filtercalls = []
         self.__labels = []
 
         # evaluate each position in the stream and generate the column labels,
         # being careful to use the alphabet repr
-        for p in posstream(alignment, alphabet, refidx):
+        for p in posstream(alignment, alphabet):
             chars = filter(p)
             self.__filtercalls.append(chars)
             for char in chars:
@@ -31,7 +31,7 @@ class DataBuilder:
     def __len__(self):
         return self.__length
 
-    def __call__(self, alignment, refidx=None, globber=None, normalize=False):
+    def __call__(self, alignment, globber=None, normalize=False):
         if self.__length is None:
             raise RuntimeError('no filter model computed! programmer error!')
 
@@ -45,7 +45,7 @@ class DataBuilder:
             raise ValueError(msg)
 
         if globber is None:
-            nrow = len(alignment) - (0 if refidx is None else 1)
+            nrow = len(alignment)
         else:
             nrow = len(globber)
 
@@ -57,12 +57,10 @@ class DataBuilder:
         if len(self) == 0:
             return data
 
-        alignment_ = (seq for i, seq in enumerate(alignment) if i != refidx)
-
         if normalize:
             coverage = zeros((len(self),), dtype=int)
 
-        for i, seq in enumerate(alignment_):
+        for i, seq in enumerate(alignment):
             if globber is None:
                 r, weight = i, 1
             else:

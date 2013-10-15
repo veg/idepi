@@ -75,7 +75,6 @@ from idepi.results import Results
 from idepi.scorer import Scorer
 from idepi.test import test_discrete
 from idepi.util import (
-    alignment_identify_refidx,
     generate_alignment,
     is_refseq,
     set_util_params,
@@ -116,7 +115,7 @@ def main(args=None):
 
     parser.add_argument('ANTIBODY', type=abtypefactory(ns.DATA), nargs='+')
     parser.add_argument('--rfe', action='store_true', dest='RFE')
-    parser.add_argument('--rfestep', type=int, dest='RFE_STEP')
+    parser.add_argument('--rfestep', type=int, dest='RFE_STEP', default=1)
 
     ARGS = parse_args(parser, args, namespace=ns)
 
@@ -193,13 +192,10 @@ def main(args=None):
     if ARGS.AUTOBALANCE:
         ARGS.LABEL = '{0} > {1}'.format(ARGS.LABEL.strip(), threshold)
 
-    refidx = alignment_identify_refidx(alignment, is_refseq)
-
     builders = [
         DataBuilder(
             alignment,
             alph,
-            refidx,
             filter
             )
         ]
@@ -209,7 +205,6 @@ def main(args=None):
             DataBuilderPairwise(
                 alignment,
                 alph,
-                refidx,
                 filter,
                 ARGS.RADIUS
                 )
@@ -220,7 +215,6 @@ def main(args=None):
             DataBuilderRegex(
                 alignment,
                 alph,
-                refidx,
                 re_pngs,
                 4,
                 label='PNGS'
@@ -232,7 +226,6 @@ def main(args=None):
             DataBuilderRegexPairwise(
                 alignment,
                 alph,
-                refidx,
                 re_pngs,
                 4,
                 label='PNGS'
@@ -240,7 +233,7 @@ def main(args=None):
             )
 
     builder = DataReducer(*builders)
-    X = builder(alignment, refidx)
+    X = builder(alignment)
     assert y.shape[0] == X.shape[0], \
         "number of classes doesn't match the data: %d vs %d" % (y.shape[0], X.shape[0])
 

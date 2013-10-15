@@ -21,8 +21,7 @@ from BioExt.orflist import OrfList
 __all__ = ['DataSource']
 
 
-def DataSource(s):
-    args = s.split(',')
+def DataSource(*args):
     if len(args) == 1:
         return Sqlite3Db(*args)
     if len(args) == 2:

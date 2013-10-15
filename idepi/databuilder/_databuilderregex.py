@@ -12,7 +12,7 @@ __all__ = ['DataBuilderRegex']
 
 class DataBuilderRegex:
 
-    def __init__(self, alignment, alphabet, refidx, regex, regex_length=-1, label=''):
+    def __init__(self, alignment, alphabet, regex, regex_length=-1, label=''):
 
         self.__alphabet = alphabet
         self.__labels = []
@@ -20,14 +20,11 @@ class DataBuilderRegex:
         self.__regex_length = regex_length
 
         # save these around
-        pstream = list(posstream(alignment, alphabet, refidx))
+        pstream = list(posstream(alignment, alphabet))
 
         calls = set()
 
         for i, seq in enumerate(alignment):
-            if i == refidx:
-                continue
-
             # do NOT convert to alphabet coords
             cols, chars = zip(*[
                 (col, char)
@@ -63,7 +60,7 @@ class DataBuilderRegex:
     def __len__(self):
         return self.__length
 
-    def __call__(self, alignment, refidx=None, globber=None, normalize=False):
+    def __call__(self, alignment, globber=None, normalize=False):
         if self.__length is None:
             raise RuntimeError('no filter model computed! programmer error!')
 
@@ -73,7 +70,7 @@ class DataBuilderRegex:
                 )
 
         if globber is None:
-            nrow = len(alignment) - (0 if refidx is None else 1)
+            nrow = len(alignment)
         else:
             nrow = len(globber)
 
@@ -85,13 +82,11 @@ class DataBuilderRegex:
         if len(self) == 0:
             return data
 
-        alignment_ = (seq for i, seq in enumerate(alignment) if i != refidx)
-
         if normalize:
             coverage = zeros((len(self),), dtype=int)
             gaps = set(Alphabet.GAPS)
 
-        for i, seq in enumerate(alignment_):
+        for i, seq in enumerate(alignment):
             if globber is None:
                 r, weight = i, 1
             else:

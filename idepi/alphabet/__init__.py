@@ -10,8 +10,12 @@ from numpy import dtype
 __all__ = ['Alphabet']
 
 
-def constant_factory(value):
-    return lambda: value
+class ConstantFactory:
+    __slots__ = ('__value',)
+    def __init__(self, value):
+        self.__value = value
+    def __call__(self):
+        return self.__value
 
 
 class Alphabet:
@@ -58,7 +62,7 @@ class Alphabet:
 
         default = 'N' if mode == Alphabet.DNA else 'X'
 
-        self.__dict = defaultdict(constant_factory(d[default]))
+        self.__dict = defaultdict(ConstantFactory(d[default]))
         self.__dict.update(d)
         self.__list = l
 
@@ -86,7 +90,7 @@ class Alphabet:
 
     def todict(self):
         # return a manual deepcopy, as deepcopy is currently barfing
-        d = defaultdict(constant_factory(self.__dict['X']))
+        d = defaultdict(ConstantFactory(self.__dict['X']))
         d.update(self.__dict)
         return d
 
