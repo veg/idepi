@@ -89,7 +89,7 @@ def main(args=None):
 
     np.seterr(all='raise')
 
-    parser, ns, args = init_args(description='Predict IC50 for unlabeled sequences.', args=args)
+    parser, ns, args = init_args(description='learn model for labeled sequences', args=args)
 
     parser = hmmer_args(parser)
     parser = featsel_args(parser)

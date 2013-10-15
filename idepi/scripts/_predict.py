@@ -59,7 +59,7 @@ def main(args=None):
 
     np.seterr(all='raise')
 
-    parser, ns, args = init_args(description='Predict IC50 for unlabeled sequences.', args=args)
+    parser, ns, args = init_args(description='Predict label for unlabeled sequences', args=args)
 
     parser = hmmer_args(parser)
 
@@ -101,7 +101,7 @@ def main(args=None):
 
     idlen = max(len(r.id) for r in alignment) + 3
 
-    print('{\n  "predictions": [', file=ARGS.OUTPUT)
+    print('{{\n  "label": "{0:s}",\n  "predictions": ['.format(ARGS.LABEL), file=ARGS.OUTPUT)
     for i, (r, p) in enumerate(zip(alignment, y)):
         if i > 0:
             print(',')
