@@ -318,7 +318,7 @@ def generate_alignment(seqrecords, sto_filename, ref_id_func, opts, load=True):
         # we're assuming pre-aligned because they're all generated from the same refseq
         with open(sto_filename, 'w') as fh:
             SeqIO.write(seqrecords, fh, 'stockholm')
-    elif not exists(sto_filename):
+    else:  # not exists(sto_filename):
         try:
             tmphmm = generate_hmm_(opts)
             with open(tmphmm, 'rb') as hmm_fh:
