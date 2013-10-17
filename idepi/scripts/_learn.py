@@ -47,6 +47,7 @@ from idepi.argument import (
     featsel_args,
     feature_args,
     mrmr_args,
+    rfe_args,
     optstat_args,
     encoding_args,
     filter_args,
@@ -95,6 +96,7 @@ def main(args=None):
     parser = featsel_args(parser)
     parser = feature_args(parser)
     parser = mrmr_args(parser)
+    parser = rfe_args(parser)
     parser = optstat_args(parser)
     parser = encoding_args(parser)
     parser = filter_args(parser)
@@ -123,7 +125,7 @@ def main(args=None):
         ARGS.SIMILAR = 0.0
 
     # set the util params
-    set_util_params(ARGS.REFSEQ_IDS)
+    set_util_params(ARGS.REFSEQ.id)
 
     # fetch the alphabet, we'll probably need it later
     alph = Alphabet(mode=ARGS.ALPHABET)

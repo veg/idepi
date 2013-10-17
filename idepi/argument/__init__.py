@@ -26,12 +26,14 @@ from argparse import ArgumentParser, ArgumentTypeError, FileType
 from os.path import isfile, join
 from random import seed
 
+from Bio import SeqIO
+
 from BioExt.references import hxb2
 
-from ..alphabet import Alphabet as ALPH
-from ..datasource import DataSource
-from ..scorer import Scorer
-from ..simulation import Simulation
+from idepi.alphabet import Alphabet as ALPH
+from idepi.datasource import DataSource
+from idepi.scorer import Scorer
+from idepi.simulation import Simulation
 
 
 def csvtype(string):
@@ -87,6 +89,25 @@ def mrmr_args(parser):
         MRMR_METHOD   ='MID',
         MRMR_NORMALIZE=False,
         SIMILAR       =0.0 # no similar features by default
+        )
+    return parser
+
+
+def numtype(string):
+    try:
+        return int(string)
+    except ValueError:
+        try:
+            return float(string)
+        except ValueError:
+            raise ArgumentTypeError('invalid number: "{0:s}"'.format(string))
+
+
+def rfe_args(parser):
+    parser.add_argument('--rfe',     action='store_true',               dest='RFE')
+    parser.add_argument('--rfestep',                      type=numtype, dest='RFE_STEP')
+    parser.set_defaults(
+        RFE_STEP=1
         )
     return parser
 
@@ -285,6 +306,15 @@ def PathType(string):
     return string
 
 
+def FastaType(string):
+    try:
+        with open(string) as h:
+            refseq = next(SeqIO.parse(h, 'fasta'))
+        return refseq
+    except:
+        raise ArgumentTypeError("invalid FASTA file '{0:s}'".format(string))
+
+
 def init_args(description, args):
     from idepi import __path__ as idepi_path
 
@@ -322,8 +352,7 @@ def init_args(description, args):
     parser.add_argument('--subtypes',                           type=subtype,       dest='SUBTYPES')
     parser.add_argument('--weighting',     action='store_true',                     dest='WEIGHTING')
     parser.add_argument('--refmsa',                             type=PathType,      dest='REFMSA')
-    parser.add_argument('--refseq',                             type=str,           dest='REFSEQ')
-    parser.add_argument('--ids',                                type=csvtype,       dest='REFSEQ_IDS')
+    parser.add_argument('--refseq',                             type=FastaType,     dest='REFSEQ')
     parser.add_argument('--test',          action='store_true',                     dest='TEST')
     parser.add_argument('--seed',                               type=int,           dest='RAND_SEED')
     parser.add_argument('-o', '--output',                       type=FileType('w'), dest='OUTPUT')
@@ -340,7 +369,6 @@ def init_args(description, args):
         WEIGHTING  =False,
         REFMSA     =PathType(join(idepi_path[0], 'data', 'HIV1_FLT_2012_env_DNA.sto')),
         REFSEQ     =refseq,
-        REFSEQ_IDS =[refseq.id],
         RAND_SEED  =42, # magic number for determinism
         PHYLOFILTER=False,
         OUTPUT     =sys.stdout

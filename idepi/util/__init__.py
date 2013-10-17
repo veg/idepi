@@ -65,7 +65,10 @@ __REFSEQ_IDS = []
 def set_util_params(refseq_ids=None):
     global __REFSEQ_IDS
     if refseq_ids is not None:
-        __REFSEQ_IDS = refseq_ids
+        if isinstance(refseq_ids, (list, tuple)):
+            __REFSEQ_IDS = refseq_ids
+        else:
+            __REFSEQ_IDS = [refseq_ids]
 
 
 def is_refseq(seqrecord):

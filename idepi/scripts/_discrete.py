@@ -49,6 +49,7 @@ from idepi.argument import (
     featsel_args,
     feature_args,
     mrmr_args,
+    rfe_args,
     optstat_args,
     encoding_args,
     filter_args,
@@ -107,6 +108,7 @@ def main(args=None):
     parser = featsel_args(parser)
     parser = feature_args(parser)
     parser = mrmr_args(parser)
+    parser = rfe_args(parser)
     parser = optstat_args(parser)
     parser = encoding_args(parser)
     parser = filter_args(parser)
@@ -114,8 +116,6 @@ def main(args=None):
     parser = cv_args(parser)
 
     parser.add_argument('ANTIBODY', type=abtypefactory(ns.DATA), nargs='+')
-    parser.add_argument('--rfe', action='store_true', dest='RFE')
-    parser.add_argument('--rfestep', type=int, dest='RFE_STEP', default=1)
 
     ARGS = parse_args(parser, args, namespace=ns)
 
@@ -141,7 +141,7 @@ def main(args=None):
         ARGS.REFSEQ = translate(ARGS.REFSEQ)
 
     # set the util params
-    set_util_params(ARGS.REFSEQ_IDS)
+    set_util_params(ARGS.REFSEQ.id)
 
     # fetch the alphabet, we'll probably need it later
     alph = Alphabet(mode=ARGS.ALPHABET)
