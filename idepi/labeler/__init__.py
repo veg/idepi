@@ -12,7 +12,6 @@ __all__ = [
     ]
 
 
-
 def expression(seqrecord, label):
     desc = json_loads(seqrecord.description)
     try:
@@ -28,12 +27,12 @@ class Labeler:
         self.__skip = (lambda _: False) if skip is None else skip
         self.__autobalance = autobalance
 
-    def label(self, alignment, globber=None):
-        return self(alignment, globber)
+    def label(self, alignment):
+        return self(alignment)
 
-    def __call__(self, alignment, globber=None):
+    def __call__(self, alignment):
 
-        size = len(alignment) if globber is None else len(globber)
+        size = len(alignment)
 
         labels = [None for _ in range(size)]
 
@@ -47,17 +46,12 @@ class Labeler:
             # skip if we have no label at all
             if label is None:
                 continue
-            if globber is None:
-                r = i
-            else:
-                r, _ = globber[seq.id]
-            labels[r] = label
+            labels[i] = label
             alignment_.append(seq)
             i += 1
 
-        if globber is None:
-            size = i
-            labels = labels[:size]
+        size = i
+        labels = labels[:size]
 
         dtype = int
         for label in labels:

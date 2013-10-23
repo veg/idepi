@@ -35,12 +35,9 @@ from re import compile as re_compile, I as re_I
 
 import numpy as np
 
-from BioExt.misc import translate
-
 from idepi import (
     __version__
 )
-from idepi.alphabet import Alphabet
 from idepi.argument import (
     init_args,
     hmmer_args,
@@ -49,7 +46,6 @@ from idepi.argument import (
     mrmr_args,
     rfe_args,
     optstat_args,
-    encoding_args,
     filter_args,
     svm_args,
     cv_args,
@@ -57,21 +53,24 @@ from idepi.argument import (
     finalize_args,
     abtypefactory
 )
-from idepi.databuilder import (
-    DataBuilder,
-    DataBuilderPairwise,
-    DataBuilderRegex,
-    DataBuilderRegexPairwise,
-    DataReducer
+from idepi.encoder import DNAEncoder
+from idepi.feature_extraction import (
+    FeatureUnion,
+    MSAVectorizer,
+    MSAVectorizerPairwise,
+    MSAVectorizerRegex,
+    MSAVectorizerRegexPairwise
     )
-from idepi.filter import naivefilter
+from idepi.filters import naive_filter
 from idepi.labeler import (
     Labeler,
     expression
     )
+from idepi.results import Results
 from idepi.scorer import Scorer
 from idepi.test import test_discrete
 from idepi.util import (
+    coefs_ranks,
     generate_alignment,
     is_refseq,
     C_range,
@@ -98,7 +97,6 @@ def main(args=None):
     parser = mrmr_args(parser)
     parser = rfe_args(parser)
     parser = optstat_args(parser)
-    parser = encoding_args(parser)
     parser = filter_args(parser)
     parser = svm_args(parser)
     parser = cv_args(parser)
@@ -110,10 +108,6 @@ def main(args=None):
     ARGS = parse_args(parser, args, namespace=ns)
 
     antibodies = tuple(ARGS.ANTIBODY)
-
-    # convert the hxb2 reference to amino acid, including loop definitions
-    if not ARGS.DNA:
-        ARGS.REFSEQ = translate(ARGS.REFSEQ)
 
     # do some argument parsing
     if ARGS.TEST:
@@ -127,17 +121,14 @@ def main(args=None):
     # set the util params
     set_util_params(ARGS.REFSEQ.id)
 
-    # fetch the alphabet, we'll probably need it later
-    alph = Alphabet(mode=ARGS.ALPHABET)
-
     # grab the relevant antibody from the SQLITE3 data
     # format as SeqRecord so we can output as FASTA
     # and generate an alignment using HMMER if it doesn't already exist
-    seqrecords, clonal, antibodies = ARGS.DATA.seqrecords(antibodies, ARGS.CLONAL, ARGS.DNA)
+    seqrecords, clonal, antibodies = ARGS.DATA.seqrecords(antibodies, ARGS.CLONAL)
 
     ab_basename = ''.join((
         '+'.join(antibodies),
-        '_dna' if ARGS.DNA else '_amino',
+        '_dna' if ARGS.ENCODER == DNAEncoder else '_amino',
         '_clonal' if clonal else ''
         ))
     alignment_basename = '_'.join((
@@ -170,56 +161,29 @@ def main(args=None):
     if ARGS.AUTOBALANCE:
         ARGS.LABEL = '{0} > {1}'.format(ARGS.LABEL.strip(), threshold)
 
-    filter = naivefilter(
-        ARGS.MAX_CONSERVATION,
-        ARGS.MIN_CONSERVATION,
-        ARGS.MAX_GAP_RATIO
-    )
+    filter = naive_filter(
+        max_conservation=ARGS.MAX_CONSERVATION,
+        min_conservation=ARGS.MIN_CONSERVATION,
+        max_gap_ratio=ARGS.MAX_GAP_RATIO
+        )
 
-    builders = [
-        DataBuilder(
-            alignment,
-            alph,
-            filter
-            )
-        ]
+    extractors = [('site', MSAVectorizer(ARGS.ENCODER, filter))]
 
     if ARGS.RADIUS:
-        builders.append(
-            DataBuilderPairwise(
-                alignment,
-                alph,
-                filter,
-                ARGS.RADIUS
-                )
-            )
+        extractors.append(('site_pairs', MSAVectorizerPairwise(ARGS.ENCODER, filter, ARGS.RADIUS)))
 
     if ARGS.PNGS:
-        builders.append(
-            DataBuilderRegex(
-                alignment,
-                alph,
-                re_pngs,
-                4,
-                label='PNGS'
-                )
-            )
+        extractors.append(('pngs', MSAVectorizerRegex(re_pngs, 4, name='PNGS')))
 
     if ARGS.PNGS_PAIRS:
-        builders.append(
-            DataBuilderRegexPairwise(
-                alignment,
-                alph,
-                re_pngs,
-                4,
-                label='PNGS'
-                )
+        extractors.append(
+            ('pngs_pairs', MSAVectorizerRegexPairwise(re_pngs, 4, name='PNGS'))
             )
 
-    builder = DataReducer(*builders)
-    X = builder(alignment)
+    extractor = FeatureUnion(extractors, n_jobs=1)  # n_jobs must be one for now
+    X = extractor.fit_transform(alignment)
 
-    svm = SVC(kernel='linear')
+    svm = SVC(kernel='linear', class_weight='auto')
 
     mrmr = MRMR(
         estimator=svm,
@@ -238,7 +202,7 @@ def main(args=None):
 
     clf = GridSearchCV(
         estimator=svm,
-        param_grid={'C': list(C_range(*ARGS.LOG2C))},
+        param_grid=dict(C=list(C_range(*ARGS.LOG2C))),
         scoring=scorer,
         n_jobs=int(getenv('NCPU', -1)),  # use all but 1 cpu
         pre_dispatch='2 * n_jobs',
@@ -248,7 +212,15 @@ def main(args=None):
     clf.fit(X_, y)
 
     with gzip_open(ARGS.MODEL, 'wb') as fh:
-        pickle_dump((ARGS.DNA, ARGS.LABEL, hmm, builder, mrmr, clf), fh)
+        pickle_dump((2, ARGS.ENCODER, ARGS.LABEL, hmm, extractor, mrmr, clf), fh)
+
+    coefs, ranks = coefs_ranks(mrmr.ranking_, mrmr.support_, clf.best_estimator_.coef_)
+    results = Results(extractor.get_feature_names(), scorer, ARGS.SIMILAR)
+
+    results.add(y, clf.predict(X_), coefs, ranks)
+    results.metadata(antibodies, ARGS.LABEL)
+
+    print(results.dumps(), file=ARGS.OUTPUT)
 
     finalize_args(ARGS)
 

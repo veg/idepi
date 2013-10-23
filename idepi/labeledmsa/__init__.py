@@ -1,7 +1,9 @@
 
 from Bio.Align import MultipleSeqAlignment
 
-from idepi.alphabet import Alphabet
+from BioExt.collections import Counter
+
+from idepi.constants import GAPS
 from idepi._common import base_10_to_n, base_26_to_alph
 
 
@@ -15,7 +17,7 @@ def column_labels(alignment, refidx):
     refseq = str(alignment[refidx].seq)
     pos, insert = 0, 0
     for i, char in enumerate(refseq):
-        if char not in Alphabet.GAPS:
+        if char not in GAPS:
             pos += 1
             insert = 0
         else:
@@ -58,14 +60,19 @@ class LabeledMSA(MultipleSeqAlignment):
                 self.__positions
                 )
         elif len(index) != 2 or not all(isinstance(idx, (int, slice)) for idx in index):
-            raise TypeError("Invalid index type")
+            raise TypeError("invalid index type")
 
         _, col_index = index
-        return LabeledMSA(
-            super(LabeledMSA, self).__getitem__(index),
-            self.__labels[col_index],
-            self.__positions[col_index]
-            )
+        if isinstance(col_index, int):
+            return super(LabeledMSA, self).__getitem__(index)
+        elif isinstance(col_index, slice):
+            return LabeledMSA(
+                super(LabeledMSA, self).__getitem__(index),
+                self.__labels[col_index],
+                self.__positions[col_index]
+                )
+        else:
+            raise TypeError("invalid index type")
 
     def __add__(self, other):
         if not isinstance(other, LabeledMSA):

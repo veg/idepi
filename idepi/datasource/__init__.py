@@ -10,12 +10,13 @@ from textwrap import dedent
 from warnings import warn
 
 from Bio import SeqIO
-from Bio.Alphabet import Gapped, generic_nucleotide
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
-from BioExt.misc import translate
 from BioExt.orflist import OrfList
+
+from idepi.constants import AminoAlphabet, DNAAlphabet
+from idepi.verifier import VerifyError, Verifier
 
 
 __all__ = ['DataSource']
@@ -27,7 +28,7 @@ def DataSource(*args):
     if len(args) == 2:
         return MonogramData(*args)
     else:
-        raise ValueError("invalid data specification: '%s'" % s)
+        raise ValueError("invalid data specification: '{0:s}'".format(''.join(args)))
 
 
 class Sqlite3Db:
@@ -61,7 +62,7 @@ class Sqlite3Db:
         conn.close()
         return valid_labels
 
-    def seqrecords(self, antibodies, clonal=False, dna=False):
+    def seqrecords(self, antibodies, clonal=False):
         conn = connect(self.__filename)
         cur = conn.cursor()
 
@@ -93,39 +94,45 @@ class Sqlite3Db:
         params = ('+'.join(antibodies__),) + antibodies__
         cur.execute(stmt, params)
 
-        ids = {}
-        seqrecords = []
-        for row in cur:
-            nno, sid, seq, subtype, ab, values = row[:6]
-            values_ = {}
-            for kv in values.split(','):
-                k, v = kv.split(':')
-                try:
-                    v_ = float(v.strip().lstrip('<>'))
-                except ValueError:
+        def records():
+            ids = {}
+            for row in cur:
+                nno, sid, seq, subtype, ab, values = row[:6]
+                values_ = {}
+                for kv in values.split(','):
+                    k, v = kv.split(':')
+                    try:
+                        v_ = float(v.strip().lstrip('<>'))
+                    except ValueError:
+                        continue
+                    if k not in values_:
+                        values_[k] = []
+                    values_[k].append(v_)
+                if len(values_) == 0:
+                    warn("skipping sequence '%s', invalid values '%s'" % (sid, values))
                     continue
-                if k not in values_:
-                    values_[k] = []
-                values_[k].append(v_)
-            if len(values_) == 0:
-                warn("skipping sequence '%s', invalid values '%s'" % (sid, values))
-                continue
-            dnaseq = Seq(OrfList(seq, include_stops=False)[0], Gapped(generic_nucleotide))
-            record = SeqRecord(
-                dnaseq if dna else dnaseq.translate(),
-                id=sid,
-                description=json_dumps({
-                    'subtype': subtype,
-                    'ab': ab,
-                    'values': values_
-                    })
-            )
-            if sid in ids:
-                record.id += str(-ids[sid])
-                ids[sid] += 1
-            else:
-                ids[sid] = 1
-            seqrecords.append(record)
+                record = SeqRecord(
+                    Seq(OrfList(seq, include_stops=False)[0], DNAAlphabet),
+                    id=sid,
+                    description=json_dumps({
+                        'subtype': subtype,
+                        'ab': ab,
+                        'values': values_
+                        })
+                )
+                if sid in ids:
+                    record.id += str(-ids[sid])
+                    ids[sid] += 1
+                else:
+                    ids[sid] = 1
+                yield record
+
+        source = Verifier(records(), DNAAlphabet)
+        try:
+            seqrecords = list(source)
+        except VerifyError:
+            source.set_alphabet(AminoAlphabet)
+            seqrecords = list(source)
 
         conn.close()
 
@@ -182,17 +189,20 @@ class MonogramData:
     def labels(self):
         return []
 
-    def seqrecords(self, antibodies, clonal=False, dna=False):
+    def seqrecords(self, antibodies, clonal=False):
         if clonal:
             raise ValueError('clonal property is not available with Monogram datasets')
-        if dna:
-            raise ValueError('dna sequences are not available with Monogram datasets')
         if len(antibodies) > 1:
             raise ValueError('only one antibody can be interrogated with Monogram datasets')
 
         seqrecords = []
-        with open(self.__fastafile) as fh:
-            seqrecords = [r if dna else translate(r) for r in SeqIO.parse(fh, 'fasta')]
+        with open(self.__fastafile) as h:
+            source = Verifier(SeqIO.parse(h, 'fasta'), DNAAlphabet)
+            try:
+                seqrecords = list(source)
+            except VerifyError:
+                source.set_alphabet(AminoAlphabet)
+                seqrecords = list(source)
 
         underdash = re_compile(r'[_-](\d+)$')
         for r in seqrecords:

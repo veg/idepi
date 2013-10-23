@@ -26,6 +26,7 @@ from __future__ import division, print_function
 
 from json import dumps as json_dumps, loads as json_loads
 from logging import getLogger
+from math import copysign
 from os import close, remove
 from os.path import exists, splitext
 from re import compile as re_compile, I as re_I
@@ -38,9 +39,12 @@ from Bio import AlignIO, SeqIO
 
 from BioExt.misc import translate
 
+from idepi.constants import AminoAlphabet, DNAAlphabet
+from idepi.encoder import DNAEncoder
 from idepi.hmmer import HMMER
 from idepi.labeledmsa import LabeledMSA
 from idepi.logging import IDEPI_LOGGER
+from idepi.verifier import VerifyError, Verifier
 
 
 __all__ = [
@@ -56,7 +60,8 @@ __all__ = [
     'extract_feature_weights',
     'generate_alignment',
     'C_range',
-    'load_stockholm'
+    'load_stockholm',
+    'coefs_ranks'
 ]
 
 __REFSEQ_IDS = []
@@ -250,17 +255,34 @@ def generate_hmm_(opts):
     fd, tmphmm = mkstemp(); close(fd)
     fd, tmpaln = mkstemp(); close(fd)
 
+    is_dna = opts.ENCODER == DNAEncoder
+
     try:
         with open(opts.REFMSA) as msa_fh:
-            msa_fmt = seqfile_format(opts.REFMSA)
             with open(tmpaln, 'w') as aln_fh:
-                SeqIO.write(
-                    (r if opts.DNA else translate(r) for r in SeqIO.parse(msa_fh, msa_fmt)),
-                    aln_fh,
-                    'stockholm')
+                msa_fmt = seqfile_format(opts.REFMSA)
+                source = Verifier(SeqIO.parse(msa_fh, msa_fmt), DNAAlphabet)
+                try:
+                    SeqIO.write(
+                        (record if is_dna else translate(record) for record in source),
+                        aln_fh,
+                        'stockholm')
+                except VerifyError:
+                    if is_dna:
+                        raise RuntimeError("DNA encoding incompatible with protein reference MSA")
+                    source.set_alphabet(AminoAlphabet)
+                    aln_fh.seek(0)
+                    SeqIO.write(
+                        source,
+                        aln_fh,
+                        'stockholm')
 
         hmmer = HMMER(opts.HMMER_ALIGN_BIN, opts.HMMER_BUILD_BIN)
-        hmmer.build(tmphmm, tmpaln, alphabet=HMMER.DNA if opts.DNA else HMMER.AMINO)
+        hmmer.build(
+            tmphmm,
+            tmpaln,
+            alphabet=HMMER.DNA if is_dna else HMMER.AMINO
+            )
     finally:
         if exists(tmpaln):
             remove(tmpaln)
@@ -273,6 +295,7 @@ def generate_alignment_(seqrecords, hmmfile, opts, refseq=None):
     fd, tmpaln = mkstemp(); close(fd)
     finished = False
 
+    is_dna = opts.ENCODER == DNAEncoder
     log = getLogger(IDEPI_LOGGER)
 
     try:
@@ -281,9 +304,11 @@ def generate_alignment_(seqrecords, hmmfile, opts, refseq=None):
 
             def records():
                 if refseq:
-                    yield HMMER.valid(refseq)
+                    yield HMMER.valid(refseq, is_dna=is_dna)
                 for record in seqrecords:
-                    yield HMMER.valid(record)
+                    if not is_dna and record.seq.alphabet == DNAAlphabet:
+                        record = translate(record)
+                    yield HMMER.valid(record, is_dna=is_dna)
 
             SeqIO.write(records(), seq_fh, 'fasta')
 
@@ -294,7 +319,7 @@ def generate_alignment_(seqrecords, hmmfile, opts, refseq=None):
             hmmfile,
             tmpseq,
             output=tmpaln,
-            alphabet=HMMER.DNA if opts.DNA else HMMER.AMINO,
+            alphabet=HMMER.DNA if is_dna else HMMER.AMINO,
             outformat=HMMER.PFAM
         )
 
@@ -402,3 +427,15 @@ def load_stockholm(filename, trim=False):
         ranges = stockholm_rf_ranges(filename)
         msa = trim_msa_to_ranges(msa, ranges)
     return msa
+
+
+def coefs_ranks(ranking_, support_, coef_):
+    coefs = {}
+    ranks = {}
+    col = 0
+    for i, (rank, selected) in enumerate(zip(ranking_, support_)):
+        if selected:
+            coefs[i] = int(copysign(1, coef_[0, col]))
+            ranks[i] = int(rank)
+            col += 1
+    return coefs, ranks

@@ -12,9 +12,9 @@ from sklearn.svm import SVC
 
 from sklmrmr import MRMR
 
-from idepi.alphabet import Alphabet
-from idepi.databuilder import DataBuilder
-from idepi.filter import naivefilter
+from idepi.encoder import AminoEncoder, StanfelEncoder
+from idepi.feature_extraction import MSAVectorizer
+from idepi.labeledmsa import LabeledMSA
 from idepi.labeler import Labeler
 from idepi.util import (
     reference_index,
@@ -57,16 +57,14 @@ def test_discrete(ARGS):
 
         alignment = AlignIO.read(sto_filename, 'stockholm')
 
-        for ARGS.ALPHABET in (Alphabet.AMINO, Alphabet.STANFEL):
+        for ARGS.ENCODER in (AminoEncoder, StanfelEncoder):
 
-            if ARGS.ALPHABET == Alphabet.STANFEL:
+            if ARGS.ENCODER == StanfelEncoder:
                 TEST_NAMES = TEST_STANFEL_NAMES
                 TEST_X = TEST_STANFEL_X
             else:
                 TEST_NAMES = TEST_AMINO_NAMES
                 TEST_X = TEST_AMINO_X
-
-            alph = Alphabet(mode=ARGS.ALPHABET)
 
             # test mRMR and LSVM file generation
             ylabeler = Labeler(
@@ -77,20 +75,11 @@ def test_discrete(ARGS):
             )
             alignment, y, ic50 = ylabeler(alignment)
 
-            filter = naivefilter(
-                ARGS.MAX_CONSERVATION,
-                ARGS.MIN_CONSERVATION,
-                ARGS.MAX_GAP_RATIO,
-            )
             refidx = reference_index(alignment, is_refseq)
-            builder = DataBuilder(
-                alignment,
-                alph,
-                refidx,
-                filter
-            )
-            x = builder(alignment, refidx)
-            colnames = builder.labels
+            alignment = LabeledMSA.from_msa_with_ref(alignment, refidx)
+            extractor = MSAVectorizer(ARGS.ENCODER)
+            x = extractor.fit_transform(alignment)
+            colnames = extractor.get_feature_names()
 
             # test the feature names portion
             try:
@@ -123,5 +112,3 @@ def test_discrete(ARGS):
         remove(sto_filename)
 
     print('ALL TESTS PASS', file=sys.stderr)
-
-

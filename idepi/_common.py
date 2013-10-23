@@ -3,9 +3,9 @@ from __future__ import division, print_function
 
 from re import sub as re_sub
 
-from .alphabet import Alphabet
-
 import numpy as np
+
+from idepi.constants import GAPS
 
 
 __all__ = [
@@ -79,16 +79,16 @@ def get_noise(seqrecord, label='IC50'):
 
 def sanitize_seq(seq, alphabet):
     alphdict = alphabet.todict()
-    assert(len(Alphabet.GAPS) > 0 and len(seq) > 0 and len(alphdict) > 0)
+    assert(len(GAPS) > 0 and len(seq) > 0 and len(alphdict) > 0)
     try:
         seq = str(seq)
         seq = seq.upper()
-        seq = re_sub(r'[%s]' % Alphabet.GAPS, '-', seq)
+        seq = re_sub(r'[%s]' % GAPS, '-', seq)
         seq = re_sub(r'[^%s]' % ''.join(alphdict.keys()), 'X', seq)
     except TypeError:
         raise RuntimeError(
             'something is amiss with things:\n  GAPS = %s\n  seq = %s\n  alphabet = %s\n' % (
-                Alphabet.GAPS, seq, alphdict)
+                GAPS, seq, alphdict)
             )
     return seq
 

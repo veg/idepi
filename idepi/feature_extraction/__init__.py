@@ -22,15 +22,23 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
-from ._databuilder import *
-from ._databuilderpairwise import *
-from ._databuilderregex import *
-from ._databuilderregexpairwise import *
-from ._datareducer import *
+from sklearn.pipeline import FeatureUnion as FeatureUnion_
 
-__all__ = []
-__all__ += _databuilder.__all__
-__all__ += _databuilderpairwise.__all__
-__all__ += _databuilderregex.__all__
-__all__ += _databuilderregexpairwise.__all__
-__all__ += _datareducer.__all__
+from idepi.feature_extraction._msavectorizer import *
+from idepi.feature_extraction._msavectorizerpairwise import *
+from idepi.feature_extraction._msavectorizerregex import *
+from idepi.feature_extraction._msavectorizerregexpairwise import *
+
+__all__ = ['FeatureUnion']
+__all__ += _msavectorizer.__all__
+__all__ += _msavectorizerpairwise.__all__
+__all__ += _msavectorizerregex.__all__
+__all__ += _msavectorizerregexpairwise.__all__
+
+
+class FeatureUnion(FeatureUnion_):
+    def get_feature_names(self):
+        feature_names = []
+        for _, trans in self.transformer_list:
+            feature_names.extend(trans.get_feature_names())
+        return feature_names

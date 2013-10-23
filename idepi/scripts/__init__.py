@@ -1,6 +1,5 @@
 
 from ._discrete import main as discrete
-from ._hcv import main as hcv
 from ._learn import main as learn
 from ._phylo import main as phylo
 from ._predict import main as predict
@@ -10,7 +9,6 @@ from ._tree import main as tree
 
 __all__ = [
     'discrete',
-    'hcv',
     'learn',
     'phylo',
     'predict',

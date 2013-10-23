@@ -144,8 +144,8 @@ class HMMER:
             return out
 
     @staticmethod
-    def valid(record, dna=False):
-        if dna:
+    def valid(record, is_dna=False):
+        if is_dna:
             regexp = re_compile(r'[^ACGT]')
         else:
             regexp = re_compile(r'[^ACDEFGHIKLMNPQRSTVWY]')

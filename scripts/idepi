@@ -3,7 +3,7 @@
 from __future__ import division, print_function
 
 from argparse import ArgumentParser
-from sys import argv as sys_argv, exit as sys_exit
+from sys import argv, exit, stderr
 
 from idepi.scripts import *
 from idepi.scripts import __all__ as scripts
@@ -11,7 +11,7 @@ from idepi.scripts import __all__ as scripts
 
 def main(args=None):
     if args is None:
-        args = sys_argv[1:]
+        args = argv[1:]
 
     parser = ArgumentParser(description='IDentify EPItopes')
     subparsers = parser.add_subparsers(
@@ -31,4 +31,8 @@ def main(args=None):
 
 
 if __name__ == '__main__':
-    sys_exit(main())
+    try:
+        exit(main())
+    except RuntimeError as e:
+        print('ERROR:', str(e), file=stderr)
+        exit(-1)

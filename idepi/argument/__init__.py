@@ -15,7 +15,10 @@
 # You should have received a copy of the GNU General Public License along
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-#
+
+# this file is heavily formatted, so skip it for the most part
+# flake8: noqa
+
 
 from __future__ import division, print_function
 
@@ -26,14 +29,23 @@ from argparse import ArgumentParser, ArgumentTypeError, FileType
 from os.path import isfile, join
 from random import seed
 
+from numpy.random import seed as np_seed
+
 from Bio import SeqIO
 
+from BioExt.misc import translate
 from BioExt.references import hxb2
 
-from idepi.alphabet import Alphabet as ALPH
+from idepi.constants import AminoAlphabet, DNAAlphabet
+from idepi.encoder import (
+    AminoEncoder,
+    DNAEncoder,
+    StanfelEncoder
+    )
 from idepi.datasource import DataSource
 from idepi.scorer import Scorer
 from idepi.simulation import Simulation
+from idepi.verifier import VerifyError, Verifier
 
 
 def csvtype(string):
@@ -50,7 +62,7 @@ def logtype(string):
         raise ValueError("unknown loggers requested: %s" % ', '.join("'%s'" for l in diff))
     # set the loggers
     if 'idepi' in loggers:
-        from ._logging import IDEPI_LOGGER
+        from idepi.logging import IDEPI_LOGGER
         logging.getLogger(IDEPI_LOGGER).setLevel(logging.DEBUG)
     return loggers
 
@@ -114,7 +126,7 @@ def rfe_args(parser):
 
 def optstat_args(parser):
     group = parser.add_mutually_exclusive_group()
-    #                  option           action                const                      dest
+    #                  option           action                const                     dest
     group.add_argument('--accuracy',    action='store_const', const=Scorer.ACCURACY,    dest='OPTSTAT')
     group.add_argument('--ppv',         action='store_const', const=Scorer.PPV,         dest='OPTSTAT')
     group.add_argument('--precision',   action='store_const', const=Scorer.PPV,         dest='OPTSTAT')
@@ -127,18 +139,6 @@ def optstat_args(parser):
     group.add_argument('--mcc',         action='store_const', const=Scorer.MCC,         dest='OPTSTAT')
     parser.set_defaults(
         OPTSTAT=Scorer.MCC
-        )
-    return parser
-
-
-def encoding_args(parser):
-    group = parser.add_mutually_exclusive_group()
-    #                  option       action                const               dest
-    group.add_argument('--amino',   action='store_const', const=ALPH.AMINO,   dest='ALPHABET')
-    group.add_argument('--dna',     action='store_const', const=ALPH.DNA,     dest='ALPHABET')
-    group.add_argument('--stanfel', action='store_const', const=ALPH.STANFEL, dest='ALPHABET')
-    parser.set_defaults(
-        ALPHABET=ALPH.AMINO
         )
     return parser
 
@@ -306,13 +306,32 @@ def PathType(string):
     return string
 
 
-def FastaType(string):
+def SeedType(string):
     try:
-        with open(string) as h:
-            refseq = next(SeqIO.parse(h, 'fasta'))
-        return refseq
-    except:
-        raise ArgumentTypeError("invalid FASTA file '{0:s}'".format(string))
+        val = int(string)
+        seed(val)
+        np_seed(val)
+    except ValueError:
+        raise ArgumentTypeError("invalid seed '{0:s}'".format(string))
+
+
+def fastatypefactory(is_dna):
+    def fastatype(string):
+        try:
+            with open(string) as h:
+                source = Verifier(SeqIO.parse(h, 'fasta'), DNAAlphabet)
+                try:
+                    seq = next(source)
+                    if not is_dna:
+                        seq = translate(seq)
+                except VerifyError:
+                    if is_dna:
+                        raise ArgumentTypeError("DNA encoding incompatible with protein reference")
+                    source.set_alphabet(AminoAlphabet)
+                    seq = next(source)
+            return seq
+        except:
+            raise ArgumentTypeError("invalid FASTA file '{0:s}'".format(string))
 
 
 def init_args(description, args):
@@ -320,8 +339,23 @@ def init_args(description, args):
 
     parser = ArgumentParser(description=description)
 
-    parser.add_argument('--data', type=PathType, dest='_DATA', nargs='*',
-            default=[join(idepi_path[0], 'data', 'allneuts.sqlite3')])
+    # handle the datasource, we need to know to setup labeltype and subtype info
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument('--csv',    type=PathType, dest='_DATA', nargs=2, metavar=('FASTA', 'CSV'))
+    group.add_argument('--sqlite', type=PathType, dest='_DATA', nargs=1, metavar='SQLITE3')
+    group.set_defaults(
+        _DATA=[join(idepi_path[0], 'data', 'allneuts.sqlite3')]
+        )
+
+    # handle the encoder early as well
+    encoders = dict((str(enc), enc) for enc in (AminoEncoder, DNAEncoder, StanfelEncoder))
+    parser.add_argument(
+        '--encoding',
+        type=lambda s: encoders.get(s, s),
+        choices=sorted(encoders.values(), key=str),
+        dest='ENCODER',
+        default=AminoEncoder
+        )
 
     # rather than removing the help and making a new parser,
     # if help options are passed defer them to the next parsing
@@ -339,11 +373,13 @@ def init_args(description, args):
     args += deferred
 
     # setup a "subtypetype for the parser"
+    is_dna = ns.ENCODER == DNAEncoder
     ns.DATA = DataSource(*ns._DATA)
-    labeltype = labeltypefactory(ns.DATA)
+    fastatype = fastatypefactory(is_dna)
+    # labeltype = labeltypefactory(ns.DATA)
     subtype = subtypefactory(ns.DATA)
 
-    #                   option             action='store'       type                dest
+    #                   option             action               type                dest
     parser.add_argument('--autobalance',   action='store_true',                     dest='AUTOBALANCE')
     parser.add_argument('--log',                                type=logtype,       dest='LOGGING')
     parser.add_argument('--label',                              type=str,           dest='LABEL')
@@ -352,9 +388,9 @@ def init_args(description, args):
     parser.add_argument('--subtypes',                           type=subtype,       dest='SUBTYPES')
     parser.add_argument('--weighting',     action='store_true',                     dest='WEIGHTING')
     parser.add_argument('--refmsa',                             type=PathType,      dest='REFMSA')
-    parser.add_argument('--refseq',                             type=FastaType,     dest='REFSEQ')
-    parser.add_argument('--test',          action='store_true',                     dest='TEST')
-    parser.add_argument('--seed',                               type=int,           dest='RAND_SEED')
+    parser.add_argument('--refseq',                             type=fastatype,     dest='REFSEQ')
+    parser.add_argument('--test',action='store_true',                               dest='TEST')
+    parser.add_argument('--seed',                               type=SeedType,      dest='RAND_SEED')
     parser.add_argument('-o', '--output',                       type=FileType('w'), dest='OUTPUT')
 
     refseq = hxb2.env.load()
@@ -368,7 +404,7 @@ def init_args(description, args):
         SUBTYPES   =[],
         WEIGHTING  =False,
         REFMSA     =PathType(join(idepi_path[0], 'data', 'HIV1_FLT_2012_env_DNA.sto')),
-        REFSEQ     =refseq,
+        REFSEQ     =refseq if is_dna else translate(refseq),
         RAND_SEED  =42, # magic number for determinism
         PHYLOFILTER=False,
         OUTPUT     =sys.stdout
@@ -379,9 +415,6 @@ def init_args(description, args):
 
 def parse_args(parser, args, namespace=None):
     ns = parser.parse_args(args=args, namespace=namespace)
-    seed(ns.RAND_SEED)
-    if hasattr(ns, 'ALPHABET'):
-        ns.DNA = ns.ALPHABET == ALPH.DNA
     return ns
 
 

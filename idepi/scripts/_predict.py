@@ -37,7 +37,7 @@ import numpy as np
 
 from Bio import SeqIO
 
-from BioExt.misc import gapless, translate
+from BioExt.misc import translate
 
 from idepi.argument import (
     PathType,
@@ -46,11 +46,14 @@ from idepi.argument import (
     parse_args,
     finalize_args
 )
+from idepi.constants import AminoAlphabet, DNAAlphabet
+from idepi.encoder import DNAEncoder
 from idepi.util import (
     generate_alignment_,
     load_stockholm,
     seqfile_format
     )
+from idepi.verifier import VerifyError, Verifier
 
 
 def main(args=None):
@@ -69,18 +72,35 @@ def main(args=None):
     ARGS = parse_args(parser, args, namespace=ns)
 
     with gzip_open(ARGS.MODEL, 'rb') as fh:
-        ARGS.DNA, ARGS.LABEL, hmm, builder, mrmr, clf = pickle_load(fh)
+        try:
+            model = pickle_load(fh)
+            if model[0] != 2:
+                raise ImportError('incompatible model version')
+            ARGS.ENCODER, ARGS.LABEL, hmm, extractor, mrmr, clf = model[1:]
+        except ImportError:
+            msg = 'your model is not of the appropriate version, please re-learn your model'
+            raise RuntimeError(msg)
 
     # create a temporary file wherein space characters have been removed
     with open(ARGS.SEQUENCES) as seq_fh:
-        seq_fmt = seqfile_format(ARGS.SEQUENCES)
 
         def seqrecords():
-            for record in SeqIO.parse(seq_fh, seq_fmt):
-                r = gapless(record)
-                if not ARGS.DNA:
-                    r = translate(r)
-                yield r
+            is_dna = ARGS.ENCODER == DNAEncoder
+            seq_fmt = seqfile_format(ARGS.SEQUENCES)
+            source = Verifier(SeqIO.parse(seq_fh, seq_fmt), DNAAlphabet)
+            try:
+                for record in source:
+                    yield record if is_dna else translate(record)
+            except VerifyError:
+                if is_dna:
+                    msg = (
+                        "your model specifies a DNA encoding "
+                        "which is incompatible with protein sequences"
+                        )
+                    raise RuntimeError(msg)
+                source.set_alphabet(AminoAlphabet)
+                for record in source:
+                    yield record
 
         try:
             fd, tmphmm = mkstemp(); close(fd)
@@ -96,18 +116,40 @@ def main(args=None):
             if exists(tmpaln):
                 remove(tmpaln)
 
-    X = builder(alignment)[:, mrmr.support_]
+    X = extractor.transform(alignment)[:, mrmr.support_]
     y = clf.predict(X)
 
+    feature_names = extractor.get_feature_names()
+    labels = ['"{0:s}"'.format(feature_names[i]) for i, s in enumerate(mrmr.support_) if s]
+    emptys = [' ' * (len(label) + 2) for label in labels]
     idlen = max(len(r.id) for r in alignment) + 3
 
     print('{{\n  "label": "{0:s}",\n  "predictions": ['.format(ARGS.LABEL), file=ARGS.OUTPUT)
-    for i, (r, p) in enumerate(zip(alignment, y)):
+    for i, r in enumerate(alignment):
         if i > 0:
             print(',')
+        features = ['[ ']
+        for j, x in enumerate(X[i, :]):
+            if x:
+                features.append(labels[j])
+                features.append(', ')
+            else:
+                features.append(emptys[j])
+        features.append(' ]')
+        # replace the last comma with a space
+        idx = None
+        for k, f in enumerate(features):
+            if f == ', ':
+                idx = k
+        if idx is None:
+            features[0] = features[0].rstrip()
+            features[-1] = features[-1].lstrip()
+        else:
+            features[idx] = ''
+        features_ = ''.join(features)
         print(
-            '    {{{{ "id": {{0:<{0:d}s}} "value": {{1: d}} }}}}'.format(idlen).format(
-                '"{0:s}",'.format(r.id), p),
+            '    {{{{ "id": {{0:<{0:d}s}} "value": {{1: d}}, "features": {{2:s}} }}}}'.format(idlen).format(
+            '"{0:s}",'.format(r.id), y[i], features_),
             file=ARGS.OUTPUT, end='')
     print('\n  ]\n}', file=ARGS.OUTPUT)
 

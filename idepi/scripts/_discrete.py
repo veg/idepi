@@ -28,7 +28,6 @@ from __future__ import division, print_function
 import sys
 
 from functools import partial
-from math import copysign
 from os import getenv
 from os.path import join
 from re import compile as re_compile, I as re_I
@@ -36,13 +35,10 @@ from warnings import warn
 
 import numpy as np
 
-from BioExt.misc import translate
-
 from idepi import (
     __path__ as idepi_path,
     __version__
     )
-from idepi.alphabet import Alphabet
 from idepi.argument import (
     init_args,
     hmmer_args,
@@ -51,7 +47,6 @@ from idepi.argument import (
     mrmr_args,
     rfe_args,
     optstat_args,
-    encoding_args,
     filter_args,
     svm_args,
     cv_args,
@@ -59,14 +54,15 @@ from idepi.argument import (
     parse_args,
     abtypefactory
     )
-from idepi.databuilder import (
-    DataBuilder,
-    DataBuilderPairwise,
-    DataBuilderRegex,
-    DataBuilderRegexPairwise,
-    DataReducer
+from idepi.encoder import DNAEncoder
+from idepi.feature_extraction import (
+    FeatureUnion,
+    MSAVectorizer,
+    MSAVectorizerPairwise,
+    MSAVectorizerRegex,
+    MSAVectorizerRegexPairwise
     )
-from idepi.filter import naivefilter
+from idepi.filters import naive_filter
 from idepi.labeler import (
     Labeler,
     expression
@@ -76,6 +72,7 @@ from idepi.results import Results
 from idepi.scorer import Scorer
 from idepi.test import test_discrete
 from idepi.util import (
+    coefs_ranks,
     generate_alignment,
     is_refseq,
     set_util_params,
@@ -110,7 +107,6 @@ def main(args=None):
     parser = mrmr_args(parser)
     parser = rfe_args(parser)
     parser = optstat_args(parser)
-    parser = encoding_args(parser)
     parser = filter_args(parser)
     parser = svm_args(parser)
     parser = cv_args(parser)
@@ -137,19 +133,14 @@ def main(args=None):
             warn('clamping --numfeats to sizeof(--filter) = %d' % ARGS.NUM_FEATURES)
 
     # convert the hxb2 reference to amino acid, including loop definitions
-    if not ARGS.DNA:
-        ARGS.REFSEQ = translate(ARGS.REFSEQ)
 
     # set the util params
     set_util_params(ARGS.REFSEQ.id)
 
-    # fetch the alphabet, we'll probably need it later
-    alph = Alphabet(mode=ARGS.ALPHABET)
-
     # grab the relevant antibody from the SQLITE3 data
     # format as SeqRecord so we can output as FASTA
     # and generate an alignment using HMMER if it doesn't already exist
-    seqrecords, clonal, antibodies = ARGS.DATA.seqrecords(antibodies, ARGS.CLONAL, ARGS.DNA)
+    seqrecords, clonal, antibodies = ARGS.DATA.seqrecords(antibodies, ARGS.CLONAL)
 
     # if we're doing LOOCV, make sure we set CV_FOLDS appropriately
     if ARGS.LOOCV:
@@ -157,7 +148,7 @@ def main(args=None):
 
     ab_basename = ''.join((
         '+'.join(antibodies),
-        '_dna' if ARGS.DNA else '_amino',
+        '_dna' if ARGS.ENCODER == DNAEncoder else '_amino',
         '_clonal' if clonal else ''
         ))
     alignment_basename = '_'.join((
@@ -169,11 +160,6 @@ def main(args=None):
 
     # don't capture the second variable, let it be gc'd
     alignment = generate_alignment(seqrecords, sto_filename, is_refseq, ARGS)[0]
-    filter = naivefilter(
-        ARGS.MAX_CONSERVATION,
-        ARGS.MIN_CONSERVATION,
-        ARGS.MAX_GAP_RATIO
-        )
 
     re_pngs = re_compile(r'N[^P][TS][^P]', re_I)
 
@@ -194,48 +180,28 @@ def main(args=None):
     if ARGS.AUTOBALANCE:
         ARGS.LABEL = '{0} > {1}'.format(ARGS.LABEL.strip(), threshold)
 
-    builders = [
-        DataBuilder(
-            alignment,
-            alph,
-            filter
-            )
-        ]
+    filter = naive_filter(
+        max_conservation=ARGS.MAX_CONSERVATION,
+        min_conservation=ARGS.MIN_CONSERVATION,
+        max_gap_ratio=ARGS.MAX_GAP_RATIO
+        )
+
+    extractors = [('site_ident', MSAVectorizer(ARGS.ENCODER, filter))]
 
     if ARGS.RADIUS:
-        builders.append(
-            DataBuilderPairwise(
-                alignment,
-                alph,
-                filter,
-                ARGS.RADIUS
-                )
-            )
+        extractors.append(('pair_ident', MSAVectorizerPairwise(ARGS.ENCODER, filter, ARGS.RADIUS)))
 
     if ARGS.PNGS:
-        builders.append(
-            DataBuilderRegex(
-                alignment,
-                alph,
-                re_pngs,
-                4,
-                label='PNGS'
-                )
-            )
+        extractors.append(('pngs', MSAVectorizerRegex(re_pngs, 4, name='PNGS')))
 
     if ARGS.PNGS_PAIRS:
-        builders.append(
-            DataBuilderRegexPairwise(
-                alignment,
-                alph,
-                re_pngs,
-                4,
-                label='PNGS'
-                )
+        extractors.append(
+            ('pngs_pair', MSAVectorizerRegexPairwise(re_pngs, 4, name='PNGS'))
             )
 
-    builder = DataReducer(*builders)
-    X = builder(alignment)
+    extractor = FeatureUnion(extractors, n_jobs=1)  # n_jobs must be 1 for now
+    X = extractor.fit_transform(alignment)
+
     assert y.shape[0] == X.shape[0], \
         "number of classes doesn't match the data: %d vs %d" % (y.shape[0], X.shape[0])
 
@@ -245,7 +211,7 @@ def main(args=None):
     forward_initval = 1 if ARGS.FORWARD_SELECT else ARGS.NUM_FEATURES
     results = None
     for num_features in range(forward_initval, ARGS.NUM_FEATURES + 1):
-        results_ = Results(builder.labels, scorer, ARGS.SIMILAR)
+        results_ = Results(extractor.get_feature_names(), scorer, ARGS.SIMILAR)
 
         for train_idxs, test_idxs in StratifiedKFold(y, ARGS.CV_FOLDS):
 
@@ -257,7 +223,7 @@ def main(args=None):
             X_train = X[train_idxs]
             y_train = y[train_idxs]
 
-            svm = SVC(kernel='linear')
+            svm = SVC(kernel='linear', class_weight='auto')
 
             if ARGS.RFE:
                 X_train_ = X_train
@@ -266,9 +232,7 @@ def main(args=None):
                     n_features_to_select=num_features,
                     step=ARGS.RFE_STEP
                     )
-                param_grid = {
-                    'estimator_params': [dict(C=c) for c in C_range(*ARGS.LOG2C)]
-                    }
+                param_grid = dict(estimator_params=dict(C=list(C_range(*ARGS.LOG2C))))
             else:
                 # do MRMR-fitting separately from GridSearchCV to avoid
                 # performing MRMR on every iteration of the grid search,
@@ -284,9 +248,7 @@ def main(args=None):
                 # train only using the MRMR-selected features
                 X_train_ = X_train[:, mrmr.support_]
                 estimator = svm
-                param_grid = {
-                    'C': list(C_range(*ARGS.LOG2C))
-                    }
+                param_grid = dict(C=list(C_range(*ARGS.LOG2C)))
 
             clf = GridSearchCV(
                 estimator=estimator,
@@ -316,16 +278,7 @@ def main(args=None):
 
             y_pred = clf.predict(X_test_)
 
-            coefs = {}
-            ranks = {}
-            col = 0
-            for (i, (rank, selected)) in enumerate(zip(ranking_, support_)):
-                if selected:
-                    coefs[i] = int(
-                        copysign(1, coef_[0, col])
-                        )
-                    ranks[i] = int(rank)
-                    col += 1
+            coefs, ranks = coefs_ranks(ranking_, support_, coef_)
 
             results_.add(y_true, y_pred, coefs, ranks)
 
