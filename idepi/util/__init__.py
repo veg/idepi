@@ -349,19 +349,16 @@ def generate_alignment(seqrecords, sto_filename, ref_id_func, opts, load=True):
     else:
         try:
             tmphmm = generate_hmm_(opts)
+            tmpaln = generate_alignment_(seqrecords, tmphmm, opts, refseq=opts.REFSEQ)
+            copyfile(tmpaln, sto_filename)
+            log.debug('finished alignment, output moved to {0:s}'.format(sto_filename))
             with open(tmphmm, 'rb') as hmm_fh:
                 hmm = hmm_fh.read()
-            if not exists(sto_filename):
-                try:
-                    tmpaln = generate_alignment_(seqrecords, tmphmm, opts, refseq=opts.REFSEQ)
-                    copyfile(tmpaln, sto_filename)
-                    log.debug('finished alignment, output moved to {0:s}'.format(sto_filename))
-                finally:
-                    if exists(tmpaln):
-                        remove(tmpaln)
         finally:
             if exists(tmphmm):
                 remove(tmphmm)
+            if exists(tmpaln):
+                remove(tmpaln)
 
     if load:
         with open(sto_filename) as fh:
