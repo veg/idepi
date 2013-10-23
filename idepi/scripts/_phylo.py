@@ -5,9 +5,7 @@ from __future__ import division, print_function
 from argparse import ArgumentParser
 from sys import argv as sys_argv, exit as sys_exit
 
-from Bio import AlignIO
-
-from idepi.alphabet import Alphabet
+from idepi.encoder import AminoEncoder
 from idepi.argument import PathType
 from idepi.feature_extraction import MSAVectorizer
 from idepi.phylogeny import (
@@ -15,8 +13,9 @@ from idepi.phylogeny import (
     PhyloGzFile
 )
 from idepi.util import (
-    reference_index,
-    is_refseq
+    is_refseq,
+    load_stockholm,
+    reference_index
 )
 
 
@@ -30,16 +29,14 @@ def main(args=None):
 
     ns = parser.parse_args(args)
 
-    with open(ns.ALIGNMENT) as fh:
-        msa = AlignIO.read(fh, 'stockholm')
+    msa = load_stockholm(ns.ALIGNMENT)
 
     try:
         refidx = reference_index(msa, is_refseq)
     except IndexError:
         raise RuntimeError('No reference sequence found!')
 
-    # TODO: by default, Alphabet() is amino acids, fix this?
-    labels = DataBuilder(msa, Alphabet(), refidx).labels
+    labels = MSAVectorizer(AminoEncoder).fit(msa).get_feature_names()
 
     seqrecords = [r for i, r in enumerate(msa) if not i == refidx]
 
