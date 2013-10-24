@@ -275,6 +275,8 @@ class SubtypeTypeFactory:
         self.valid_subtypes = sorted(data.subtypes, key=lambda x: x.strip().upper())
 
     def __call__(self, string):
+        if not self.valid_subtypes:
+            raise ArgumentTypeError("data source does not support subtype filtering")
         subtypes = string.split(',')
         for subtype in subtypes:
             if subtype not in self.valid_subtypes:
