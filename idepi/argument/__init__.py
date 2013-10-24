@@ -284,7 +284,7 @@ class SubtypeTypeFactory:
                     subtype,
                     ', '.join("'%s'" % st.strip() for st in self.valid_subtypes))
                 raise ArgumentTypeError(msg)
-        return subtypes
+        return set(subtypes)
 
 
 class AntibodyTypeFactory:
@@ -411,7 +411,7 @@ def init_args(description, args):
         LABEL      ='max(IC50) > 20',
         FILTER     =[],
         CLONAL     =False,
-        SUBTYPES   =[],
+        SUBTYPES   =set(),
         WEIGHTING  =False,
         REFMSA     =PathType(join(idepi_path[0], 'data', 'HIV1_FLT_2012_env_DNA.sto')),
         REFSEQ     =refseq if is_dna else translate(refseq),

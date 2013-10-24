@@ -27,6 +27,7 @@ from __future__ import division, print_function
 
 import sys
 
+from argparse import ArgumentTypeError
 from functools import partial
 from gzip import open as gzip_open
 from os import getenv
@@ -64,7 +65,8 @@ from idepi.feature_extraction import (
 from idepi.filters import naive_filter
 from idepi.labeler import (
     Labeler,
-    expression
+    expression,
+    skipper
     )
 from idepi.results import Results
 from idepi.scorer import Scorer
@@ -101,9 +103,15 @@ def main(args=None):
     parser = svm_args(parser)
     parser = cv_args(parser)
 
+    def GzipType(string):
+        try:
+            return gzip_open(string, 'wb')
+        except:
+            return ArgumentTypeError("cannot open '{0:s}' for writing".format(string))
+
     parser.add_argument('--tree', dest='TREE')
     parser.add_argument('ANTIBODY', type=AntibodyTypeFactory(ns.DATA), nargs='+')
-    parser.add_argument('MODEL', type=str)
+    parser.add_argument('MODEL', type=GzipType)
 
     ARGS = parse_args(parser, args, namespace=ns)
 
@@ -144,8 +152,8 @@ def main(args=None):
 
     # compute features
     ylabeler = Labeler(
-        partial(expression, label=ARGS.LABEL),
-        is_refseq  # TODO: again, filtration function
+        partial(expression, ARGS.LABEL),
+        partial(skipper, is_refseq, ARGS.SUBTYPES)
     )
     alignment, y, threshold = ylabeler(alignment)
 
@@ -199,8 +207,8 @@ def main(args=None):
 
     clf.fit(X_, y)
 
-    with gzip_open(ARGS.MODEL, 'wb') as fh:
-        pickle_dump((2, ARGS.ENCODER, ARGS.LABEL, hmm, extractor, mrmr, clf), fh)
+    pickle_dump((2, ARGS.ENCODER, ARGS.LABEL, hmm, extractor, mrmr, clf), ARGS.MODEL)
+    ARGS.MODEL.close()
 
     coefs, ranks = coefs_ranks(mrmr.ranking_, mrmr.support_, clf.best_estimator_.coef_)
     results = Results(extractor.get_feature_names(), scorer, ARGS.SIMILAR)

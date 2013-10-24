@@ -65,7 +65,8 @@ from idepi.feature_extraction import (
 from idepi.filters import naive_filter
 from idepi.labeler import (
     Labeler,
-    expression
+    expression,
+    skipper
     )
 from idepi.logging import init_log
 from idepi.results import Results
@@ -164,8 +165,8 @@ def main(args=None):
     re_pngs = re_compile(r'N[^P][TS][^P]', re_I)
 
     ylabeler = Labeler(
-        partial(expression, label=ARGS.LABEL),
-        is_refseq  # TODO: again, filtration function
+        partial(expression, ARGS.LABEL),
+        partial(skipper, is_refseq, ARGS.SUBTYPES)
         )
     alignment, y, threshold = ylabeler(alignment)
 

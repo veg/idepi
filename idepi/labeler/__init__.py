@@ -8,16 +8,29 @@ from numpy import zeros
 
 __all__ = [
     'Labeler',
-    'expression'
+    'expression',
+    'skipper',
     ]
 
 
-def expression(seqrecord, label):
+def expression(label, seqrecord):
     desc = json_loads(seqrecord.description)
     try:
         return eval(label, {}, desc['values'])
     except NameError:
         return None
+
+
+def skipper(is_refseq, subtypes, seqrecord):
+    if is_refseq(seqrecord):
+        return True
+    if not subtypes:
+        return False
+    desc = json_loads(seqrecord.description)
+    try:
+        return desc['subtype'] not in subtypes
+    except KeyError:
+        return True
 
 
 class Labeler:
@@ -39,7 +52,6 @@ class Labeler:
         i = 0
         for seq in alignment:
             if self.__skip(seq):
-                alignment_.append(seq)
                 continue
             label = self.__label(seq)
             # skip if we have no label at all
