@@ -45,6 +45,7 @@ from idepi.encoder import (
 from idepi.datasource import DataSource
 from idepi.scorer import Scorer
 from idepi.simulation import Simulation
+from idepi.util import seqfile_format
 from idepi.verifier import VerifyError, Verifier
 
 
@@ -254,49 +255,76 @@ def cutofftype(string):
         raise ArgumentTypeError('must be a real')
 
 
-def labeltypefactory(data):
-    valid_labels = sorted(data.labels)
-    def labeltype(string):
-        if string not in valid_labels:
+class LabelTypeFactory:
+
+    def __init__(self, data):
+        self.valid_labels = sorted(data.labels)
+
+    def __call__(self, string):
+        if string not in self.valid_labels:
             msg = "'%s' is not in the list of valid labels: %s" % (
                 string,
-                ', '.join("'%s'" % lab for lab in valid_labels)
-                )
+                ', '.join("'%s'" % lab for lab in self.valid_labels))
             raise ArgumentTypeError(msg)
         return string
-    return labeltype
 
 
-def subtypefactory(data):
-    # validate the subtype option
-    valid_subtypes = sorted(data.subtypes, key=lambda x: x.strip().upper())
-    def subtype(string):
+class SubtypeTypeFactory:
+
+    def __init__(self, data):
+        self.valid_subtypes = sorted(data.subtypes, key=lambda x: x.strip.upper())
+
+    def __call__(self, string):
         subtypes = string.split(',')
         for subtype in subtypes:
-            if subtype not in valid_subtypes:
+            if subtype not in self.valid_subtypes:
                 msg = "'%s' not in the list of possible subtypes: %s" % (
                     subtype,
-                    ', '.join("'%s'" % st.strip() for st in valid_subtypes)
-                    )
+                    ', '.join("'%s'" % st.strip() for st in self.valid_subtypes))
                 raise ArgumentTypeError(msg)
         return subtypes
-    return subtype
 
 
-def abtypefactory(data):
-    valid_antibodies = sorted(data.antibodies, key=lambda x: x.strip())
-    def abtype(string):
-        if string not in valid_antibodies:
-            if ' ' + string not in valid_antibodies:
+class AntibodyTypeFactory:
+
+    def __init__(self, data):
+        self.valid_antibodies = sorted(data.antibodies, key=lambda x: x.strip())
+
+    def __call__(self, string):
+        if string not in self.valid_antibodies:
+            if ' ' + string not in self.valid_antibodies:
                 msg = "'%s' not in the list of possible antibodies: %s" % (
                     string,
-                    ', '.join("'%s'" % ab.strip() for ab in valid_antibodies)
-                    )
+                    ', '.join("'%s'" % ab.strip() for ab in self.valid_antibodies))
                 raise ArgumentTypeError(msg)
             else:
                 string = ' ' + string
         return string
-    return abtype
+
+
+class FastaTypeFactory:
+
+    def __init__(self, is_dna):
+        self.is_dna = is_dna
+
+    def __call__(self, string):
+        try:
+            with open(string) as h:
+                source = Verifier(SeqIO.parse(h, seqfile_format(string)), DNAAlphabet)
+                try:
+                    seq = next(iter(source))
+                    if not self.is_dna:
+                        seq = translate(seq)
+                except VerifyError:
+                    if self.is_dna:
+                        raise ArgumentTypeError("DNA encoding incompatible with protein reference")
+                    source.set_alphabet(AminoAlphabet)
+                    seq = next(iter(source))
+            return seq
+        except ArgumentTypeError:
+            raise sys.exc_info()[1]
+        except:
+            raise ArgumentTypeError("invalid FASTA file '{0:s}'".format(string))
 
 
 def PathType(string):
@@ -311,27 +339,9 @@ def SeedType(string):
         val = int(string)
         seed(val)
         np_seed(val)
+        return val
     except ValueError:
         raise ArgumentTypeError("invalid seed '{0:s}'".format(string))
-
-
-def fastatypefactory(is_dna):
-    def fastatype(string):
-        try:
-            with open(string) as h:
-                source = Verifier(SeqIO.parse(h, 'fasta'), DNAAlphabet)
-                try:
-                    seq = next(source)
-                    if not is_dna:
-                        seq = translate(seq)
-                except VerifyError:
-                    if is_dna:
-                        raise ArgumentTypeError("DNA encoding incompatible with protein reference")
-                    source.set_alphabet(AminoAlphabet)
-                    seq = next(source)
-            return seq
-        except:
-            raise ArgumentTypeError("invalid FASTA file '{0:s}'".format(string))
 
 
 def init_args(description, args):
@@ -375,9 +385,9 @@ def init_args(description, args):
     # setup a "subtypetype for the parser"
     is_dna = ns.ENCODER == DNAEncoder
     ns.DATA = DataSource(*ns._DATA)
-    fastatype = fastatypefactory(is_dna)
+    fastatype = FastaTypeFactory(is_dna)
     # labeltype = labeltypefactory(ns.DATA)
-    subtype = subtypefactory(ns.DATA)
+    subtype = SubtypeTypeFactory(ns.DATA)
 
     #                   option             action               type                dest
     parser.add_argument('--autobalance',   action='store_true',                     dest='AUTOBALANCE')
@@ -389,7 +399,7 @@ def init_args(description, args):
     parser.add_argument('--weighting',     action='store_true',                     dest='WEIGHTING')
     parser.add_argument('--refmsa',                             type=PathType,      dest='REFMSA')
     parser.add_argument('--refseq',                             type=fastatype,     dest='REFSEQ')
-    parser.add_argument('--test',action='store_true',                               dest='TEST')
+    parser.add_argument('--test',          action='store_true',                     dest='TEST')
     parser.add_argument('--seed',                               type=SeedType,      dest='RAND_SEED')
     parser.add_argument('-o', '--output',                       type=FileType('w'), dest='OUTPUT')
 

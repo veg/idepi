@@ -51,7 +51,7 @@ from idepi.argument import (
     cv_args,
     parse_args,
     finalize_args,
-    abtypefactory
+    AntibodyTypeFactory
 )
 from idepi.encoder import DNAEncoder
 from idepi.feature_extraction import (
@@ -102,7 +102,7 @@ def main(args=None):
     parser = cv_args(parser)
 
     parser.add_argument('--tree', dest='TREE')
-    parser.add_argument('ANTIBODY', type=abtypefactory(ns.DATA), nargs='+')
+    parser.add_argument('ANTIBODY', type=AntibodyTypeFactory(ns.DATA), nargs='+')
     parser.add_argument('MODEL', type=str)
 
     ARGS = parse_args(parser, args, namespace=ns)
