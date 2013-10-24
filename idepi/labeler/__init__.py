@@ -3,7 +3,7 @@ from __future__ import division, print_function
 
 from json import loads as json_loads
 
-from numpy import median, zeros
+from numpy import zeros
 
 
 __all__ = [
@@ -22,10 +22,9 @@ def expression(seqrecord, label):
 
 class Labeler:
 
-    def __init__(self, label, skip, autobalance=False):
+    def __init__(self, label, skip):
         self.__label = label
         self.__skip = (lambda _: False) if skip is None else skip
-        self.__autobalance = autobalance
 
     def label(self, alignment):
         return self(alignment)
@@ -75,9 +74,6 @@ class Labeler:
 
         # try to balance the data using median
         median_ = None
-        if self.__autobalance:
-            median_ = median(labels)
-            labels = [label > median_ for label in labels]
 
         i = 0
         for label in labels:

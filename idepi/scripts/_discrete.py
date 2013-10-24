@@ -163,22 +163,11 @@ def main(args=None):
 
     re_pngs = re_compile(r'N[^P][TS][^P]', re_I)
 
-    # this is stupid but works generally speaking
-    if ARGS.AUTOBALANCE:
-        ARGS.LABEL = ARGS.LABEL.split()[0]
-
     ylabeler = Labeler(
         partial(expression, label=ARGS.LABEL),
-        is_refseq,  # TODO: again, filtration function
-        ARGS.AUTOBALANCE
+        is_refseq  # TODO: again, filtration function
         )
     alignment, y, threshold = ylabeler(alignment)
-    assert (
-        (threshold is None and not ARGS.AUTOBALANCE) or
-        (threshold is not None and ARGS.AUTOBALANCE)
-        )
-    if ARGS.AUTOBALANCE:
-        ARGS.LABEL = '{0} > {1}'.format(ARGS.LABEL.strip(), threshold)
 
     filter = naive_filter(
         max_conservation=ARGS.MAX_CONSERVATION,

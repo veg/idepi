@@ -390,7 +390,6 @@ def init_args(description, args):
     subtype = SubtypeTypeFactory(ns.DATA)
 
     #                   option             action               type                dest
-    parser.add_argument('--autobalance',   action='store_true',                     dest='AUTOBALANCE')
     parser.add_argument('--log',                                type=logtype,       dest='LOGGING')
     parser.add_argument('--label',                              type=str,           dest='LABEL')
     parser.add_argument('--filter',                             type=csvtype,       dest='FILTER')
@@ -406,7 +405,6 @@ def init_args(description, args):
     refseq = hxb2.env.load()
 
     parser.set_defaults(
-        AUTOBALANCE=False,
         LOGGING    =None,
         LABEL      ='max(IC50) > 20',
         FILTER     =[],
