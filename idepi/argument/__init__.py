@@ -272,7 +272,7 @@ class LabelTypeFactory:
 class SubtypeTypeFactory:
 
     def __init__(self, data):
-        self.valid_subtypes = sorted(data.subtypes, key=lambda x: x.strip.upper())
+        self.valid_subtypes = sorted(data.subtypes, key=lambda x: x.strip().upper())
 
     def __call__(self, string):
         subtypes = string.split(',')
