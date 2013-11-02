@@ -80,6 +80,7 @@ from idepi.util import (
 )
 
 from sklearn.grid_search import GridSearchCV
+from sklearn.pipeline import Pipeline
 from sklearn.svm import SVC
 
 from sklmrmr import MRMR
@@ -179,41 +180,50 @@ def main(args=None):
     extractor = FeatureUnion(extractors, n_jobs=1)  # n_jobs must be one for now
     X = extractor.fit_transform(alignment)
 
-    svm = SVC(kernel='linear', class_weight='auto')
-
-    mrmr = MRMR(
-        estimator=svm,
-        n_features_to_select=ARGS.NUM_FEATURES,
-        method=ARGS.MRMR_METHOD,
-        normalize=ARGS.MRMR_NORMALIZE,
-        similar=ARGS.SIMILAR
-        )
-
-    mrmr.fit(X, y)
-
-    # train only using the MRMR-selected features
-    X_ = X[:, mrmr.support_]
-
+    Cs = list(C_range(*ARGS.LOG2C))
     scorer = Scorer(ARGS.OPTSTAT)
 
-    clf = GridSearchCV(
-        estimator=svm,
-        param_grid=dict(C=list(C_range(*ARGS.LOG2C))),
+    # we don't let GridSearchCV do its parallelization over all combinations
+    # of grid points, because when the length of FEATURE_GRID is short,
+    # it takes way longer than it should
+
+    # usually the # of Cs is larger than the # of ks
+    C_jobs = int(getenv('NCPU', -1))
+    k_jobs = 1
+
+    # if not, swap the parallelization strategy
+    if len(ARGS.FEATURE_GRID) > len(Cs):
+        C_jobs, k_jobs = k_jobs, C_jobs
+
+    mrmr = MRMR(method=ARGS.MRMR_METHOD, normalize=ARGS.MRMR_NORMALIZE, similar=ARGS.SIMILAR)
+    svm = GridSearchCV(
+        estimator=SVC(kernel='linear', class_weight='auto'),
+        param_grid=dict(C=Cs),
         scoring=scorer,
-        n_jobs=int(getenv('NCPU', -1)),  # use all but 1 cpu
+        n_jobs=C_jobs,
+        cv=ARGS.CV_FOLDS - 1
+        )
+    clf = GridSearchCV(
+        estimator=Pipeline([('mrmr', mrmr), ('svm', svm)]),
+        param_grid=dict(mrmr__k=ARGS.FEATURE_GRID),
+        scoring=scorer,
+        n_jobs=k_jobs,
         pre_dispatch='2 * n_jobs',
         cv=ARGS.CV_FOLDS
         )
 
-    clf.fit(X_, y)
+    clf.fit(X, y)
 
-    pickle_dump((2, ARGS.ENCODER, ARGS.LABEL, hmm, extractor, mrmr, clf), ARGS.MODEL)
+    pickle_dump((3, ARGS.ENCODER, ARGS.LABEL, hmm, extractor, clf), ARGS.MODEL)
     ARGS.MODEL.close()
 
-    coefs, ranks = coefs_ranks(mrmr.ranking_, mrmr.support_, clf.best_estimator_.coef_)
+    mrmr_ = clf.best_estimator_.named_steps['mrmr']
+    svm_ = clf.best_estimator_.named_steps['svm'].best_estimator_
+
+    coefs, ranks = coefs_ranks(mrmr_.ranking_, mrmr_.support_, svm_.coef_)
     results = Results(extractor.get_feature_names(), scorer, ARGS.SIMILAR)
 
-    results.add(y, clf.predict(X_), coefs, ranks)
+    results.add(y, clf.predict(X), coefs, ranks)
     results.metadata(antibodies, ARGS.LABEL)
 
     print(results.dumps(), file=ARGS.OUTPUT)

@@ -31,7 +31,6 @@ from functools import partial
 from os import getenv
 from os.path import join
 from re import compile as re_compile, I as re_I
-from warnings import warn
 
 import numpy as np
 
@@ -83,6 +82,7 @@ from idepi.util import (
 from sklearn.cross_validation import StratifiedKFold
 from sklearn.feature_selection import RFE
 from sklearn.grid_search import GridSearchCV
+from sklearn.pipeline import Pipeline
 from sklearn.svm import SVC
 
 from sklmrmr import MRMR
@@ -127,13 +127,6 @@ def main(args=None):
         ARGS.SIMILAR = 0.0
 
     antibodies = tuple(ARGS.ANTIBODY)
-
-    if len(ARGS.FILTER) != 0:
-        if ARGS.NUM_FEATURES > len(ARGS.FILTER):
-            ARGS.NUM_FEATURES = len(ARGS.FILTER)
-            warn('clamping --numfeats to sizeof(--filter) = %d' % ARGS.NUM_FEATURES)
-
-    # convert the hxb2 reference to amino acid, including loop definitions
 
     # set the util params
     set_util_params(ARGS.REFSEQ.id)
@@ -197,10 +190,19 @@ def main(args=None):
 
     scorer = Scorer(ARGS.OPTSTAT)
 
-    # compute features
-    forward_initval = 1 if ARGS.FORWARD_SELECT else ARGS.NUM_FEATURES
-    results = None
-    for num_features in range(forward_initval, ARGS.NUM_FEATURES + 1):
+    # do grid-search as part of the svm to avoid
+    # performing feature selection on every iteration
+    # of the grid search, which naturally takes forever
+    svm = GridSearchCV(
+        estimator=SVC(kernel='linear', class_weight='auto'),
+        param_grid=dict(C=list(C_range(*ARGS.LOG2C))),
+        scoring=scorer,
+        n_jobs=int(getenv('NCPU', -1)),
+        pre_dispatch='2 * n_jobs',
+        cv=ARGS.CV_FOLDS - 1
+        )
+
+    for n_features in ARGS.FEATURE_GRID:
         results_ = Results(extractor.get_feature_names(), scorer, ARGS.SIMILAR)
 
         for train_idxs, test_idxs in StratifiedKFold(y, ARGS.CV_FOLDS):
@@ -213,69 +215,41 @@ def main(args=None):
             X_train = X[train_idxs]
             y_train = y[train_idxs]
 
-            svm = SVC(kernel='linear', class_weight='auto')
-
             if ARGS.RFE:
-                X_train_ = X_train
-                estimator = RFE(
+                clf = RFE(
                     estimator=svm,
-                    n_features_to_select=num_features,
+                    n_features_to_select=n_features,
                     step=ARGS.RFE_STEP
                     )
-                param_grid = dict(estimator_params=dict(C=list(C_range(*ARGS.LOG2C))))
             else:
-                # do MRMR-fitting separately from GridSearchCV to avoid
-                # performing MRMR on every iteration of the grid search,
-                # which would naturally take forever
                 mrmr = MRMR(
-                    estimator=svm,
-                    n_features_to_select=num_features,
+                    k=n_features,
                     method=ARGS.MRMR_METHOD,
                     normalize=ARGS.MRMR_NORMALIZE,
                     similar=ARGS.SIMILAR
                     )
-                mrmr.fit(X_train, y_train)
-                # train only using the MRMR-selected features
-                X_train_ = X_train[:, mrmr.support_]
-                estimator = svm
-                param_grid = dict(C=list(C_range(*ARGS.LOG2C)))
+                clf = Pipeline([('mrmr', mrmr), ('svm', svm)])
 
-            clf = GridSearchCV(
-                estimator=estimator,
-                param_grid=param_grid,
-                scoring=scorer,
-                n_jobs=int(getenv('NCPU', -1)),  # use all but 1 cpu
-                pre_dispatch='2 * n_jobs',
-                cv=ARGS.CV_FOLDS - 1
-                )
-
-            clf.fit(X_train_, y_train)
+            clf.fit(X_train, y_train)
 
             X_test = X[test_idxs]
             y_true = y[test_idxs]
 
             if ARGS.RFE:
-                coef_ = clf.best_estimator_.estimator_.coef_
-                ranking_ = clf.best_estimator_.ranking_
-                support_ = clf.best_estimator_.support_
-                X_test_ = X_test
+                selector_ = clf
+                svm_ = clf.estimator_.best_estimator_
             else:
-                coef_ = clf.best_estimator_.coef_
-                ranking_ = mrmr.ranking_
-                support_ = mrmr.support_
-                # use only the MRMR-selected features, like above
-                X_test_ = X_test[:, support_]
+                selector_ = clf.named_steps['mrmr']
+                svm_ = clf.named_steps['svm'].best_estimator_
 
-            y_pred = clf.predict(X_test_)
+            y_pred = clf.predict(X_test)
 
-            coefs, ranks = coefs_ranks(ranking_, support_, coef_)
+            coefs, ranks = coefs_ranks(selector_.ranking_, selector_.support_, svm_.coef_)
 
             results_.add(y_true, y_pred, coefs, ranks)
 
-        if results is not None and results_ <= results:
-            break
-
-        results = results_
+        if results is None or results_ > results:
+            results = results_
 
     # the alignment reflects the number of sequences either naturally
     results.metadata(antibodies, ARGS.LABEL)

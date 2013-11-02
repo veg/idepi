@@ -49,6 +49,24 @@ from idepi.util import seqfile_format
 from idepi.verifier import VerifyError, Verifier
 
 
+def RangesType(string):
+    msg = "invalid comma-delimited list of numbers '{0:s}'".format(string)
+    try:
+        r = set()
+        for s in string.split(','):
+            args = [int(t) for t in s.split(':')]
+            if len(args) > 1:
+                args[1] += 1  # ranges should be inclusive, for ease of use
+                r.update(range(*args))
+            else:
+                r.update(args)
+        return sorted(r)
+    except TypeError:
+        raise ArgumentTypeError(msg)
+    except ValueError:
+        raise ArgumentTypeError(msg)
+
+
 def csvtype(string):
     return string.split(',')
 
@@ -80,12 +98,10 @@ def hmmer_args(parser):
 
 
 def featsel_args(parser):
-    #                   option             action                type      dest
-    parser.add_argument('--numfeats',                            type=int, dest='NUM_FEATURES')
-    parser.add_argument('--forward',       action='store_true',            dest='FORWARD_SELECT')
+    #                   option             action                type             dest
+    parser.add_argument('--numfeats',                            type=RangesType, dest='FEATURE_GRID')
     parser.set_defaults(
-        NUM_FEATURES  =10,
-        FORWARD_SELECT=False
+        FEATURE_GRID=[10]
         )
     return parser
 
@@ -190,7 +206,7 @@ def cv_args(parser):
     parser.add_argument('--cv',                         type=int, dest='CV_FOLDS')
     parser.add_argument('--loocv', action='store_true',           dest='LOOCV')
     parser.set_defaults(
-        CV_FOLDS=5,
+        CV_FOLDS=10,
         LOOCV   =False
         )
     return parser

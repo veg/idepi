@@ -71,6 +71,6 @@ setup(name='idepi',
             'numpy (>=1.6)',
             'six',
             'sklearn (>=0.14.0)',
-            'sklmrmr (>=0.1.1)',
+            'sklmrmr (>=0.2.0)',
       ]
      )

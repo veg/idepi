@@ -24,6 +24,7 @@ def mcc(*args, **kwargs):
     seterr(**settings)
     return mcc_
 
+
 class Scorer:
     ACCURACY, F1SCORE, MCC, NPV, PPV, SENSITIVITY, SPECIFICITY, NSTAT = range(8)
     _NAMES = ['accuracy', 'f1score', 'mcc', 'npv', 'ppv', 'sensitivity', 'specificity']

@@ -74,9 +74,9 @@ def main(args=None):
     with gzip_open(ARGS.MODEL, 'rb') as fh:
         try:
             model = pickle_load(fh)
-            if model[0] != 2:
+            if model[0] != 3:
                 raise ImportError('incompatible model version')
-            ARGS.ENCODER, ARGS.LABEL, hmm, extractor, mrmr, clf = model[1:]
+            ARGS.ENCODER, ARGS.LABEL, hmm, extractor, clf = model[1:]
         except ImportError:
             msg = 'your model is not of the appropriate version, please re-learn your model'
             raise RuntimeError(msg)
@@ -116,11 +116,12 @@ def main(args=None):
             if exists(tmpaln):
                 remove(tmpaln)
 
-    X = extractor.transform(alignment)[:, mrmr.support_]
+    X = extractor.transform(alignment)
     y = clf.predict(X)
 
     feature_names = extractor.get_feature_names()
-    labels = ['"{0:s}"'.format(feature_names[i]) for i, s in enumerate(mrmr.support_) if s]
+    support = clf.best_estimator_.named_steps['mrmr'].support_
+    labels = ['"{0:s}"'.format(feature_names[i]) for i, s in enumerate(support) if s]
     emptys = [' ' * (len(label) + 2) for label in labels]
     idlen = max(len(r.id) for r in alignment) + 3
 
@@ -129,7 +130,7 @@ def main(args=None):
         if i > 0:
             print(',')
         features = ['[ ']
-        for j, x in enumerate(X[i, :]):
+        for j, x in enumerate(X[i, support]):
             if x:
                 features.append(labels[j])
                 features.append(', ')
@@ -148,8 +149,8 @@ def main(args=None):
             features[idx] = ''
         features_ = ''.join(features)
         print(
-            '    {{{{ "id": {{0:<{0:d}s}} "value": {{1: d}}, "features": {{2:s}} }}}}'.format(idlen).format(
-            '"{0:s}",'.format(r.id), y[i], features_),
+            '    {{{{ "id": {{0:<{0:d}s}} "value": {{1: d}}, "features": {{2:s}} }}}}'.format(
+                idlen).format('"{0:s}",'.format(r.id), y[i], features_),
             file=ARGS.OUTPUT, end='')
     print('\n  ]\n}', file=ARGS.OUTPUT)
 
