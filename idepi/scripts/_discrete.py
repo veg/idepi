@@ -202,6 +202,7 @@ def main(args=None):
         cv=ARGS.CV_FOLDS - 1
         )
 
+    results = None
     for n_features in ARGS.FEATURE_GRID:
         results_ = Results(extractor.get_feature_names(), scorer, ARGS.SIMILAR)
 

@@ -85,13 +85,17 @@ class Sqlite3Db:
         antibodies__ = tuple(sorted(antibodies_))
 
         stmt = dedent('''\
-        select distinct S.NO as NO, S.ID as ID, S.SEQ as SEQ, G.SUBTYPE as SUBTYPE, ? as AB, N.VALUE as VALUE from
-        (select SEQUENCE_NO as NO, SEQUENCE_ID as ID, RAW_SEQ as SEQ from SEQUENCE %s group by ID) as S join
-        (select SEQUENCE_ID as ID, SUBTYPE from GENO_REPORT group by ID) as G join
-        (select SEQUENCE_ID as ID, ANTIBODY as AB, group_concat(TYPE || ':' || VALUE, ',') as VALUE from NEUT where (%s) group by ID) as N
-        on N.ID = S.ID and G.ID = S.ID order by S.ID;
-        ''' % ('where IS_CLONAL = 1' if clonal else '', ab_clause))
+            select distinct SG.NO as NO, SG.ID as ID, SG.SEQ as SEQ, SG.SUBTYPE as SUBTYPE, ? as AB, N.VALUE as VALUE from
+            (select NO, S.ID as ID, SUBTYPE, SEQ from
+                (select SEQUENCE_NO as NO, SEQUENCE_ID as ID, RAW_SEQ as SEQ from SEQUENCE {0:s} group by ID) as S left join
+                (select SEQUENCE_ID as ID, SUBTYPE from GENO_REPORT group by ID) as G
+                on S.ID = G.ID
+            ) as SG join
+            (select SEQUENCE_ID as ID, ANTIBODY as AB, group_concat(TYPE || ':' || VALUE, ',') as VALUE from NEUT where ({1:s}) group by ID) as N
+            on SG.ID = N.ID order by SG.ID;
+            '''.format('where IS_CLONAL = 1' if clonal else '', ab_clause))
         params = ('+'.join(antibodies__),) + antibodies__
+
         cur.execute(stmt, params)
 
         def records():
@@ -115,11 +119,12 @@ class Sqlite3Db:
                     Seq(OrfList(seq, include_stops=False)[0], DNAAlphabet),
                     id=sid,
                     description=json_dumps({
-                        'subtype': subtype,
+                        'subtype': '' if subtype is None else subtype,
                         'ab': ab,
                         'values': values_
-                        })
-                )
+                        }),
+                    annotations={'antibody': values_, 'subtype': subtype}
+                    )
                 if sid in ids:
                     record.id += str(-ids[sid])
                     ids[sid] += 1
@@ -242,10 +247,12 @@ class MonogramData:
                 drop.append(i)
                 warn("skipping sequence '%s', VALUE not found" % r.id)
             else:
+                values = {'IC50': ic50s[r.id]}
                 r.description = json_dumps({
                     'ab': antibodies[0],
-                    'values': {'IC50': ic50s[r.id]}
+                    'values': values
                     })
+                r.annotations['antibody'] = values
 
         for i in sorted(drop, reverse=True):
             del seqrecords[i]
