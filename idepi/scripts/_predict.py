@@ -74,7 +74,7 @@ def main(args=None):
     with gzip_open(ARGS.MODEL, 'rb') as fh:
         try:
             model = pickle_load(fh)
-            if model[0] != 3:
+            if model[0] != 4:
                 raise ImportError('incompatible model version')
             ARGS.ENCODER, ARGS.LABEL, hmm, extractor, clf = model[1:]
         except ImportError:
@@ -120,7 +120,7 @@ def main(args=None):
     y = clf.predict(X)
 
     feature_names = extractor.get_feature_names()
-    support = clf.best_estimator_.named_steps['mrmr'].support_
+    support = clf.named_steps['mrmr'].support_
     labels = ['"{0:s}"'.format(feature_names[i]) for i, s in enumerate(support) if s]
     emptys = [' ' * (len(label) + 2) for label in labels]
     idlen = max(len(r.id) for r in alignment) + 3

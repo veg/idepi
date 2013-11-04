@@ -198,7 +198,7 @@ def main(args=None):
         param_grid=dict(C=list(C_range(*ARGS.LOG2C))),
         scoring=scorer,
         n_jobs=int(getenv('NCPU', -1)),
-        pre_dispatch='2 * n_jobs',
+        pre_dispatch='3 * n_jobs',
         cv=ARGS.CV_FOLDS - 1
         )
 

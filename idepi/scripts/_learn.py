@@ -195,30 +195,39 @@ def main(args=None):
     if len(ARGS.FEATURE_GRID) > len(Cs):
         C_jobs, k_jobs = k_jobs, C_jobs
 
-    mrmr = MRMR(method=ARGS.MRMR_METHOD, normalize=ARGS.MRMR_NORMALIZE, similar=ARGS.SIMILAR)
+    mrmr = MRMR(
+        method=ARGS.MRMR_METHOD,
+        normalize=ARGS.MRMR_NORMALIZE,
+        similar=ARGS.SIMILAR
+        )
     svm = GridSearchCV(
         estimator=SVC(kernel='linear', class_weight='auto'),
         param_grid=dict(C=Cs),
         scoring=scorer,
         n_jobs=C_jobs,
-        cv=ARGS.CV_FOLDS - 1
+        pre_dispatch='3 * n_jobs'
         )
-    clf = GridSearchCV(
-        estimator=Pipeline([('mrmr', mrmr), ('svm', svm)]),
-        param_grid=dict(mrmr__k=ARGS.FEATURE_GRID),
-        scoring=scorer,
-        n_jobs=k_jobs,
-        pre_dispatch='2 * n_jobs',
-        cv=ARGS.CV_FOLDS
-        )
+    pipe = Pipeline([('mrmr', mrmr), ('svm', svm)])
 
-    clf.fit(X, y)
+    if len(ARGS.FEATURE_GRID) == 1:
+        pipe.set_params(mrmr__k=ARGS.FEATURE_GRID[0], svm__cv=ARGS.CV_FOLDS)
+        clf = pipe.fit(X, y)
+    else:
+        pipe.set_params(svm__cv=ARGS.CV_FOLDS - 1)
+        clf = GridSearchCV(
+            estimator=pipe,
+            param_grid=dict(mrmr__k=ARGS.FEATURE_GRID),
+            scoring=scorer,
+            n_jobs=k_jobs,
+            pre_dispatch='3 * n_jobs',
+            cv=ARGS.CV_FOLDS
+            ).fit(X, y).best_estimator_
 
-    pickle_dump((3, ARGS.ENCODER, ARGS.LABEL, hmm, extractor, clf), ARGS.MODEL)
+    pickle_dump((4, ARGS.ENCODER, ARGS.LABEL, hmm, extractor, clf), ARGS.MODEL)
     ARGS.MODEL.close()
 
-    mrmr_ = clf.best_estimator_.named_steps['mrmr']
-    svm_ = clf.best_estimator_.named_steps['svm'].best_estimator_
+    mrmr_ = clf.named_steps['mrmr']
+    svm_ = clf.named_steps['svm'].best_estimator_
 
     coefs, ranks = coefs_ranks(mrmr_.ranking_, mrmr_.support_, svm_.coef_)
     results = Results(extractor.get_feature_names(), scorer, ARGS.SIMILAR)

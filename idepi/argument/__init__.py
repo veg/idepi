@@ -206,7 +206,7 @@ def cv_args(parser):
     parser.add_argument('--cv',                         type=int, dest='CV_FOLDS')
     parser.add_argument('--loocv', action='store_true',           dest='LOOCV')
     parser.set_defaults(
-        CV_FOLDS=10,
+        CV_FOLDS=5,
         LOOCV   =False
         )
     return parser
