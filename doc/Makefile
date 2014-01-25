@@ -6,7 +6,7 @@ BIBFILE = plos
 LATEXFILE = plos
 
 .INTERMEDIATE : $(LATEXFILE).aux $(LATEXFILE).bbl $(LATEXFILE).blg $(LATEXFILE).log
-.PHONY : all clean view
+.PHONY : all clean view new
 
 all : $(LATEXFILE).pdf
 
@@ -25,3 +25,5 @@ clean :
 
 view : $(LATEXFILE).pdf
 	-open $<
+
+new : clean all
