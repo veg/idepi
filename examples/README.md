@@ -1,4 +1,4 @@
-= IDEPI example-based tutorial
+#IDEPI example-based tutorial
 
 Please look inside the daughter folders for examples on how to use IDEPI to 
 learn and apply phenotype prediction models based on viral sequences and to 
