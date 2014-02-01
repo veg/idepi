@@ -15,8 +15,9 @@ For the impatient
 A virtual machine has been created with Ubuntu 13 and python environment for
 use with idepi located at https://github.com/veg/idepi/releases/new
 
-  User: user
-  password: reverse
+Virtual Machine Credentials : 
+- user: user
+- password: reverse
 
 
 Dependencies
