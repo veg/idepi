@@ -8,8 +8,14 @@ organisms.
 IDEPI provides a programming interface to allow users to engineer sequence
 features and select machine algorithms appropriate for their application.
 
+Using IDEPI
+=================
+Please look inside the [examples](/examples) directory for examples on how
+to use IDEPI to learn and apply phenotype prediction models based on viral
+sequences and to identify most predictive features of viral genomes.
+
  
-For the impatient
+Virtual Machine
 =================
 
 A virtual machine has been created with Ubuntu 13 and python environment for
@@ -41,8 +47,4 @@ Dependencies
 - hmmer, http://hmmer.janelia.org/ 
 
 
-Using IDEPI
-=================
-Please look inside the <code>examples</code> directory for examples of how
-to use IDEPI to learn and apply phenotype prediction models based on viral
-sequences and to identify most predictive features of viral genomes.
+
