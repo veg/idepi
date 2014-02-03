@@ -13,18 +13,21 @@ For the impatient
 =================
 
 A virtual machine has been created with Ubuntu 13 and python environment for
-use with idepi located at https://github.com/veg/idepi/releases/new
+use with idepi located at http://hyphy.org/pubs/idepi-vm.tar.gz
 
   User: user
   password: reverse
 
+To use the virtual machine:
+- Decompress the downloaded file and take note of the file path.
+- Open VirtualBox <https://www.virtualbox.org/>
+- Click on the 'New' button 
+- Type the desired name, select 'Linux' as your operating system type, and 'Ubuntu(64 bit)' as your version.
+- Select your desired memory size(at least 1024MB)
+- Under Hard Drive, please select 'Use an existing virtual hard drive file' and navigate to the idepi-vm.vdi file that you have just downloaded
 
 Dependencies
 ============
-
-Depending on which parts of Biopython you plan to use, there are a
-number of other optional Python dependencies - which can in general
-be installed after Biopython.
 
 - Python 3.3
 - BioPython, http://biopython.org/wiki/Main_Page
@@ -32,7 +35,9 @@ be installed after Biopython.
 - hppy, http://github.com/veg/hppy
 - sklrmmr, http://github.com/nlhepler/sklmrmr
 - NumPy, http://www.numpy.org 
+- SciPy, http://www.scipy.org 
 - six, http://pypi.python.org/pypi/six
+- hmmer, http://hmmer.janelia.org/ 
 
 
 Using IDEPI
