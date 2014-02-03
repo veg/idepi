@@ -15,16 +15,17 @@ For the impatient
 A virtual machine has been created with Ubuntu 13 and python environment for
 use with idepi located at http://hyphy.org/pubs/idepi-vm.tar.gz
 
-  User: user
-  password: reverse
+- user: user
+- password: reverse
 
-To use the virtual machine:
+Virtual Machine Usage:
 - Decompress the downloaded file and take note of the file path.
-- Open VirtualBox <https://www.virtualbox.org/>
-- Click on the 'New' button 
-- Type the desired name, select 'Linux' as your operating system type, and 'Ubuntu(64 bit)' as your version.
-- Select your desired memory size(at least 1024MB)
-- Under Hard Drive, please select 'Use an existing virtual hard drive file' and navigate to the idepi-vm.vdi file that you have just downloaded
+- Open VirtualBox (https://www.virtualbox.org/)
+- Create a new virtual machine
+- Enter a desired name, select 'Linux' as your operating system type, and 'Ubuntu(64 bit)' as your version.
+- Select the desired memory size
+- When prompted for hard drive options, please select 'Use an existing virtual hard drive file' and navigate to the idepi-vm.vdi file that you have just downloaded and decompressed.
+- When the machine has started, select 'idepi' from the desktop. 
 
 Dependencies
 ============
