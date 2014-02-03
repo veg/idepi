@@ -15,8 +15,9 @@ For the impatient
 A virtual machine has been created with Ubuntu 13 and python environment for
 use with idepi located at http://hyphy.org/pubs/idepi-vm.tar.gz
 
-  User: user
-  password: reverse
+Virtual Machine Credentials : 
+- user: user
+- password: reverse
 
 To use the virtual machine:
 - Decompress the downloaded file and take note of the file path.
