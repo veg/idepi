@@ -1,6 +1,5 @@
 IDentify EPItopes
 
-Something will go here someday.
 
 In the meantime, please note that IDEPI depends on a number of sometimes-obscure packages:
 
@@ -9,3 +8,4 @@ In the meantime, please note that IDEPI depends on a number of sometimes-obscure
 - MLPy
   - Cython
 - numpy
+
