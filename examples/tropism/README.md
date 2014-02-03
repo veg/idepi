@@ -1,7 +1,7 @@
 # Co-receptor usage/cell tropism prediction for HIV-1
 
 In this tutorial, we apply IDEPI to the training and validation
-data from a recent paper by [Dybowski et al](http://www.ploscompbiol.org/article/info%3Adoi%2F10.1371%2Fjournal.pcbi.1000743)
+data from a 2010 paper by [Dybowski et al](http://www.ploscompbiol.org/article/info%3Adoi%2F10.1371%2Fjournal.pcbi.1000743)
 on computational prediction of co-receptor usage from V3 sequence data.
 
 > We would like to express our gratitude to Dr Hoffman, the senior author
@@ -152,7 +152,7 @@ This feature is also a part of the [11/25 rule](http://www.prn.org/index.php/man
 
 ### Direct IDEPI to perform a grid search over the number of features
 
-Specify a grid of possible to search over for the optimal number of features. 
+Specify a grid of possible values to search over for the optimal number of features. 
 
     $idepi discrete --csv training/V3.fas training/tropism.csv --numfeats 1:5,10:50:5,60:100:10 --mcc CXCR4 
 
@@ -206,11 +206,11 @@ to tune internal model, e.g. LSVM parameters) to build a predictive model and sa
 so that sequences of unknown phenotypes can be classified later.
 
 The arguments are exactly the same as those passed to **idepi discrete**, except the final
-positional argument is required to specify the name of the file (in this case **model/V3.model**)
+positional argument is required to specify the name of the file (in this case **models/V3.model**)
 to save the IDEPI model to. We build a model on **N=90** features here, based on the grid 
 search from the previous step.
 
-    $idepi learn --csv training/V3.fas training/tropism.csv --numfeats 90 --mcc CXCR4 model/V3.model 
+    $idepi learn --csv training/V3.fas training/tropism.csv --numfeats 90 --mcc CXCR4 models/V3.model 
 
 The output to stdout has the same content as for **idepi discrete**, except that there is only 
 one "fold" (all of the training data). For brevity, only the top 5 ranked features are retained in the listing below.
@@ -248,7 +248,7 @@ one "fold" (all of the training data). For brevity, only the top 5 ranked featur
 ## Predicting the phenotype of _validation_ sequences
 
 In this section, we will apply the model derived by  **idepi learn** 
-to the set of **xx** sequences not used for training the model (and 
+to the set of **74** sequences not used for training the model (and 
 whose phenotypes have been measured experimentally), from the 
 [Dybowski et al](http://www.ploscompbiol.org/article/info%3Adoi%2F10.1371%2Fjournal.pcbi.1000743)
 paper, included in the  IDEPI distribution in the **validation/Dybowski.fas** file.
@@ -276,7 +276,7 @@ following form
                     "H330H" ] }
     
 + **id** is the name of the sequence   
-+ **value** reports the phenotype classification, defined according the the label **max(IC50)>=5**
++ **value** reports the phenotype classification, defined according the the label **max(IC50)>=20**
 used to train the model. A value of "1" means the label is True, a value of "-1" means the value is 
 False (susceptible in our case).
 + **features** lists all the model features present in the current sequence; for LSVM classifiers,

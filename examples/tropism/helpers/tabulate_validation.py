@@ -4,8 +4,8 @@ from math import sqrt
 ccr5_res = re.compile ('^.+\_R5\_.*$')
 
 parser = argparse.ArgumentParser(
-    description='convert'
-)
+    description='tabulate validation results for the tropism example'
+
 
 parser.add_argument (
     '-j', '--json',
