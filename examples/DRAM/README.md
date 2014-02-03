@@ -207,6 +207,43 @@ E.g. the _1:5,10:50:5,60:100:10_ argument specifies the 1,2,3,4,5,10,15,20,25,30
 
 **Note** this analysis make take a long time to run.
 
+The output will look much like in the previous two examples, except that the feature list will
+be quite long (abbreviated here to features ranked between 1 and 10 on average). 
+IDEPI selected **N=80** as the number of features yielding the best mean MCC (0.83).  
+
+    {
+      "metadata": {
+        "antibodies":  [ "NVP" ],
+        "balance":     0.622861,
+        "features":    80,
+        "folds":       5,
+        "label":      "max(IC50)>=5",
+        "sequences":   1461
+      },
+      "statistics": {
+        "accuracy":    { "mean": 0.915805, "std": 0.030167 },
+        "f1score":     { "mean": 0.928642, "std": 0.026165 },
+        "mcc":         { "mean": 0.834433, "std": 0.059813 },
+        "npv":         { "mean": 0.831624, "std": 0.045891 },
+        "ppv":         { "mean": 0.982918, "std": 0.026773 },
+        "sensitivity": { "mean": 0.880220, "std": 0.037588 },
+        "specificity": { "mean": 0.974595, "std": 0.039407 }
+      },
+      "weights": [
+      ...
+        { "position": "L74L",           "N": 5, "rank": { "mean":  5.60, "std":  3.90 }, "value": { "mean":  1.00, "std": 0.00 } },
+        { "position": "K103K",          "N": 5, "rank": { "mean":  1.00, "std":  0.00 }, "value": { "mean": -1.00, "std": 0.00 } },
+        { "position": "K103N",          "N": 5, "rank": { "mean":  6.20, "std":  0.89 }, "value": { "mean":  1.00, "std": 0.00 } },
+        { "position": "Y181Y",          "N": 5, "rank": { "mean":  2.00, "std":  0.00 }, "value": { "mean": -1.00, "std": 0.00 } },
+        { "position": "Y188Y",          "N": 5, "rank": { "mean":  6.60, "std":  1.79 }, "value": { "mean": -1.00, "std": 0.00 } },
+        { "position": "G190G",          "N": 5, "rank": { "mean":  3.00, "std":  0.00 }, "value": { "mean": -1.00, "std": 0.00 } },
+       ...
+       ]
+    }
+
+
+
+
 ## Learning the model of NVP resistance
 
 Unlike **idepi discrete** which uses nested cross-validation to study the robustness of the 
@@ -215,10 +252,11 @@ to tune internal model, e.g. LSVM parameters) to build a predictive model and sa
 so that sequences of unknown phenotypes can be classified later.
 
 The arguments are exactly the same as those passed to **idepi discrete**, except the final
-positional argument is required to specify the name of the file (in this case **model/NVP.model**)
-to save the IDEPI model to. We build a model on **N=80** features here.
+positional argument is required to specify the name of the file (in this case **models/NVP.model**)
+to save the IDEPI model to. We build a model on **N=80** features here, based on the grid 
+search from the previous step.
 
-    $idepi learn --csv training/rt.msa training/phenotypes.csv --refmsa training/rt.msa --refseq training/hxb2_rt.fas --label "max(IC50)>=5" --mcc --numfeats 80 NVP model/NVP.model
+    $idepi learn --csv training/rt.msa training/phenotypes.csv --refmsa training/rt.msa --refseq training/hxb2_rt.fas --label "max(IC50)>=5" --mcc --numfeats 80 NVP models/NVP.model
 
 The output to stdout is exactly the same as for **idepi discrete**, except that there is only 
 one "fold". For brevity, only the top 5 ranked features are retained in the listing below.
@@ -267,7 +305,7 @@ resistant if **any** of its resolutions were. This is a standard practice in the
 
 Execute:
 
-    $idepi predict model/NVP.model validation/PMID22110765.msa > validation/idepi.json
+    $idepi predict models/NVP.model validation/PMID22110765.msa > validation/idepi.json
     
 This **idepi predict** script expects to be given the model (saved by **idepi learn**) and
 a collection of sequences (homologous to those used to train the model) as a FASTA file (
