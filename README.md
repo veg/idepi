@@ -1,12 +1,17 @@
 # IDentify EPItopes (IDEPI)
 
-
 IDEPI is a domain-specific and extensible software library for supervised
 learning of models that relate genotype to phenotype for HIV-1 and other
 organisms. 
 
 IDEPI provides a programming interface to allow users to engineer sequence
 features and select machine algorithms appropriate for their application.
+
+##Using IDEPI
+
+Please look inside the [examples](/examples) directory for examples on how
+to use IDEPI to learn and apply phenotype prediction models based on viral
+sequences and to identify most predictive features of viral genomes.
 
  
 ##Quickstart
@@ -26,10 +31,15 @@ To use the virtual machine:
 
 - Decompress the downloaded file and take note of the file path on the host system
 - Open VirtualBox (which can be downloaded from <https://www.virtualbox.org/>)
-- Click on the 'New' button 
-- Type the desired name, select 'Linux' as your operating system type, and 'Ubuntu(64 bit)' as your version.
-- Select your desired memory size(at least 1024MB)
-- Under Hard Drive, please select 'Use an existing virtual hard drive file' and navigate to the idepi-vm.vdi file that you have just downloaded
+- Create a new virtual machine
+- Enter a desired name, select 'Linux' as your operating system type, and 'Ubuntu(64 bit)' as your version.
+- Select the desired memory size
+- When prompted for hard drive options, please select *Use an existing virtual hard drive file* and navigate to the idepi-vm.vdi file that you have just downloaded and decompressed.
+- When the machine has started, double-click the _idepi_ launcher on the desktop
+
+###Note
+A Python virtual environment was used to create the IDEPI environment on the virtual machine. The root directory of the Python virtual environment is <code>/home/user/Programming/env/</code>
+
 
 ##Dependencies
 
@@ -45,8 +55,3 @@ To use the virtual machine:
 - sklearn (>=0.14.0), <http://scikit-learn.org/> 
 
 
-##Using IDEPI
-
-Please look inside the **examples** directory for examples of how
-to use IDEPI to learn and apply phenotype prediction models based on viral
-sequences and to identify most predictive features of viral genomes.
