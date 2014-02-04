@@ -292,11 +292,12 @@ metrics.
 The output (compare to Table 4 in the manuscript) is as follows:
     
     N = 74
+
     IDEPI     Measured     Count   Percentage 
     CCR5      CCR5             53    71.6 
     CXCR4     CXCR4            14    18.9 
     CCR5      CXCR4             5    6.76 
-    CXCR4     CCR5              5    6.76
+    CXCR4     CCR5              2    2.7
 
     Specificity 0.74 
     Sensitivity 0.88 
