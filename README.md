@@ -21,7 +21,7 @@ to install, we created a virtual machine based on Ubuntu 13. It includes a compl
 preconfigured python environment for
 use with IDEPI and can be downloaded from [http://hyphy.org/pubs/idepi-vm.tar.gz](http://hyphy.org/pubs/idepi-vm.tar.gz)
 
-> Please note that this VM file is ~2GB in size and make take a bit of 
+> Please note that this VM file is ~2GB in size and may take a bit of 
 > time to download
 
   User: user  
