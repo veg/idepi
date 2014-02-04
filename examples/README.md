@@ -6,8 +6,8 @@ identify most predictive features of viral genomes.
 
 A preprint of the paper describing IDEPI (**paper.pdf**)  is included in this folder as well. 
 
-* **DRAM** : study HIV-1 drug resistance association mutations 
-* **tropism** : develop models and classify HIV-1 co-receptor usage based on V3 sequences
-* **dementia** : learn genetic signatures in HIV-1 env associated with dementia
-* **bnab**: identify epitopes of HIV-1 broadly neutralizing antibodies
+* [**DRAM** ](/DRAM) : study HIV-1 drug resistance association mutations 
+* [**tropism** ](/tropism) : develop models and classify HIV-1 co-receptor usage based on V3 sequences
+* [**dementia** ](dementia) : learn genetic signatures in HIV-1 env associated with dementia
+* [**bnab** ](/bnab) : identify epitopes of HIV-1 broadly neutralizing antibodies
 
