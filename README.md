@@ -37,8 +37,7 @@ To use the virtual machine:
 - When prompted for hard drive options, please select *Use an existing virtual hard drive file* and navigate to the idepi-vm.vdi file that you have just downloaded and decompressed.
 - When the machine has started, double-click the _idepi_ launcher on the desktop
 
-###Note
-A Python virtual environment was used to create the IDEPI environment on the virtual machine. The root directory of the Python virtual environment is <code>/home/user/Programming/env/</code>
+> A Python virtual environment was used to create the IDEPI environment on the virtual machine. The root directory of the Python virtual environment is <code>/home/user/Programming/env/</code>
 
 
 ##Dependencies
