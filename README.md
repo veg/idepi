@@ -4,10 +4,13 @@ IDEPI is a domain-specific and extensible software library for supervised
 learning of models that relate genotype to phenotype for HIV-1 and other
 organisms.  IDEPI makes use of open source libraries for machine learning
 (scikit- learn, scikit-learn.org/), sequence alignment (HMMER,
-hmmer.janelia.org/), sequence manipula- tion (BioPython, biopython.org), and
+hmmer.janelia.org/), sequence manipulation (BioPython, biopython.org), and
 parallelization (joblib, pythonhosted.org/joblib), and provides a programming
 interface to allow the users to engineer sequence features and select machine
-learning al- gorithms appropriate for their application.
+learning algorithms appropriate for their application.
+
+For more information, a corresponding paper is located at
+http://hyphy.org/pubs/idepi/paper.pdf. 
 
 
 ##Using IDEPI
@@ -19,10 +22,10 @@ sequences and to identify most predictive features of viral genomes.
  
 ##Quickstart
 
-Because some of the dependancies of IDEPI (see below) can be somewhat tricky
-to install, we created a virtual machine based on Ubuntu 13. It includes a complete
-preconfigured python environment for
-use with IDEPI and can be downloaded from [http://hyphy.org/pubs/idepi-vm.tar.gz](http://hyphy.org/pubs/idepi-vm.tar.gz)
+Because some of the dependencies of IDEPI (see below) can be somewhat tricky to
+install, we've created a virtual machine based on Ubuntu 13. It includes a
+complete preconfigured python environment for use with IDEPI and can be
+downloaded from [http://hyphy.org/pubs/idepi-vm.tar.gz](http://hyphy.org/pubs/idepi-vm.tar.gz)
 
 > Please note that this VM file is ~2GB in size and may take a bit of 
 > time to download
@@ -41,7 +44,9 @@ To use the virtual machine:
 - When prompted for hard drive options, please select *Use an existing virtual hard drive file* and navigate to the idepi-vm.vdi file that you have just downloaded and decompressed.
 - When the machine has started, double-click the _idepi_ launcher on the desktop
 
-> A Python virtual environment was used to create the IDEPI environment on the virtual machine. The root directory of the Python virtual environment is <code>/home/user/Programming/env/</code>
+> A Python virtual environment was used to create the IDEPI environment on the
+> virtual machine. The root directory of the Python virtual environment is
+> <code>/home/user/Programming/env/</code>
 
 
 ##Dependencies
@@ -56,5 +61,4 @@ To use the virtual machine:
 - six, <http://pypi.python.org/pypi/six>
 - HMMer, <http://hmmer.janelia.org/>
 - sklearn (>=0.14.0), <http://scikit-learn.org/> 
-
 
