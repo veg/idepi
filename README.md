@@ -25,7 +25,7 @@ sequences and to identify most predictive features of viral genomes.
 Because some of the dependencies of IDEPI (see below) can be somewhat tricky to
 install, we've created a virtual machine based on Ubuntu 13. It includes a
 complete preconfigured python environment for use with IDEPI and can be
-downloaded from [http://hyphy.org/pubs/idepi-vm.tar.gz](http://hyphy.org/pubs/idepi-vm.tar.gz)
+downloaded from <http://hyphy.org/pubs/idepi/idepi-vm.tar.gz>
 
 > Please note that this VM file is ~2GB in size and may take a bit of 
 > time to download
