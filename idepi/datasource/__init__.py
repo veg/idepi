@@ -154,7 +154,7 @@ class Sqlite3Db:
 
 
 class MonogramData:
-    __sample_len = 2048
+    __sample_len = 2**16
     __no_header_msg = 'input data is not a valid Monogram dataset (no column headers)'
 
     def __init__(self, fastafile, csvfile):
