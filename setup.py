@@ -64,13 +64,18 @@ setup(name='idepi',
       },
       package_data={'idepi': ['data/*', 'hyphy/*.bf']},
       scripts=['scripts/idepi'],
-      requires=[
-            'Bio (>=1.58)',
-            'BioExt (>=0.14.0)',
-            'hppy (>=0.9.5)',
-            'numpy (>=1.6)',
+      dependency_links = [
+            'git+git://github.com/veg/hppy.git@0.9.6#egg=hppy-0.9.6',
+            'git+git://github.com/veg/sklmrmr.git@0.2.0#egg=sklmrmr-0.2.0',
+            'git+git://github.com/veg/BioExt.git@0.17.2#egg=BioExt-0.17.2'
+      ],
+      install_requires=[
+            'numpy >=1.6',
+            'biopython >= 1.58',
+            'BioExt >=0.14.0',
+            'hppy >=0.9.5',
             'six',
-            'sklearn (>=0.14.0)',
-            'sklmrmr (>=0.2.0)',
+            'scikit-learn == 0.15.0',
+            'sklmrmr >= 0.2.0',
       ]
      )
