@@ -75,7 +75,7 @@ setup(name='idepi',
             'BioExt >=0.14.0',
             'hppy >=0.9.5',
             'six',
-            'scikit-learn == 0.15.0',
+            'scikit-learn == 1.5.0',
             'sklmrmr >= 0.2.0',
       ]
      )
